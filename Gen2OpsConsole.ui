@@ -156,7 +156,7 @@
       <string>Track</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="TrackPushButton_2">
+    <widget class="QPushButton" name="StowPushButton">
      <property name="geometry">
       <rect>
        <x>180</x>
@@ -169,23 +169,10 @@
       <string>Stow</string>
      </property>
     </widget>
-    <widget class="QPushButton" name="TrackPushButton_3">
+    <widget class="QPushButton" name="SetTimePushButton">
      <property name="geometry">
       <rect>
        <x>180</x>
-       <y>90</y>
-       <width>71</width>
-       <height>24</height>
-      </rect>
-     </property>
-     <property name="text">
-      <string>Set Time</string>
-     </property>
-    </widget>
-    <widget class="QPushButton" name="TrackPushButton_4">
-     <property name="geometry">
-      <rect>
-       <x>290</x>
        <y>90</y>
        <width>71</width>
        <height>24</height>
