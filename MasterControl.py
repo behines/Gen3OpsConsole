@@ -23,6 +23,19 @@ class MasterControl(QMainWindow):
     self.setCentralWidget(ui.centralWidget())  # Use the central widget from the loaded UI
     self.setWindowTitle('Windsor Master Control Console')
 
+    # Create Collector Control Window
+    self.CollectorControlWindow = CollectorControl()
+    self.CollectorControlWindow.show()
+    getattr(self.CollectorControlWindow, "raise")()
+    self.CollectorControlWindow.activateWindow()
+
+  def closeEvent(self, event):
+    # Ensure the CollectorControlWindow is closed when the main window is closed
+    if self.CollectorControlWindow:
+      self.CollectorControlWindow.ForceClose()
+    event.accept()  # Proceed with closing MainWin
+
+
 class CollectorPane(QWidget):
   def __init__(self, parent=None):
     super().__init__(parent)
@@ -60,11 +73,25 @@ class CollectorControl(QWidget):
     scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
     scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
 
-
     # Set the scroll area as the main layout
     main_layout = QVBoxLayout(self)
     main_layout.addWidget(scroll_area)
     self.setLayout(main_layout)
+
+    # Disable the close button in this window
+    self.setWindowFlags(self.windowFlags() & ~Qt.WindowCloseButtonHint)
+
+    self.bAllowClose = False
+
+  def ForceClose(self):
+    self.bAllowClose = True
+    self.close()
+
+  def closeEvent(self, event):
+    if not self.bAllowClose:
+      # Ignore any close events
+      QMessageBox.warning(self, "Warning", "You cannot close this window directly.")
+      event.ignore()
 
 
 if __name__ == "__main__":
@@ -76,10 +103,6 @@ if __name__ == "__main__":
   MainWin.activateWindow()
   
 
-  # Show Collector Control Window
-  CollectorControlWindow = CollectorControl()
-  CollectorControlWindow.show()
-  getattr(CollectorControlWindow, "raise")()
-  CollectorControlWindow.activateWindow()
+
   
   sys.exit(app.exec())
