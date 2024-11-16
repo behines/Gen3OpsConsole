@@ -1,7 +1,7 @@
 import sys
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout, QVBoxLayout, QMessageBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout, QScrollArea, QVBoxLayout, QMessageBox
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore import QFile, QTimer
+from PySide6.QtCore import QFile, Qt
 
 class MasterControl(QMainWindow):
   def __init__(self, parent=None):
@@ -42,17 +42,29 @@ class CollectorControl(QWidget):
     super().__init__(parent)
     self.setWindowTitle("Collector Control")
 
-    # Create grid layout for 5x3 collector panes
-    layout = QGridLayout(self)
-    self.collector_panes = []
-
+    # Create a central widget and grid layout for 5x3 collector panes
+    central_widget = QWidget()
+    layout = QGridLayout(central_widget)
+    
     for row in range(5):
       for col in range(3):
         collector_pane = CollectorPane(self)
-        collector_pane.setFixedSize(collector_pane.size())
         layout.addWidget(collector_pane, row, col)
-        self.collector_panes.append(collector_pane)
-    self.setLayout(layout)
+
+    # Wrap the central widget with a QScrollArea
+    scroll_area = QScrollArea()
+    scroll_area.setWidgetResizable(True)
+    scroll_area.setWidget(central_widget)
+
+    # Only enable vertical scroll bar
+    scroll_area.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+    scroll_area.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+
+
+    # Set the scroll area as the main layout
+    main_layout = QVBoxLayout(self)
+    main_layout.addWidget(scroll_area)
+    self.setLayout(main_layout)
 
 
 if __name__ == "__main__":
