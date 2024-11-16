@@ -1,7 +1,7 @@
 import sys
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout, QMessageBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout, QVBoxLayout, QMessageBox
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore import QFile
+from PySide6.QtCore import QFile, QTimer
 
 class MasterControl(QMainWindow):
   def __init__(self, parent=None):
@@ -19,20 +19,9 @@ class MasterControl(QMainWindow):
     ui = loader.load(ui_file, self)
     ui_file.close()
     
-    if not self.window:
-      QMessageBox.critical(self, "Error", "Failed to load UI file")
-      sys.exit(1)
-    
     # Integrate the loaded UI
     self.setCentralWidget(ui.centralWidget())  # Use the central widget from the loaded UI
-    self.adjustSize()
-
     self.setWindowTitle('Windsor Master Control Console')
-
-    # Show Collector Control Window
-    #self.collector_control_window = CollectorControl()
-    #self.collector_control_window.show()
-
 
 class CollectorPane(QWidget):
   def __init__(self, parent=None):
@@ -45,38 +34,40 @@ class CollectorPane(QWidget):
     ui = loader.load(ui_file, self)
     ui_file.close()
 
-    # Set the loaded UI layout to the widget
-    layout = self.layout()
-    self.setLayout(layout)
+    self.setFixedSize(ui.size())
 
 
 class CollectorControl(QWidget):
   def __init__(self, parent=None):
     super().__init__(parent)
     self.setWindowTitle("Collector Control")
-    
+
     # Create grid layout for 5x3 collector panes
     layout = QGridLayout(self)
+    self.collector_panes = []
+
     for row in range(5):
       for col in range(3):
         collector_pane = CollectorPane(self)
+        collector_pane.setFixedSize(collector_pane.size())
         layout.addWidget(collector_pane, row, col)
+        self.collector_panes.append(collector_pane)
     self.setLayout(layout)
+
 
 if __name__ == "__main__":
   app = QApplication(sys.argv)
-
-  # Load MasterControl UI dynamically
-  #loader = QUiLoader()
-  #ui_file = QFile("Gen2OpsConsole.ui")
-   
-  #ui_file.open(QFile.ReadOnly)
-  #MainWin = loader.load(ui_file)
-  #ui_file.close()
 
   MainWin = MasterControl()
   MainWin.show()
   getattr(MainWin, "raise")()
   MainWin.activateWindow()
+  
+
+  # Show Collector Control Window
+  CollectorControlWindow = CollectorControl()
+  CollectorControlWindow.show()
+  getattr(CollectorControlWindow, "raise")()
+  CollectorControlWindow.activateWindow()
   
   sys.exit(app.exec())
