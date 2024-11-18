@@ -16,7 +16,8 @@ import serial
 from datetime import datetime
 
 from PySide6.QtWidgets import  QWidget
-from PySide6.QtCore import QFile, Qt, QTimer, QMutex
+from PySide6.QtUiTools import QUiLoader
+from PySide6.QtCore    import QFile, Qt, QTimer, QMutex
 
 ##########################################################################################
 ##########################################################################################
@@ -35,13 +36,24 @@ class tCollector(QWidget):
   # INPUTS:
   #     
 
-  def __init__(self, collectorName, portName, baudRate, parent=None):
+  def __init__(self, parent=None):# collectorName, portName, baudRate, parent=None):
     super().__init__(parent)   # QWidget constructor
       
     self.bInit    = False
     self.bResponded  = False
-    self.name     = collectorName
+    self.name     = 'Foo' #collectorName
     self.port     = None
+
+    # Load CollectorPane UI dynamically
+    loader = QUiLoader()
+    ui_file = QFile("CollectorPane.ui")
+    ui_file.open(QFile.ReadOnly)
+    ui = loader.load(ui_file, self)
+    ui_file.close()
+
+    self.setFixedSize(ui.size())
+
+    return
 
     try:
       # Mutex for controlling access to the device

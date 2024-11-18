@@ -13,12 +13,11 @@ from collections import namedtuple
 
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout, QScrollArea, QVBoxLayout, QMessageBox
-from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile, Qt, QTimer
 
 # Import configuration of the system
 from ConfigInfo import *
-
+from Collector  import tCollector
 
 
 ##########################################################################################
@@ -39,18 +38,9 @@ class tCollectorControlWindow(QWidget):
     central_widget = QWidget()
     layout = QGridLayout(central_widget)
     
-    # Load CollectorPane UI dynamically
-    loader = QUiLoader()
-    ui_file = QFile("CollectorPane.ui")
-    ui_file.open(QFile.ReadOnly)
-    ui = loader.load(ui_file, self)
-    ui_file.close()
-
-    self.setFixedSize(ui.size())
-
     for row in range(5):
       for col in range(3):
-        collector_pane = ui #CollectorPane(self)
+        collector_pane = tCollector(self)
         layout.addWidget(collector_pane, row, col)
 
     # Wrap the central widget with a QScrollArea
