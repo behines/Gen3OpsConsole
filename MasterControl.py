@@ -86,6 +86,11 @@ class MasterControl(QMainWindow):
     ui = loader.load(ui_file, self)
     ui_file.close()
     
+    # Auto-bind widgets as attributes of self.  Not needed if we compile the UI with pyside6-uic,
+    # but QUiLoader does not do this automatically.
+    for widget in ui.findChildren(QWidget):
+      setattr(self, widget.objectName(), widget)
+
     # Integrate the loaded UI
     self.setCentralWidget(ui.centralWidget())  # Use the central widget from the loaded UI
     self.setWindowTitle('Windsor Master Control Console')

@@ -51,7 +51,15 @@ class tCollector(QWidget):
     ui = loader.load(ui_file, self)
     ui_file.close()
 
+    # Auto-bind widgets as attributes of self.  Not needed if we compile the UI with pyside6-uic,
+    # but QUiLoader does not do this automatically.
+    for widget in ui.findChildren(QWidget):
+      setattr(self, widget.objectName(), widget)
+
     self.setFixedSize(ui.size())
+
+    collectorName = 'Collector ' + collectorName
+    self.CollectorGroup.setTitle(collectorName)
 
     try:
       # Mutex for controlling access to the device
