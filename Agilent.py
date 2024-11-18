@@ -127,6 +127,10 @@ class tAgilent:
     self.NipCalibrationFactorInMicrovolts = NipCalibrationFactorInMicrovolts
     self.ChannelForDisplayOnFrontPanel    = ChannelForDisplayOnFrontPanel
 
+    # Explode the channel list as provided into a fully elaborated list
+    # We can do this in the constructor becuase it doesn't require the device to be open
+    self.ChannelList = tAgilent.AgilentChannelListToPythonList(FullScanChannelList)
+
     # Retry timer.  Probably don't need it but it's simplest to create it regardless
     self.RetryTimer = QTimer()
     self.RetryTimer.setSingleShot(True)  # Optional: Make it fire only once
@@ -202,9 +206,6 @@ class tAgilent:
       self.SelectChannelToDisplayOnFrontPanel(self.ChannelForDisplayOnFrontPanel)
 
     self.ConfigureScanList(self.FullScanChannelList)
-
-    # Explode the channel list as provided into a fully elaborated list
-    self.ChannelList = tAgilent.AgilentChannelListToPythonList(self.FullScanChannelList)
 
 
   ###############################################

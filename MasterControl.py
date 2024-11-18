@@ -136,8 +136,8 @@ class MasterControl(QMainWindow):
     except ValueError:
       BoxMeasurementIndex = None
     # Determine which channels to use for reporting DNI and GHI to marquee
-    DniChannelIndex = FindFirstNonNoneValueForField('DNI channels') 
-    GhiChannelIndex = FindFirstNonNoneValueForField('GHI channels') 
+    DniChannelIndex = FindFirstNonNoneValueForField(CompleteChannelList, 'DNI channels') 
+    GhiChannelIndex = FindFirstNonNoneValueForField(CompleteChannelList, 'GHI channels') 
 
     self.Collectors = None
 

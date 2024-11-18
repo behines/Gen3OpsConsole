@@ -16,7 +16,6 @@ import serial
 from datetime import datetime
 
 from PySide6.QtWidgets import  QWidget
-from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile, Qt, QTimer, QMutex
 
 ##########################################################################################
@@ -39,17 +38,6 @@ class tCollector(QWidget):
   def __init__(self, collectorName, portName, baudRate, parent=None):
     super().__init__(parent)   # QWidget constructor
       
-    # Load CollectorPane UI dynamically
-    loader = QUiLoader()
-    ui_file = QFile("CollectorPane.ui")
-    ui_file.open(QFile.ReadOnly)
-    ui = loader.load(ui_file, self)
-    ui_file.close()
-
-    self.setFixedSize(ui.size())
-
-
-
     self.bInit    = False
     self.bResponded  = False
     self.name     = collectorName
