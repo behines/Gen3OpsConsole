@@ -36,7 +36,7 @@ class tCollector(QWidget):
   # INPUTS:
   #     
 
-  def __init__(self, parent=None):# collectorName, portName, baudRate, parent=None):
+  def __init__(self, collectorName, portName, baudRate, parent=None):
     super().__init__(parent)   # QWidget constructor
       
     self.bInit    = False
@@ -52,8 +52,6 @@ class tCollector(QWidget):
     ui_file.close()
 
     self.setFixedSize(ui.size())
-
-    return
 
     try:
       # Mutex for controlling access to the device

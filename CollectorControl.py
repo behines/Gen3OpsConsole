@@ -34,14 +34,19 @@ class tCollectorControlWindow(QWidget):
     super().__init__(parent)
     self.setWindowTitle("Collector Control")
 
+    # Create the collector array.  We have to do it here, rather than at a higher level,
+    # because the tCollector widget needs to be told its parent
+    Collectors = [ tCollector(*port_info, COLLECTOR_BAUD_RATE, self) for port_info in COLLECTOR_PORTS ]
+
+    Collector_iterator = (collector for collector in Collectors)  # Compact generator
+
     # Create a central widget and grid layout for 5x3 collector panes
     central_widget = QWidget()
     layout = QGridLayout(central_widget)
     
     for row in range(5):
       for col in range(3):
-        collector_pane = tCollector(self)
-        layout.addWidget(collector_pane, row, col)
+        layout.addWidget(next(Collector_iterator), row, col)
 
     # Wrap the central widget with a QScrollArea
     scroll_area = QScrollArea()
