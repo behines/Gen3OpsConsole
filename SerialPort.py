@@ -1,72 +1,75 @@
 ###############################################
-# tSerial - Manages serial ports
+# tSerialPort - Manages serial ports
 #
 # Opens and closes ports, and particularly, helps to deal with ports that
 # are offline at startup or that go offline later
 #
 
-
+# For implementing object locking and retry timer
+from PySide6.QtCore import QMutex, QTimer, QObject
+from Utilities      import requires_device_open
 import serial
 
-class tSerial:
+from ConfigInfo       import *
+
+
+class tSerialPort(QObject):
 
   ###############################################
-  # tSerial constructor
+  # tSerialPort constructor
   #  
+  # bAutoRetry - if True, the class will automatically try to reconnect periodically
 
-  def __init__(self, port, baud, timeout = 0):
-    self.Port             = port
-    self.Baud             = baud
-    self.TimeoutSecs      = timeout
-    self.SerialPort       = None
+  def __init__(self, portName, baud, bAutoRetry=True, rx_size = DEFAULT_SERIAL_PORT_RX_BUFFER_SIZE,
+               tx_size= DEFAULT_SERIAL_PORT_TX_BUFFER_SIZE, timeout = 0, parent=None):
+    super().__init__(parent)   # QObject constructor
+
+    self.PortName    = portName
+    self.Baud        = baud
+    self.TimeoutSecs = timeout
+    self.bAutoRetry  = bAutoRetry
+    self.rx_size     = rx_size
+    self.tx_size     = tx_size
+    self.port        = None
+
+    # Retry timer.  Used if we need to try to reopen the port at a time other
+    # than when the program tries to read it.  So things like the temp/humidity
+    # sensors don't need this since we actively read them. 
+    if bAutoRetry:
+      self.RetryTimer = QTimer()
+      self.RetryTimer.setSingleShot(True)  # Optional: Make it fire only once
   
+  def __del__(self):
+    self.Close()
+
 
   ###############################################
-  # tSerial::Open
+  # tSerialPort::Open
   # 
   # Opens the serial port specified in the constructor
-  #
-  # Takes the long-name of the port as an argument
   #
   # RETURNS:
   #   0 if successful, 1 if already open, -1 if failed
   #
  
-  def Open(self, LongName = None):
+  def Open(self):
     if (self.SerialPort is None) :
       try:
-        if (LongName == None):
-          if (self.LongName == None):
-            print("tUart::Open: must supply a LongName either as argument to Open() or via SetLongName()"  )
-            return -1
-          else:
-            LongName = self.LongName
-        print("Attempting to open ", self.Port, ": ", LongName)
-        if ((not (self.Port is None)) and (CAN_OVER_SERIAL_PORT_NAME in LongName)):
-          # This appears to be our Arduino Due relaying CAN bus over serial - set the baud rate to match it
-          self.Baud = CAN_OVER_SERIAL_BAUD_RATE
-          self.bIsCanOverSerial = True
-          print("Adjusted to use CAN baud rate of ", CAN_OVER_SERIAL_BAUD_RATE)
-        else:
-          self.bIsCanOverSerial = False
-        self.SerialPort = serial.Serial(self.Port, self.Baud, timeout = self.TimeoutSecs)  # , rtscts = True)
-        print("Serial port is ", self.SerialPort.name)         # check which port was really used
+        print("Attempting to open ", self.PortName)
+        self.SerialPort = serial.Serial(self.Portname, self.Baud, timeout = self.TimeoutSecs)  # , rtscts = True)
+
         try:
-          self.SerialPort.set_buffer_size(rx_size = RX_BUFFER_SIZE, tx_size = TX_BUFFER_SIZE)
+          self.SerialPort.set_buffer_size(rx_size = self.rx_size, tx_size = self.tx_size)
         except AttributeError as err:
           print("PySerial::set_buffer_size not supported on this platform, continuing"  )
         return 0
       except OSError as err:
-        print("Error opening serial port:", err)
+        print("Error opening serial port:", err, ', will retry in ', SERIAL_PORT_RETRY_TIMEOUT_SECS, ' seconds')
         self.SerialPort = None
-        return -1
-    else:
-      print("Serial port ", self.SerialPort.name, " already open")  
-      return 1
-    
+
 
   ###############################################
-  # tUart::Close
+  # tSerialPort::Close
   # 
   # Closes the serial port, if it was open
   #
@@ -79,18 +82,43 @@ class tSerial:
 
 
   ###############################################
-  # tUart::IsOpen
+  # tSerialPort::StartOpenRetryTimer
   # 
-  # Uses the state invariant that self.SerialPort is the port object if 
-  # successfully opened, or is None if not open.
+  # Kicks off a timer that we can check
+  #   
+ 
+  def StartOpenRetryTimer(self):
+    timeout_ms = SERIAL_PORT_RETRY_TIMEOUT_SECS * 60 * 1000  # Convert minutes to milliseconds
+    self.RetryTimer.start(timeout_ms)
+
+
+  ###############################################
+  # tSerialPort::IsDeviceOpen
+  # 
+  # Returns true if the device is open.  If it is not open, it will check the retry timer.
+  # If the retry timer has expired, it will try again to open the device.
+  #   
+ 
+  def IsDeviceOpen(self):
+    if self._IsOpen():
+      return True
+    # If the device is not open, see if the retry timer has timed out
+    if self.RetryTimer.remainingTime() <= 0:
+      self.Open()
+      return not (self.SerialPort is None)
+    
+
+  ###############################################
+  # tSerialPort::_IsOpen
+  # 
   #
  
-  def IsOpen(self):
+  def _IsOpen(self):
     return (not (self.SerialPort is None))
   
 
   ###############################################
-  # tUart::SetTimeout
+  # tSerialPort:::SetTimeout
   # 
   # Sets the timeout for operations to the specified number of seconds.  Can be a float.
   #
@@ -100,7 +128,7 @@ class tSerial:
 
 
   ###############################################
-  # tUart::__enter__ and __exit
+  # tSerialPort::__enter__ and __exit
   # 
   # These methods are called automatically at the beginning and end of "with" blocks.
   # This allows automatic closing of the port when used in a with block.
@@ -113,19 +141,3 @@ class tSerial:
   def __exit__(self, exception_type, exception_value, traceback):
     self.Close()
     
-
-  ###############################################
-  # tUart::EnumeratePorts - Static method to get list of ports
-  #
-  # You can call this prior to constructing a UART to get a list of candidate ports
-  #  
-  # It returns a vector of tuples of (Device, Description)
-  
-  @staticmethod
-  def EnumeratePorts():
-    
-    PortObjects = serial.tools.list_ports.comports()
-    DeviceList = [ (PortObjects[i].device,PortObjects[i].description) for i in range(len(PortObjects)) ]
-
-    return DeviceList
-

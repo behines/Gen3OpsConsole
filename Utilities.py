@@ -159,7 +159,7 @@ class tPeriodicThread(tThreadRunner):
       current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
 
       # Calculate the remaining time until the next interval
-      milliseconds_until_next_interval = self.PeriodInMs - (current_time.time().msecsSinceStartOfDay() % self.PeriodInMs)
+      milliseconds_until_next_interval = int(self.PeriodInMs - (current_time.time().msecsSinceStartOfDay() % self.PeriodInMs))
       
       # Calculate the exact datetime for the next run
       self.NextRunTime = current_time.addMSecs(milliseconds_until_next_interval)

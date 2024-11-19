@@ -97,7 +97,7 @@ class MasterControl(QMainWindow):
 
 
     # Construct the Agilent objects.  The '*' splats the descriptor onto the constructor arguments
-    self.Agilents   = [ tAgilent(*descriptor) for descriptor in AGILENTS ]
+    self.Agilents   = [ tAgilent(*descriptor, parent=self) for descriptor in AGILENTS ]
 
 
     # Marquee display and standalone sensors

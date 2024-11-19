@@ -25,7 +25,7 @@ import os
 import sys
 
 # For implementing object locking and retry timer
-from PySide6.QtCore import QMutex, QTimer
+from PySide6.QtCore import QMutex, QTimer, QObject
 from Utilities      import requires_device_open
 
 
@@ -43,7 +43,7 @@ from ConfigInfo       import *
 # mutually exclusive access to the serial port.
 #
 
-class tAgilent:
+class tAgilent(QObject):
 
   #################################################
   #
@@ -109,7 +109,9 @@ class tAgilent:
 
   def __init__(self, deviceName, FullScanChannelList, TypeKhermocoupleChannels, GhiChannel, 
                      DniChannel, NipCalibrationFactorInMicrovolts,
-                     ChannelForDisplayOnFrontPanel):
+                     ChannelForDisplayOnFrontPanel, parent=None):
+    super().__init__(parent)   # QObject constructor
+
                      
     # Create the resource manager if it doesn't exist yet
     if tAgilent.PyVisaResourceManager is None:

@@ -79,6 +79,12 @@ BOX_CHANNEL_FOR_MARQUEE_DISPLAY = 2104  # 2104 = thermocouple 64, in the air jus
 
 
 ##########
+# COM PORT GENERAL DEFAULT CONFIG
+DEFAULT_SERIAL_PORT_RX_BUFFER_SIZE = 2000
+DEFAULT_SERIAL_PORT_TX_BUFFER_SIZE = 2000
+SERIAL_PORT_RETRY_TIMEOUT_SECS = 60
+
+##########
 # COM ports for temperature sensors and Marquee display
 #
 
@@ -123,7 +129,7 @@ COLLECTOR_PORTS = [
 
 #########
 # Logging - daily folder is not in Nextcloud, to avoid constant thrashing
-LOG_INTERVAL_SECONDS = 60
+LOG_INTERVAL_SECONDS = 5
 DAILY_FOLDER   = 'WindsorDailyLog'    # Will be placed under "My Documents"
 ARCHIVE_FOLDER = 'Nextcloud/Engineering/Calseed Prototype/Data/DailyLogs'  # Logs get copied to here at midnight
 

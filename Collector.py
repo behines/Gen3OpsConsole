@@ -29,7 +29,6 @@ from PySide6.QtCore    import QFile, Qt, QTimer, QMutex
 
 class tCollector(QWidget):
   
-
   ###############################################
   # Constructor and destructor
   # 
