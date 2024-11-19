@@ -65,11 +65,9 @@ class tPeriodicLogger(tPeriodicThread):
   ###############################################
   # PeriodicMethod
   # 
-  # INPUTS:
-  #   ScheduledTime - the QDateTime that the method was scheduled to run, in the current time zone
 
-  def PeriodicMethod(self, ScheduledTime):
-    self.LogTemperatureData(ScheduledTime)
+  def PeriodicMethod(self):
+    self.LogTemperatureData()
 
 
   ###############################################
@@ -78,7 +76,7 @@ class tPeriodicLogger(tPeriodicThread):
   # INPUTS:
   #   ScheduledTime - the QDateTime that the method was scheduled to run, in the current time zone
 
-  def LogTemperatureData(self, ScheduledTime):
+  def LogTemperatureData(self):
 
     ###
     # Collect all data
@@ -133,7 +131,7 @@ class tPeriodicLogger(tPeriodicThread):
     #
 
     # Pass the timestamp into the logger
-    #if LogFile.LogRecord(ScheduledTime, OutputLine):
+    #if LogFile.LogRecord(self.ScheduledTime, OutputLine):
       # If True, we've just crossed midnight - tell the sequencer
     #  pass #Sequencer.StartNewDay()
 
@@ -142,5 +140,5 @@ class tPeriodicLogger(tPeriodicThread):
     
     self.Marquee.SendAll(*DomeReadings, *OutsideReadings, BoxTemp, GHI, DNI, CollectorStates)
 
-    print(ScheduledTime.strftime('%Y-%m-%d %H:%M:%S'),': Temps: Box=', BoxTemp, 'Dome=', DomeTemp, ' Elec=', ElecTemp,' Stan=',StanTemp,' DNI=', DNI, ' GHI=', GHI)
+    print(self.ScheduledTime.strftime('%Y-%m-%d %H:%M:%S'),': Temps: Box=', BoxTemp, 'Dome=', DomeTemp, ' Elec=', ElecTemp,' Stan=',StanTemp,' DNI=', DNI, ' GHI=', GHI)
   

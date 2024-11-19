@@ -124,7 +124,13 @@ class tThreadRunner(QObject):
 # tPeriodicThread - a class that owns a thread that runs at a specified interval
 #
 # This class is meant to be inherited by any class whose main purpose is to spawn a persistent
-# periodicaly running thread once initialized.
+# periodically running thread once initialized.
+#
+# The derived class should provide a method tPeriodicMethod(self, args), and then you spawn
+# the periodic method using
+#    self.SpawnPeriodicMethodAsThreadAndSetAffinityToNewThread(PeriodInMs, self.PeriodicMethod, arg1, arg2 [etc])
+# If your PeriodicMethod wants to know the time at which is was scheduled to run, that is stored in 
+# self.ScheduledTime
 #
 
 class tPeriodicThread(tThreadRunner):
@@ -156,7 +162,7 @@ class tPeriodicThread(tThreadRunner):
   # 
   
   def _run(self):
-    try:
+    #try:
       # Get the current time in the specified timezone
       current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
 
@@ -164,7 +170,7 @@ class tPeriodicThread(tThreadRunner):
       milliseconds_until_next_interval = int(self.PeriodInMs - (current_time.time().msecsSinceStartOfDay() % self.PeriodInMs))
       
       # Calculate the exact datetime for the next run
-      self.NextRunTime = current_time.addMSecs(milliseconds_until_next_interval)
+      self.ScheduledTime = current_time.addMSecs(milliseconds_until_next_interval)
 
       while True:
         if milliseconds_until_next_interval > 0:
@@ -174,13 +180,13 @@ class tPeriodicThread(tThreadRunner):
         if self.methodToRun() != 0:
           break
 
-        self.NextRunTime = self.NextRunTime.addMSecs(self.PeriodInMs)
+        self.ScheduledTime = self.ScheduledTime.addMSecs(self.PeriodInMs)
 
         current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
-        milliseconds_until_next_interval = current_time.msecsTo(self.NextRunTime)
+        milliseconds_until_next_interval = current_time.msecsTo(self.ScheduledTime)
           
       self.Finished.emit()
 
-    except Exception as e:
-      print('Error: ', str(e))
-      self.error.emit(str(e))
+    #except Exception as e:
+    #  print('Error: ', str(e))
+    #  self.error.emit(str(e))
