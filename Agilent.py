@@ -121,6 +121,7 @@ class tAgilent(QObject):
 
     # Mutex for controlling access to the device
     self._lock = QMutex()
+    self.RetryTimer = None
 
     # Remember our arguments for use in the call to OpenDevice
     # We remember rather than call so that we can try open again later if it fails at first
@@ -148,6 +149,8 @@ class tAgilent(QObject):
   def __del__(self):
     if not self.device is None:
       self.device.close()
+    if not self.RetryTimer is None and self.RetryTimer.isActive():
+      self.RetryTimer.stop()
 
 
   ###############################################

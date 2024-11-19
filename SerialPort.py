@@ -41,7 +41,9 @@ class tSerialPort(QObject):
   
   def __del__(self):
     self.Close()
-
+    if not self.RetryTimer is None and self.RetryTimer.isActive():
+      self.RetryTimer.stop()
+      
 
   ###############################################
   # tSerialPort::Open

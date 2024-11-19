@@ -61,9 +61,10 @@ class tMarquee(QObject):
       self.RetryTimer.setSingleShot(True)  # Optional: Make it fire only once
 
   def __del__(self):
-     if not self.port is None:
-       self.port.close()
-
+    if not self.port is None:
+      self.port.close()
+    if not self.RetryTimer is None and self.RetryTimer.isActive():
+      self.RetryTimer.stop()
 
   ###############################################
   # __enter__ and __exit__ for use with "with"

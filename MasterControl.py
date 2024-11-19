@@ -124,7 +124,7 @@ class MasterControl(QMainWindow):
 
     # Construct the Agilent objects.  The '*' splats the descriptor onto the constructor arguments
     # This includes opening the devices
-    self.Agilents   = [ tAgilent(*descriptor) for descriptor in AGILENTS ]
+    self.Agilents   = [ tAgilent(*descriptor, parent=self) for descriptor in AGILENTS ]
 
     # Get the complete channel list, adding the mainframe number as a prefix 1000, 2000, 3000, to each channel
     CompleteChannelList = [channel + 1000*(index+1) for index, agilent in enumerate(self.Agilents) for channel in agilent.ChannelList]
