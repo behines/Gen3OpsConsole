@@ -119,6 +119,9 @@ class tAgilent(QObject):
       print('Created pyvisa resource manager, found:')
       print(tAgilent.PyVisaResourceManager.list_resources())
 
+    # Mutex for controlling access to the device
+    self._lock = QMutex()
+
     # Remember our arguments for use in the call to OpenDevice
     # We remember rather than call so that we can try open again later if it fails at first
     self.DeviceName                       = deviceName
@@ -132,10 +135,6 @@ class tAgilent(QObject):
     # Explode the channel list as provided into a fully elaborated list
     # We can do this in the constructor becuase it doesn't require the device to be open
     self.ChannelList = tAgilent.AgilentChannelListToPythonList(FullScanChannelList)
-
-    # Retry timer.  Probably don't need it but it's simplest to create it regardless
-    self.RetryTimer = QTimer()
-    self.RetryTimer.setSingleShot(True)  # Optional: Make it fire only once
 
     self.OpenAndConfigureDevice()
 
@@ -176,9 +175,6 @@ class tAgilent(QObject):
     self.device = None
 
     try:
-      # Mutex for controlling access to the device
-      self._lock = QMutex()
-
       self.device              = tAgilent.PyVisaResourceManager.open_resource(self.DeviceName) 
       self.device.baud_rate    = tAgilent.BAUD_RATE
       self.device.data_bits    = tAgilent.DATA_BITS
@@ -217,6 +213,8 @@ class tAgilent(QObject):
   #   
  
   def StartOpenRetryTimer(self):
+    self.RetryTimer = QTimer()
+    self.RetryTimer.setSingleShot(True)  # Optional: Make it fire only once
     timeout_ms = AGILENT_RETRY_TIMEOUT_MIN * 60 * 1000  # Convert minutes to milliseconds
     self.RetryTimer.start(timeout_ms)
   
@@ -242,7 +240,7 @@ class tAgilent(QObject):
   # Reset - Resets device to factory reset/power-on state
   # 
 
-  @requires_device_open
+  @requires_device_open()
   def Reset(self):
     # Clear the Agilent of any data stored in memory from previous scans
     self.device.write('*CLS')     
@@ -270,7 +268,7 @@ class tAgilent(QObject):
   #   ChannelList - List of channels, in the form, e.g., '101:105,108,111,112,204:209'
   #   NipCalibrationFactorInMicrovolts - Microvolts per W/m^2 from the nameplate on the NIP 
 
-  @requires_device_open
+  @requires_device_open()
   def ConfigureChannelsforDNI(self,ChannelList,NipCalibrationFactorInMicrovolts):
     scanlist = '(@' + str(ChannelList) + ')'
     # Configure channel list for DC voltage reading, 10 mV range
@@ -294,7 +292,7 @@ class tAgilent(QObject):
   # INPUTS:
   #   Agilent channel number - e.g. 101, 304, etc.
 
-  @requires_device_open
+  @requires_device_open()
   def SelectChannelToDisplayOnFrontPanel(self,Channel):
     # Convert to string in case the channel was passed in as an int
     Channel = str(Channel)
@@ -312,7 +310,7 @@ class tAgilent(QObject):
   #   ChannelList - List of channels, in the form, e.g., '101:105,108,111,112,204:209'
   # 
 
-  @requires_device_open
+  @requires_device_open()
   def ConfigureChannelsforGHI(self,ChannelList):
     scanlist = '(@' + str(ChannelList) + ')'
     # Configure channel list for DC voltage reading, 0-10V range
@@ -333,7 +331,7 @@ class tAgilent(QObject):
   #   Type        - A single character, like 'K' for type K thermocouples
   # 
 
-  @requires_device_open
+  @requires_device_open()
   def ConfigureChannelsAsThermocouple(self,ChannelList,TCType):
     scanlist = '(@' + ChannelList + ')'
 
@@ -360,7 +358,7 @@ class tAgilent(QObject):
   # The scan will then occur when a trigger is sent.
   # 
 
-  @requires_device_open    
+  @requires_device_open()    
   def ConfigureScanList(self, FullScanChannelList):
     scanlist = '(@' + FullScanChannelList + ')'
     self.device.write("ROUTE:SCAN " + scanlist) 
@@ -386,7 +384,7 @@ class tAgilent(QObject):
   # The approach is to read characters with the timeout set to zero, then put the 
   # timeout back
 
-  @requires_device_open
+  @requires_device_open()
   def FlushInputBuffer(self):
     curTimeout          = self.device.timeout 
     self.device.timeout = 0
@@ -413,7 +411,7 @@ class tAgilent(QObject):
   # RETURNS:
   #   A comma-separated list of values.  If the reading times out, it will return -1 for all readings
 
-  @requires_device_open
+  @requires_device_open()
   def Read(self, bTrimCrLf):
     # Flush any characters in the port.  This is defensive, in case the last read timed out and then actually returned something later.
     self.FlushInputBuffer()
@@ -453,7 +451,7 @@ class tAgilent(QObject):
   # RETURNS:
   #   0 after a successful wait, -1 if timed out
 
-  @requires_device_open
+  @requires_device_open()
   def _WaitForScanToComplete(self, timeout = 3):
     IsBusyOrScanning = True
     while IsBusyOrScanning:
@@ -479,7 +477,7 @@ class tAgilent(QObject):
   #   State        - tAgilent.OPEN or tAgilent.CLOSE
   # 
 
-  @requires_device_open    
+  @requires_device_open()    
   def SetRelayState(self, ChannelList, State):
     if State == self.OPEN:
       Command = 'ROUTE:OPEN '

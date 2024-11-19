@@ -53,12 +53,11 @@ class tMarquee:
     self.portName = portName
     self.OpenPort()
 
-    # Retry timer.  Probably won't need it but it's simplest to create it regardless
-    self.RetryTimer = QTimer()
-    self.RetryTimer.setSingleShot(True)  # Optional: Make it fire only once
-
     if self.port is None:
       print('tMarquee: Could not open port ', self.portName)
+      # Retry timer.  Probably won't need it but it's simplest to create it regardless
+      self.RetryTimer = QTimer()
+      self.RetryTimer.setSingleShot(True)  # Optional: Make it fire only once
 
   def __del__(self):
      if not self.port is None:

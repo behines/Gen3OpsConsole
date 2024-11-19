@@ -87,25 +87,29 @@ class tPeriodicLogger(tPeriodicThread):
     for agilent in self.Agilents:
       with agilent:  # Acquire the lock
         OutputLine = OutputLine + agilent.Read(True) + ','
-    # Remove the final extra comma
 
-    # Get the "box" reading to send to the marquee display
-    BoxTemp = float(OutputLine.split(',')[self.BoxMeasurementIndex])
-    if BoxTemp<-1E37:   # bad thermocouple
-      BoxTemp = 0
 
-    # Get the GHI and DNI
-    if not self.GhiChannelIndex is None:
-      GHI = float(OutputLine.split(',')[self.GhiChannelIndex])
-    if not self.DniChannelIndex is None:
-      DNI = float(OutputLine.split(',')[self.DniChannelIndex])
-    GHI = 0.0 if GHI < 0.0 else GHI
-    DNI = 0.0 if DNI < 0.0 else DNI
 
+    try:
+      # Get the "box" reading to send to the marquee display
+      BoxTemp = float(OutputLine.split(',')[self.BoxMeasurementIndex])
+      if BoxTemp<-1E37:   # bad thermocouple
+        BoxTemp = 0
+
+      # Get the GHI and DNI
+      if not self.GhiChannelIndex is None:
+        GHI = float(OutputLine.split(',')[self.GhiChannelIndex])
+      if not self.DniChannelIndex is None:
+        DNI = float(OutputLine.split(',')[self.DniChannelIndex])
+      GHI = 0.0 if GHI < 0.0 else GHI
+      DNI = 0.0 if DNI < 0.0 else DNI
+    except (ValueError, IndexError, TypeError) as e:
+      GHI = 0.0
+      DNI = 0.0
+      BoxTemp = 0.0
 
     # Tell the sequencer about the new values
     #SystemState |= {'GHI': GHI, 'DNI': DNI}
-
 
     # Get the dome and outside temp sensor and electronics box temp readings
     DomeReadings    = self.DomeTempSensor.GetReading()
@@ -118,7 +122,7 @@ class tPeriodicLogger(tPeriodicThread):
       OutsideReadings = [ 0, 0 ]
     StanTemp = float(OutsideReadings[0])
 
-    ElecBoxReadings = self.ElecTempSensor.GetReading()
+    ElecBoxReadings = self.ElectronicsTempSensor.GetReading()
     if ElecBoxReadings == None:
       ElecBoxReadings = [ 0, 0 ]
     ElecTemp = float(ElecBoxReadings[0])
@@ -140,5 +144,5 @@ class tPeriodicLogger(tPeriodicThread):
     
     self.Marquee.SendAll(*DomeReadings, *OutsideReadings, BoxTemp, GHI, DNI, CollectorStates)
 
-    print(self.ScheduledTime.strftime('%Y-%m-%d %H:%M:%S'),': Temps: Box=', BoxTemp, 'Dome=', DomeTemp, ' Elec=', ElecTemp,' Stan=',StanTemp,' DNI=', DNI, ' GHI=', GHI)
+    print(self.ScheduledTime.toString('yyyy-MM-dd HH:mm:ss'),': Temps: Box=', BoxTemp, 'Dome=', DomeTemp, ' Elec=', ElecTemp,' Stan=',StanTemp,' DNI=', DNI, ' GHI=', GHI)
   

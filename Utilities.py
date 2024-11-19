@@ -24,14 +24,34 @@ from ConfigInfo import *
 
 ##############################################
 # requires_device_open - Decorator that gets added to a function to cause it to 
-# return immediately if the class's IsDeviceOpen() method returns Fals
+# return immediately if the class's IsDeviceOpen() method returns False.  
+# You can specify what it should return if the device is not open - the default is
+# an empty string
 
-def requires_device_open(method):
-  def wrapper(self, *args, **kwargs):
-    if not self.IsDeviceOpen():
-      return
-    return method(self, *args, **kwargs)
-  return wrapper
+# Simpler version a decorator - just takes the method as an argument and returns a closure "wrapper"
+# that calls mehod.
+#def requires_device_open(method):
+#  def wrapper(self, *args, **kwargs):
+#    if not self.IsDeviceOpen():
+#      return
+#    return method(self, *args, **kwargs)
+#  return wrapper
+
+# Fancier version.  An extra layer of closure.  The outer requires_device_open returns a closure
+# "decorator", which returns a closure "wrapper", which gets called.  Note that you can't just
+# say "@requires_device_open" when using it - you have to say "@requires_device_open()".  Else it 
+# interprets "@requires_device_open" as a no-argument function call rather than as a decorator
+# factory.  We *could* check for this by checking if the argument is callable (and thus a method),
+# in which case we'd basically branch into the simpler version above.  It's simpler to just require
+# the () syntax
+def requires_device_open(default_return=''):
+  def decorator(method):
+    def wrapper(self, *args, **kwargs):
+      if not self.IsDeviceOpen():
+        return default_return
+      return method(self, *args, **kwargs)
+    return wrapper
+  return decorator
 
 
 
@@ -162,7 +182,7 @@ class tPeriodicThread(tThreadRunner):
   # 
   
   def _run(self):
-    #try:
+    try:
       # Get the current time in the specified timezone
       current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
 
@@ -187,6 +207,6 @@ class tPeriodicThread(tThreadRunner):
           
       self.Finished.emit()
 
-    #except Exception as e:
-    #  print('Error: ', str(e))
-    #  self.error.emit(str(e))
+    except Exception as e:
+      print('Error in tPeriodicThread::_run: ', str(e))
+      self.error.emit(str(e))
