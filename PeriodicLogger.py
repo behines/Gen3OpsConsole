@@ -6,7 +6,7 @@
 # owned by the same thread that reads all the states, so it can communicate directly with 
 # the marquee display rather than having to use signals.
 
-from PySide6.QtCore import QObject, QTimer, Signal
+from PySide6.QtCore import QObject, QElapsedTimer, Signal
 
 # Import configuration of the system
 from ConfigInfo    import *
@@ -62,9 +62,14 @@ class tPeriodicLogger(tPeriodicThread):
 
     self.SpawnPeriodicMethodAsThreadAndSetAffinityToNewThread(LOG_INTERVAL_SECONDS * 1000, self.PeriodicMethod)
 
-    # Move Agilent objects adn temp sensor objects to the thread crated by tPeriodicThread
+    # Take ownership of the Agilents, and move Agilent objects and temp sensor objects to the thread crated by tPeriodicThread
     for agilent in self.Agilents:
       agilent.moveToThread(self.TheThread)
+      agilent.setParent(self)
+
+    self.DomeTempSensor       .moveToThread(self.TheThread)
+    self.OutsideTempSensor    .moveToThread(self.TheThread)
+    self.ElectronicsTempSensor.moveToThread(self.TheThread)
 
 
   ###############################################
@@ -72,7 +77,7 @@ class tPeriodicLogger(tPeriodicThread):
   # 
 
   def PeriodicMethod(self):
-    self.LogTemperatureData()
+    return self.LogTemperatureData()
 
 
   ###############################################
@@ -151,3 +156,5 @@ class tPeriodicLogger(tPeriodicThread):
 
     print(self.ScheduledTime.toString('yyyy-MM-dd HH:mm:ss'),': Temps: Box=', BoxTemp, 'Dome=', DomeTemp, ' Elec=', ElecTemp,' Stan=',StanTemp,' DNI=', DNI, ' GHI=', GHI)
   
+    # Return 0 to request continuing scheduling
+    return 0

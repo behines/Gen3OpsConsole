@@ -13,7 +13,7 @@ from collections import namedtuple
 
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout, QScrollArea, QVBoxLayout, QMessageBox
-from PySide6.QtCore import QFile, Qt, QTimer
+from PySide6.QtCore import QFile, Qt, QElapsedTimer
 
 # Import configuration of the system
 from ConfigInfo import *

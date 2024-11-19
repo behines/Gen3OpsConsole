@@ -10,7 +10,7 @@
 # Modules used
 #
 
-from PySide6.QtCore import QObject, QThread, Signal, QTimer, QDateTime, QTimeZone
+from PySide6.QtCore import QObject, QThread, Signal, QElapsedTimer, QDateTime, QTimeZone
 
 from ConfigInfo import *
 
@@ -122,7 +122,7 @@ class tThreadRunner(QObject):
   def _run(self):
     try:
       self.methodToRun()
-      self.finished.emit()
+      self.Finished.emit()
     except Exception as e:
       self.error.emit(str(e))
 

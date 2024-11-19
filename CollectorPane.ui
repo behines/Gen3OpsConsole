@@ -128,9 +128,9 @@
    <widget class="QPushButton" name="SetTimePushButton">
     <property name="geometry">
      <rect>
-      <x>210</x>
+      <x>208</x>
       <y>270</y>
-      <width>71</width>
+      <width>61</width>
       <height>24</height>
      </rect>
     </property>
@@ -141,15 +141,15 @@
      </sizepolicy>
     </property>
     <property name="text">
-     <string>Set Time</string>
+     <string>SetTime</string>
     </property>
    </widget>
    <widget class="QPushButton" name="RebootPushButton">
     <property name="geometry">
      <rect>
-      <x>390</x>
+      <x>410</x>
       <y>270</y>
-      <width>71</width>
+      <width>51</width>
       <height>24</height>
      </rect>
     </property>
@@ -1035,9 +1035,9 @@
    <widget class="QPushButton" name="MotorStatusPushButton">
     <property name="geometry">
      <rect>
-      <x>290</x>
+      <x>276</x>
       <y>270</y>
-      <width>91</width>
+      <width>71</width>
       <height>24</height>
      </rect>
     </property>
@@ -1048,7 +1048,7 @@
      </sizepolicy>
     </property>
     <property name="text">
-     <string>Motor Status</string>
+     <string>MotStatus</string>
     </property>
    </widget>
    <widget class="QLabel" name="TimeLabel">
@@ -1074,6 +1074,25 @@
     </property>
     <property name="text">
      <string>HH:MM:SS</string>
+    </property>
+   </widget>
+   <widget class="QPushButton" name="RebootPushButton_2">
+    <property name="geometry">
+     <rect>
+      <x>353</x>
+      <y>270</y>
+      <width>51</width>
+      <height>24</height>
+     </rect>
+    </property>
+    <property name="sizePolicy">
+     <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+      <horstretch>0</horstretch>
+      <verstretch>0</verstretch>
+     </sizepolicy>
+    </property>
+    <property name="text">
+     <string>Unstick</string>
     </property>
    </widget>
   </widget>

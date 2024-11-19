@@ -17,7 +17,7 @@ from datetime import datetime
 
 from PySide6.QtWidgets import  QWidget
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore    import QFile, Qt, QTimer, QMutex
+from PySide6.QtCore    import QFile, Qt, QElapsedTimer, QMutex
 
 ##########################################################################################
 ##########################################################################################

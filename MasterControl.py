@@ -36,7 +36,7 @@ import sys
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout, QScrollArea, QVBoxLayout, QMessageBox
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore    import QFile, Qt, QTimer
+from PySide6.QtCore    import QFile, Qt, QElapsedTimer
 
 # Globals, used for communicating between threads
 # import globals 
@@ -124,7 +124,8 @@ class MasterControl(QMainWindow):
 
     # Construct the Agilent objects.  The '*' splats the descriptor onto the constructor arguments
     # This includes opening the devices
-    self.Agilents   = [ tAgilent(*descriptor, parent=self) for descriptor in AGILENTS ]
+    # Create the objects with no parant for now, because later the PeriodicLogger will take ownership.
+    self.Agilents   = [ tAgilent(*descriptor, parent=None) for descriptor in AGILENTS ]
 
     # Get the complete channel list, adding the mainframe number as a prefix 1000, 2000, 3000, to each channel
     CompleteChannelList = [channel + 1000*(index+1) for index, agilent in enumerate(self.Agilents) for channel in agilent.ChannelList]

@@ -53,7 +53,7 @@ NIP_ON_OFF_BUTTON_CHANNEL = '201'
 PYRANOMETER_POWER_CHANNEL = '204'
 MOTOR_POWER_CHANNELS      = '218:220'
 USB_HUB_POWER_CHANNEL     = '216'
-AGILENT_RETRY_TIMEOUT_MIN = 1     # If the Agilent cannot be opened, how long to wait before retrying
+
 
 ##########
 # Shutters have a name and an Agilent channel
@@ -83,6 +83,13 @@ BOX_CHANNEL_FOR_MARQUEE_DISPLAY = 2104  # 2104 = thermocouple 64, in the air jus
 DEFAULT_SERIAL_PORT_RX_BUFFER_SIZE = 2000
 DEFAULT_SERIAL_PORT_TX_BUFFER_SIZE = 2000
 SERIAL_PORT_RETRY_TIMEOUT_SECS = 60
+
+##########
+# Communications retry timeouts
+#
+AGILENT_RETRY_TIMEOUT_SECS   = 1 * 60    # If the Agilent cannot be opened, how long to wait before retrying
+MARQUEE_RETRY_TIMEOUT_SECS   = 1 * 60
+COLLECTOR_RETRY_TIMEOUT_SECS = 30
 
 ##########
 # COM ports for temperature sensors and Marquee display
@@ -160,3 +167,4 @@ NIP_DNI_WARNING_TIMEOUT        = 200
 NIP_GHI_SUN_IS_OUT_THRESHOLD =   0.45
 NIP_GHI_SUN_IS_OUT_MIN       =  30
 NIP_DNI_THRESHOLD            =  35    # in W/m^2
+NIP_COVER_GLASS_SCALE_FACTOR = 1.19   # Why it's not 1.08 I don't understand

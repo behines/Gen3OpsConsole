@@ -25,7 +25,7 @@ import os
 import sys
 
 # For implementing object locking and retry timer
-from PySide6.QtCore import QMutex, QTimer, QObject
+from PySide6.QtCore import QMutex, QElapsedTimer, QObject
 from Utilities      import requires_device_open
 
 
@@ -120,8 +120,9 @@ class tAgilent(QObject):
       print(tAgilent.PyVisaResourceManager.list_resources())
 
     # Mutex for controlling access to the device
-    self._lock = QMutex()
-    self.RetryTimer = None
+    self._lock          = QMutex()
+    self.RetryTimer     = QElapsedTimer()
+    self.RetryTimeoutMs = AGILENT_RETRY_TIMEOUT_SECS * 1000  # Convert minutes to milliseconds
 
     # Remember our arguments for use in the call to OpenDevice
     # We remember rather than call so that we can try open again later if it fails at first
@@ -149,8 +150,6 @@ class tAgilent(QObject):
   def __del__(self):
     if not self.device is None:
       self.device.close()
-    if not self.RetryTimer is None and self.RetryTimer.isActive():
-      self.RetryTimer.stop()
 
 
   ###############################################
@@ -187,8 +186,8 @@ class tAgilent(QObject):
       self.device.timeout      = 1000 * tAgilent.TIMEOUT_SECS
     except:
       self.device = None
-      print('tAgilent: Could not open device ', self.DeviceName, ', will retry in ', AGILENT_RETRY_TIMEOUT_MIN, ' minutes')
-      self.StartOpenRetryTimer()
+      print('tAgilent: Could not open device ', self.DeviceName, ', will retry in ', AGILENT_RETRY_TIMEOUT_SECS/60.0, ' minutes')
+      self.RetryTimer.start()
       return
     
     # Reset the unit
@@ -207,20 +206,7 @@ class tAgilent(QObject):
       self.SelectChannelToDisplayOnFrontPanel(self.ChannelForDisplayOnFrontPanel)
 
     self.ConfigureScanList(self.FullScanChannelList)
-
-
-  ###############################################
-  # StartOpenRetryTimer
-  # 
-  # Kicks off a timer that we can check
-  #   
  
-  def StartOpenRetryTimer(self):
-    self.RetryTimer = QTimer()
-    self.RetryTimer.setSingleShot(True)  # Optional: Make it fire only once
-    timeout_ms = AGILENT_RETRY_TIMEOUT_MIN * 60 * 1000  # Convert minutes to milliseconds
-    self.RetryTimer.start(timeout_ms)
-  
 
   ###############################################
   # IsDeviceOpen
@@ -233,10 +219,9 @@ class tAgilent(QObject):
     if not self.device is None:
       return True
     # If the device is not open, see if the retry timer has timed out
-    if self.RetryTimer.remainingTime() <= 0:
+    if self.RetryTimer.elapsed() >= self.RetryTimeoutMs:
       self.OpenAndConfigureDevice()
-      return not (self.device is None)
-    
+    return not (self.device is None)
 
 
   ###############################################
@@ -279,9 +264,9 @@ class tAgilent(QObject):
     # So at 1000 W/m^2, it would read 8.23 mV.  So 10 mV is a good range.
     self.device.write('CONF:VOLT:DC  0.010,DEF,' + scanlist)
     
-    # Enable scaling from volts to W/m^2.  We want the reciprocal of 0.00000823, times 1.08 to 
+    # Enable scaling from volts to W/m^2.  We want the reciprocal of 0.00000823, times 1.08 (1.19?) to 
     # account for the loss through the dome
-    gain = 1.08 / (NipCalibrationFactorInMicrovolts / 1e6)
+    gain = NIP_COVER_GLASS_SCALE_FACTOR / (NipCalibrationFactorInMicrovolts / 1e6)
     print("Setting NIP scale factor to ", f"{gain:.1f}")
     self.device.write('CALC:SCAL:GAIN ' + f"{gain:.1f}" + ',' + scanlist)
     self.device.write('CALC:SCAL:OFFS 0.0,' + scanlist)

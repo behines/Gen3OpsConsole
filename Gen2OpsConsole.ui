@@ -26,166 +26,6 @@
   </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QGridLayout" name="gridLayout">
-    <item row="0" column="0">
-     <widget class="QLabel" name="label">
-      <property name="font">
-       <font>
-        <pointsize>14</pointsize>
-        <bold>true</bold>
-        <hintingpreference>PreferFullHinting</hintingpreference>
-       </font>
-      </property>
-      <property name="text">
-       <string>Windsor Master Control Console</string>
-      </property>
-      <property name="alignment">
-       <set>Qt::AlignmentFlag::AlignCenter</set>
-      </property>
-     </widget>
-    </item>
-    <item row="3" column="0">
-     <widget class="QGroupBox" name="groupBox_3">
-      <property name="font">
-       <font>
-        <pointsize>11</pointsize>
-        <bold>true</bold>
-        <hintingpreference>PreferFullHinting</hintingpreference>
-       </font>
-      </property>
-      <property name="title">
-       <string>Log</string>
-      </property>
-      <layout class="QVBoxLayout" name="verticalLayout_10">
-       <item>
-        <widget class="QTextEdit" name="MasterLogTextEdit">
-         <property name="font">
-          <font>
-           <pointsize>10</pointsize>
-           <bold>false</bold>
-           <hintingpreference>PreferFullHinting</hintingpreference>
-          </font>
-         </property>
-         <property name="readOnly">
-          <bool>true</bool>
-         </property>
-        </widget>
-       </item>
-      </layout>
-     </widget>
-    </item>
-    <item row="2" column="0">
-     <layout class="QHBoxLayout" name="horizontalLayout_3">
-      <item>
-       <widget class="QGroupBox" name="groupBox">
-        <property name="font">
-         <font>
-          <pointsize>11</pointsize>
-          <bold>true</bold>
-          <hintingpreference>PreferFullHinting</hintingpreference>
-         </font>
-        </property>
-        <property name="title">
-         <string>Power</string>
-        </property>
-        <layout class="QVBoxLayout" name="verticalLayout_2">
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout_4">
-           <item>
-            <widget class="QCheckBox" name="MotorPowerCheckBox">
-             <property name="font">
-              <font>
-               <pointsize>11</pointsize>
-               <bold>true</bold>
-               <hintingpreference>PreferFullHinting</hintingpreference>
-              </font>
-             </property>
-             <property name="text">
-              <string>Motor Power</string>
-             </property>
-             <property name="tristate">
-              <bool>false</bool>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QCheckBox" name="UsbPowerCheckBox">
-             <property name="font">
-              <font>
-               <pointsize>11</pointsize>
-               <bold>true</bold>
-               <hintingpreference>PreferFullHinting</hintingpreference>
-              </font>
-             </property>
-             <property name="text">
-              <string>USB Power</string>
-             </property>
-             <property name="tristate">
-              <bool>false</bool>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-        </layout>
-       </widget>
-      </item>
-      <item>
-       <widget class="QGroupBox" name="groupBox_2">
-        <property name="font">
-         <font>
-          <pointsize>11</pointsize>
-          <bold>true</bold>
-          <hintingpreference>PreferFullHinting</hintingpreference>
-         </font>
-        </property>
-        <property name="title">
-         <string>Collectors</string>
-        </property>
-        <layout class="QHBoxLayout" name="horizontalLayout_2">
-         <item>
-          <layout class="QHBoxLayout" name="horizontalLayout">
-           <item>
-            <widget class="QPushButton" name="OffPushButton">
-             <property name="text">
-              <string>Off</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="HomePushButton">
-             <property name="text">
-              <string>Home</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="TrackPushButton">
-             <property name="text">
-              <string>Track</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="StowPushButton">
-             <property name="text">
-              <string>Stow</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QPushButton" name="SetTimePushButton">
-             <property name="text">
-              <string>Set Time</string>
-             </property>
-            </widget>
-           </item>
-          </layout>
-         </item>
-        </layout>
-       </widget>
-      </item>
-     </layout>
-    </item>
     <item row="1" column="0">
      <widget class="QGroupBox" name="groupBox_4">
       <property name="font">
@@ -331,6 +171,12 @@
             <layout class="QHBoxLayout" name="horizontalLayout_8">
              <item>
               <widget class="QLabel" name="label_7">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Maximum" vsizetype="Preferred">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
                <property name="text">
                 <string>Master State:</string>
                </property>
@@ -338,6 +184,12 @@
              </item>
              <item>
               <widget class="QLabel" name="MasterStateLabel">
+               <property name="sizePolicy">
+                <sizepolicy hsizetype="Minimum" vsizetype="Preferred">
+                 <horstretch>0</horstretch>
+                 <verstretch>0</verstretch>
+                </sizepolicy>
+               </property>
                <property name="font">
                 <font>
                  <pointsize>11</pointsize>
@@ -688,6 +540,203 @@
        </item>
       </layout>
      </widget>
+    </item>
+    <item row="3" column="0">
+     <widget class="QGroupBox" name="groupBox_3">
+      <property name="font">
+       <font>
+        <pointsize>11</pointsize>
+        <bold>true</bold>
+        <hintingpreference>PreferFullHinting</hintingpreference>
+       </font>
+      </property>
+      <property name="title">
+       <string>Log</string>
+      </property>
+      <layout class="QVBoxLayout" name="verticalLayout_10">
+       <item>
+        <widget class="QTextEdit" name="MasterLogTextEdit">
+         <property name="font">
+          <font>
+           <pointsize>10</pointsize>
+           <bold>false</bold>
+           <hintingpreference>PreferFullHinting</hintingpreference>
+          </font>
+         </property>
+         <property name="readOnly">
+          <bool>true</bool>
+         </property>
+        </widget>
+       </item>
+      </layout>
+     </widget>
+    </item>
+    <item row="2" column="0">
+     <layout class="QHBoxLayout" name="horizontalLayout_3">
+      <item>
+       <widget class="QGroupBox" name="groupBox">
+        <property name="font">
+         <font>
+          <pointsize>11</pointsize>
+          <bold>true</bold>
+          <hintingpreference>PreferFullHinting</hintingpreference>
+         </font>
+        </property>
+        <property name="title">
+         <string>Power</string>
+        </property>
+        <layout class="QVBoxLayout" name="verticalLayout_2">
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout_4">
+           <item>
+            <widget class="QCheckBox" name="MotorPowerCheckBox">
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+               <bold>true</bold>
+               <hintingpreference>PreferFullHinting</hintingpreference>
+              </font>
+             </property>
+             <property name="text">
+              <string>Motor Power</string>
+             </property>
+             <property name="tristate">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QCheckBox" name="UsbPowerCheckBox">
+             <property name="font">
+              <font>
+               <pointsize>11</pointsize>
+               <bold>true</bold>
+               <hintingpreference>PreferFullHinting</hintingpreference>
+              </font>
+             </property>
+             <property name="text">
+              <string>USB Power</string>
+             </property>
+             <property name="tristate">
+              <bool>false</bool>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QGroupBox" name="groupBox_2">
+        <property name="font">
+         <font>
+          <pointsize>11</pointsize>
+          <bold>true</bold>
+          <hintingpreference>PreferFullHinting</hintingpreference>
+         </font>
+        </property>
+        <property name="title">
+         <string>Collectors</string>
+        </property>
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <item>
+          <layout class="QHBoxLayout" name="horizontalLayout">
+           <item>
+            <widget class="QPushButton" name="OffPushButton">
+             <property name="text">
+              <string>Off</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="HomePushButton">
+             <property name="text">
+              <string>Home</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="TrackPushButton">
+             <property name="text">
+              <string>Track</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="StowPushButton">
+             <property name="text">
+              <string>Stow</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="SetTimePushButton">
+             <property name="text">
+              <string>Set Time</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
+         </item>
+        </layout>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item row="0" column="0">
+     <layout class="QHBoxLayout" name="horizontalLayout_16">
+      <item>
+       <widget class="QLabel" name="label">
+        <property name="font">
+         <font>
+          <pointsize>14</pointsize>
+          <bold>true</bold>
+          <hintingpreference>PreferFullHinting</hintingpreference>
+         </font>
+        </property>
+        <property name="midLineWidth">
+         <number>7</number>
+        </property>
+        <property name="text">
+         <string>Windsor Master Control Panel</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <spacer name="horizontalSpacer_5">
+        <property name="orientation">
+         <enum>Qt::Orientation::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QLabel" name="SystemTimeLabel">
+        <property name="font">
+         <font>
+          <pointsize>12</pointsize>
+          <bold>true</bold>
+          <hintingpreference>PreferFullHinting</hintingpreference>
+         </font>
+        </property>
+        <property name="text">
+         <string>HH:MM:SS</string>
+        </property>
+        <property name="alignment">
+         <set>Qt::AlignmentFlag::AlignRight|Qt::AlignmentFlag::AlignTrailing|Qt::AlignmentFlag::AlignVCenter</set>
+        </property>
+       </widget>
+      </item>
+     </layout>
     </item>
    </layout>
   </widget>

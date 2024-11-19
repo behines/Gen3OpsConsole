@@ -6,7 +6,7 @@
 #
 
 # For implementing object locking and retry timer
-from PySide6.QtCore import QMutex, QTimer, QObject
+from PySide6.QtCore import QMutex, QElapsedTimer, QObject
 from Utilities      import requires_device_open
 import serial
 
@@ -36,14 +36,13 @@ class tSerialPort(QObject):
     # than when the program tries to read it.  So things like the temp/humidity
     # sensors don't need this since we actively read them. 
     if bAutoRetry:
-      self.RetryTimer = QTimer()
-      self.RetryTimer.setSingleShot(True)  # Optional: Make it fire only once
+      self.RetryTimer = QElapsedTimer()
   
   def __del__(self):
     self.Close()
     if not self.RetryTimer is None and self.RetryTimer.isActive():
       self.RetryTimer.stop()
-      
+
 
   ###############################################
   # tSerialPort::Open
