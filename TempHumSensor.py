@@ -13,6 +13,7 @@
 
 # module used to talk over serial with the esp32
 import serial
+from PySide6.QtCore import QMutex, QTimer, QObject
 
 
 ##########################################################################################
@@ -23,7 +24,7 @@ import serial
 # 
 #
 
-class tTempHumSensor:
+class tTempHumSensor(QObject):
 
   #################################################
   #
@@ -43,7 +44,9 @@ class tTempHumSensor:
   # INPUTS:
   #     
 
-  def __init__(self, portName):
+  def __init__(self, portName, parent=None):
+    super().__init__(parent)
+
     self.port     = None
     self.portName = portName
 

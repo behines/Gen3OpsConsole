@@ -15,7 +15,7 @@
 import serial
 import sys
 # For implementing object locking and retry timer
-from PySide6.QtCore import QMutex, QTimer
+from PySide6.QtCore import QMutex, QTimer, QObject
 from Utilities      import requires_device_open
 
 
@@ -27,7 +27,7 @@ from Utilities      import requires_device_open
 # 
 #
 
-class tMarquee:
+class tMarquee(QObject):
 
   #################################################
   #
@@ -44,7 +44,8 @@ class tMarquee:
   # INPUTS:
   #     
 
-  def __init__(self, portName):
+  def __init__(self, portName, parent=None):
+    super().__init__(parent)
 
     # Mutex for controlling access to the device
     self._lock = QMutex()

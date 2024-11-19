@@ -9,10 +9,11 @@
 from PySide6.QtCore import QObject, QTimer, Signal
 
 # Import configuration of the system
-from ConfigInfo import *
-from Utilities  import tPeriodicThread
-from Agilent    import tAgilent
-from Marquee    import tMarquee
+from ConfigInfo    import *
+from Utilities     import tPeriodicThread
+from Agilent       import tAgilent
+from TempHumSensor import tTempHumSensor
+from Marquee       import tMarquee
 
 
 ##########################################################################################
@@ -41,7 +42,7 @@ class tPeriodicLogger(tPeriodicThread):
   #     
 
   def __init__(self, Agilents, GhiChannelIndex, DniChannelIndex, BoxMeasurementIndex,
-               DomeTempSensor, OutsideTempSensor, ElectronicsTempSensor, Collectors, parent=None):
+               DomeTempSensorPort, OutsideTempSensorPort, ElectronicsTempSensorPort, Collectors, parent=None):
     super().__init__(parent)   # tPeriodicThread constructor
 
     self.Agilents = Agilents
@@ -49,17 +50,21 @@ class tPeriodicLogger(tPeriodicThread):
     self.GhiChannelIndex       = GhiChannelIndex
     self.DniChannelIndex       = DniChannelIndex
     self.BoxMeasurementIndex   = BoxMeasurementIndex
-    self.DomeTempSensor        = DomeTempSensor
-    self.OutsideTempSensor     = OutsideTempSensor
-    self.ElectronicsTempSensor = ElectronicsTempSensor
 
-    self.Collectors          = Collectors
+    self.DomeTempSensor        = tTempHumSensor(DomeTempSensorPort,        self)
+    self.OutsideTempSensor     = tTempHumSensor(OutsideTempSensorPort,     self)
+    self.ElectronicsTempSensor = tTempHumSensor(ElectronicsTempSensorPort, self)
+
+    self.Collectors            = Collectors
 
     # Marquee display
-    self.Marquee       = tMarquee(MARQUEE_COM_PORT)
+    self.Marquee       = tMarquee(MARQUEE_COM_PORT, self)
 
     self.SpawnPeriodicMethodAsThreadAndSetAffinityToNewThread(LOG_INTERVAL_SECONDS * 1000, self.PeriodicMethod)
 
+    # Move Agilent objects adn temp sensor objects to the thread crated by tPeriodicThread
+    for agilent in self.Agilents:
+      agilent.moveToThread(self.TheThread)
 
 
   ###############################################

@@ -53,7 +53,7 @@ NIP_ON_OFF_BUTTON_CHANNEL = '201'
 PYRANOMETER_POWER_CHANNEL = '204'
 MOTOR_POWER_CHANNELS      = '218:220'
 USB_HUB_POWER_CHANNEL     = '216'
-AGILENT_RETRY_TIMEOUT_MIN = 5     # If the Agilent cannot be opened, how long to wait before retrying
+AGILENT_RETRY_TIMEOUT_MIN = 1     # If the Agilent cannot be opened, how long to wait before retrying
 
 ##########
 # Shutters have a name and an Agilent channel
@@ -94,11 +94,11 @@ MARQUEE_BAUD_RATE    = 115200
 
 # Make the buffer big enough to hold 15 minutes of readings, in case we only read every 10 minutes.  
 # There are 30 readings per minute of 11 characters each (if there is a CR/LF after each)
-TEMP_HUM_BAUD_RATE      = 115200
-TEMP_HUM_RX_BUFFER_SIZE = 15 * 30 * 11
-OUTSIDE_SENSOR_PORT  = 'COM6'  # Replace with your read serial port
-DOME_SENSOR_PORT     = 'COM8'
-ELEC_SENSOR_PORT     = 'COM100'   # Temp of electronics box
+TEMP_HUM_BAUD_RATE           = 115200
+TEMP_HUM_RX_BUFFER_SIZE      = 15 * 30 * 11
+OUTSIDE_TEMP_SENSOR_PORT     = 'COM6'  # Replace with your read serial port
+DOME_TEMP_SENSOR_PORT        = 'COM8'
+ELECTRONICS_TEMP_SENSOR_PORT = 'COM100'   # Temp of electronics box
 
 
 ##########

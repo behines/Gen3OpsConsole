@@ -97,14 +97,14 @@ class MasterControl(QMainWindow):
 
 
     # Construct the Agilent objects.  The '*' splats the descriptor onto the constructor arguments
-    self.Agilents   = [ tAgilent(*descriptor, parent=self) for descriptor in AGILENTS ]
+    #self.Agilents   = [ tAgilent(*descriptor, parent=self) for descriptor in AGILENTS ]
 
 
     # Marquee display and standalone sensors
-    Marquee       = tMarquee      (MARQUEE_COM_PORT)
-    OutsideSensor = tTempHumSensor(OUTSIDE_SENSOR_PORT)
-    DomeSensor    = tTempHumSensor(DOME_SENSOR_PORT)
-    ElecSensor    = tTempHumSensor(ELEC_SENSOR_PORT)
+    #Marquee       = tMarquee      (MARQUEE_COM_PORT)
+    #OutsideSensor = tTempHumSensor(OUTSIDE_SENSOR_PORT)
+    #DomeSensor    = tTempHumSensor(DOME_SENSOR_PORT)
+    #ElecSensor    = tTempHumSensor(ELEC_SENSOR_PORT)
 
 
     # Create Collector Control Window
@@ -126,11 +126,6 @@ class MasterControl(QMainWindow):
     # This includes opening the devices
     self.Agilents   = [ tAgilent(*descriptor) for descriptor in AGILENTS ]
 
-    # Create the temperature sensor objects
-    self.OutsideTempSensor     = tTempHumSensor(OUTSIDE_SENSOR_PORT)
-    self.DomeTempSensor        = tTempHumSensor(DOME_SENSOR_PORT)
-    self.ElectronicsTempSensor = tTempHumSensor(ELEC_SENSOR_PORT)
-
     # Get the complete channel list, adding the mainframe number as a prefix 1000, 2000, 3000, to each channel
     CompleteChannelList = [channel + 1000*(index+1) for index, agilent in enumerate(self.Agilents) for channel in agilent.ChannelList]
 
@@ -147,7 +142,7 @@ class MasterControl(QMainWindow):
     self.Collectors = None
 
     self.PeriodicLogger = tPeriodicLogger(self.Agilents, GhiChannelIndex, DniChannelIndex, BoxMeasurementIndex, 
-                                          self.DomeTempSensor, self.OutsideTempSensor, self.ElectronicsTempSensor,
+                                          DOME_TEMP_SENSOR_PORT, OUTSIDE_TEMP_SENSOR_PORT, ELECTRONICS_TEMP_SENSOR_PORT,
                                           self.Collectors, parent=self)
 
 
