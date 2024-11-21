@@ -1,144 +1,234 @@
-###############################################
-# tSerialPort - Manages serial ports
+#######################################################
+# tAutoOpenSerial    - Serial port that automatically opens 
+# tAutoOpenSerialStr - Same thing with str I/O instead of QByteArray
 #
-# Opens and closes ports, and particularly, helps to deal with ports that
-# are offline at startup or that go offline later
+# Gracefully handles the port not being open or having an error by 
+# simply returning nothing.  Attempts to reopen the port if not open.
+#
+# If AutoRetryTimeout is non-zero, will automatically try to reopen
+# the port periodically.
+#
+# 
+# STATE INVARIANT:
+#   bIsOpen always reflects the opened/closed state of the port
+
+
+
+#################################################
+# Modules used
 #
 
-# For implementing object locking and retry timer
-from PySide6.QtCore import QMutex, QElapsedTimer, QObject
-from Utilities      import requires_device_open
-import serial
-
-from ConfigInfo       import *
+from PySide6.QtSerialPort import QSerialPort
+from PySide6.QtCore import Signal, QTimer, QByteArray
 
 
-class tSerialPort(QObject):
 
-  ###############################################
-  # tSerialPort constructor
-  #  
-  # bAutoRetry - if True, the class will automatically try to reconnect periodically
+#######################################################
+#######################################################
+#######################################################
+#
+# tAutoOpenSerial    - Serial port that automatically opens 
+#
 
-  def __init__(self, portName, baud, bAutoRetry=True, rx_size = DEFAULT_SERIAL_PORT_RX_BUFFER_SIZE,
-               tx_size= DEFAULT_SERIAL_PORT_TX_BUFFER_SIZE, timeout = 0, parent=None):
-    super().__init__(parent)   # QObject constructor
+class tAutoOpenSerial(QSerialPort):
+  portOpened = Signal()  # Emitted when the port is successfully opened
+  portClosed = Signal()  # Emitted when the port is closed
 
-    self.PortName    = portName
-    self.Baud        = baud
-    self.TimeoutSecs = timeout
-    self.bAutoRetry  = bAutoRetry
-    self.rx_size     = rx_size
-    self.tx_size     = tx_size
-    self.port        = None
 
-    # Retry timer.  Used if we need to try to reopen the port at a time other
-    # than when the program tries to read it.  So things like the temp/humidity
-    # sensors don't need this since we actively read them. 
-    if bAutoRetry:
-      self.RetryTimer = QElapsedTimer()
-  
+  #######################################################
+  # Constructor 
+  #
+  # AutoReopenTimeoutSecs - will try to re-open a closed port periodically if non-zero
+  # 
+
+  def __init__(self, AutoReopenTimeoutSecs=0, parent=None):
+    super().__init__(parent)
+
+    self.bIsOpen = False
+    self._buffer = ""
+    self._AutoReopenTimeoutSecs = AutoReopenTimeoutSecs
+
+    # Setup timer for auto-reopen
+    self._ReopenTimer = QTimer()
+    self._ReopenTimer.timeout.connect(self._AttemptOpenIfNeeded)
+    self._ReopenTimer.setSingleShot(True)  
+
+    # Initial attempt to open the port
+    self._AttemptOpenIfNeeded()
+
+
+  #######################################################
+  # Destructor - Cleans up by closing the port
+  # 
+
   def __del__(self):
-    self.Close()
-    if not self.RetryTimer is None and self.RetryTimer.isActive():
-      self.RetryTimer.stop()
+    if self.bIsOpen:
+      self.close()
 
 
-  ###############################################
-  # tSerialPort::Open
+  #######################################################
+  # IsOpen
   # 
-  # Opens the serial port specified in the constructor
-  #
+
+  def IsOpen(self):
+    return self.bIsOpen
+
+
+  #######################################################
+  # _AttemptOpenIfNeeded - Attempt to open the port and emit a signal if successful
+  # 
+  # If the open is not successful, will arm the reopen timer
+
+  def _AttemptOpenIfNeeded(self):
+    if not self.bIsOpen:
+      if self.open(QSerialPort.ReadWrite):
+        self.bIsOpen = True
+        self.portOpened.emit()
+      else:
+        self.bIsOpen = False
+        self._ArmReopenTimerIfNotRunning()
+
+
+  #######################################################
+  # _ArmReopenTimerIfNotRunning - 
+  # 
+ 
+  def _ArmReopenTimerIfNotRunning(self):
+    if self._AutoReopenTimeoutSecs > 0 and not self._ReopenTimer.isActive():
+      self._ReopenTimer.start(self._AutoReopenTimeoutSecs * 1000)
+
+
+  #######################################################
+  # _HandleClose - Called when the port should be closed, usually after an error
+  # 
+  # Also emit a signal
+ 
+  def _HandleClose(self):
+    if self.bIsOpen:
+      self.portClosed.emit()
+      self.bIsOpen = False
+      self._ArmReopenTimerIfNotRunning()
+
+
+  #######################################################
+  # read - Read bytes, reopening port if needed
+  # 
   # RETURNS:
-  #   0 if successful, 1 if already open, -1 if failed
-  #
- 
-  def Open(self):
-    if (self.SerialPort is None) :
-      try:
-        print("Attempting to open ", self.PortName)
-        self.SerialPort = serial.Serial(self.Portname, self.Baud, timeout = self.TimeoutSecs)  # , rtscts = True)
+  #   Retrieved data as a QByteArray
 
-        try:
-          self.SerialPort.set_buffer_size(rx_size = self.rx_size, tx_size = self.tx_size)
-        except AttributeError as err:
-          print("PySerial::set_buffer_size not supported on this platform, continuing"  )
-        return 0
-      except OSError as err:
-        print("Error opening serial port:", err, ', will retry in ', SERIAL_PORT_RETRY_TIMEOUT_SECS, ' seconds')
-        self.SerialPort = None
+  def read(self):
+    self._AttemptOpenIfNeeded()
+    if not self.bIsOpen:
+      return QByteArray()
 
+    data = self.readAll()
 
-  ###############################################
-  # tSerialPort::Close
-  # 
-  # Closes the serial port, if it was open
-  #
- 
-  def Close(self):
-    if (self.IsOpen()) : 
-      print("Closing ", self.SerialPort.name)
-      self.SerialPort.close()
-      self.SerialPort = None
+    if self.error() != QSerialPort.NoError:
+      self.close()
+      return QByteArray()   # Return empty string on read error
 
-
-  ###############################################
-  # tSerialPort::StartOpenRetryTimer
-  # 
-  # Kicks off a timer that we can check
-  #   
- 
-  def StartOpenRetryTimer(self):
-    timeout_ms = SERIAL_PORT_RETRY_TIMEOUT_SECS * 60 * 1000  # Convert minutes to milliseconds
-    self.RetryTimer.start(timeout_ms)
-
-
-  ###############################################
-  # tSerialPort::IsDeviceOpen
-  # 
-  # Returns true if the device is open.  If it is not open, it will check the retry timer.
-  # If the retry timer has expired, it will try again to open the device.
-  #   
- 
-  def IsDeviceOpen(self):
-    if self._IsOpen():
-      return True
-    # If the device is not open, see if the retry timer has timed out
-    if self.RetryTimer.remainingTime() <= 0:
-      self.Open()
-      return not (self.SerialPort is None)
-    
-
-  ###############################################
-  # tSerialPort::_IsOpen
-  # 
-  #
- 
-  def _IsOpen(self):
-    return (not (self.SerialPort is None))
+    return data
   
 
-  ###############################################
-  # tSerialPort:::SetTimeout
+  #######################################################
+  # readString - Reads bytes and returns them as a string
   # 
-  # Sets the timeout for operations to the specified number of seconds.  Can be a float.
-  #
- 
-  def SetTimeout(self, timeout):
-    self.SerialPort.timeout = timeout
+  # RETURNS:
+  #   Retrieved data as a string
+
+  def readString(self):
+    data = self.read()     # Read in a QByteArray
+    return str(data.data(), "utf-8") if not data.isEmpty() else ""  # Convert to string
 
 
-  ###############################################
-  # tSerialPort::__enter__ and __exit
+  #######################################################
+  # Write - Writea a either a QByteArray or a string to the port
   # 
-  # These methods are called automatically at the beginning and end of "with" blocks.
-  # This allows automatic closing of the port when used in a with block.
-  #
+  # RETURNS:
+  #   Number of characters written, or -1 if not successful
 
-  def __enter__(self):   # Called when a with statement is used
-    if (not self.IsOpen()):    
-      self.Open() 
-      
-  def __exit__(self, exception_type, exception_value, traceback):
-    self.Close()
+  def write(self, data):
+    self._AttemptOpenIfNeeded()
+    if not self.bIsOpen:
+      return -1  # Return -1 if the port couldn't be opened
+
+    # Convert the data to QByteArray if not already one
+    if isinstance(data, str):
+      data = data.encode("utf-8")  # Convert string to bytes
+
+    bytes_written = super().write(data)
+    if bytes_written == -1 or self.error() != QSerialPort.NoError:
+      self.close()
+      return -1  # Return -1 on write error
     
+    return bytes_written  # Return number of bytes written
+
+
+  #######################################################
+  # Reopen - Close and reopen the port
+  # 
+
+  def Reopen(self):
+    self.close()
+    self._AttemptOpenIfNeeded()
+
+
+  #######################################################
+  # close - Overrides close to calls close but also send signals, restarts the auto-reopen timer
+  # 
+
+  def close(self):
+    # No need to wrap this in try/except.  Qt will simply close the port gracefully or log 
+    # an error.  It won't raise an exceptoin.
+    super().close()
+    self._HandleClose()
+    
+
+#######################################################
+#######################################################
+#######################################################
+#
+# tAutoOpenSerialWholeLine    - Serial port that automatically opens and emits a signal whenever a full line arrives
+#
+
+class tAutoOpenSerialWholeLine(tAutoOpenSerial):
+  readyLine = Signal(str)  # Signal emitted when a full line is available
+
+
+  #######################################################
+  # Constructor
+  # 
+
+  def __init__(self, *args, **kwargs):
+    super().__init__(*args, **kwargs)
+
+    self._lineBuffer = ""  # Buffer for assembling lines
+
+    # Connect the readyRead signal to the line assembly method
+    self.readyRead.connect(self._AssembleLine)
+
+
+  #######################################################
+  # _AssembleLine - called whenever characters arrive on the port
+  #
+  # Emits the readyLine signal whenever a full line has arrived on the port
+  # 
+
+  def _AssembleLine(self):
+    while True:
+      data = self.read()  # Read available bytes as a QByteArray
+
+      if self.error() != QSerialPort.NoError:
+        self.close()
+        return
+
+      if data.isEmpty():
+        break  # No more data available to read
+
+      # Convert QByteArray to string and append to the buffer
+      self._lineBuffer += str(data.data(), "utf-8")
+
+      # Check for complete lines.  This handles the case where there is more than a full line in the buffer
+      while "\n" in self._lineBuffer:
+        line, self._lineBuffer = self._lineBuffer.split("\n", 1)
+        self.readyLine.emit(line + "\n")  # Emit the line including the newline
