@@ -417,11 +417,11 @@ class tAgilent(QObject):
     try:
       response = self.device.read()
     except pyvisa.errors.VisaIOError:
-      print('Timeout, Retrying...')
+      print('Agilent timeout, Retrying...')
       try:
         response = self.device.read()
       except pyvisa.errors.VisaIOError:
-        print('2nd Timeout, bailing out')
+        print('Agilent 2nd Timeout, bailing out')
         minus_ones = [-1]*len(self.ChannelList)
         return ','.join(str(num) for num in minus_ones)
 
