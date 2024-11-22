@@ -97,8 +97,10 @@ def WaitForSignal(SignalToWaitFor:Signal, SignalToEmit:Signal=None, TimeoutInMs=
 # This class will not actually start the thread.  The derivce class constructor should call
 # self.StartThread() as its last act
 #
+# Your derived class's destructor should call self.ShutDownComplete.emit() as its last act
+#
 
-class tActiveObject(QObject):
+class tActiveObject(QThread):
 
   RequestExit      = Signal()
   ShutDownComplete = Signal()
@@ -117,7 +119,9 @@ class tActiveObject(QObject):
   def __del__(self):
     if self.TimerPeriodInMs != 0:
       self.Timer.stop()
-    self.ShutDownComplete.emit()
+    # This signal has to be emitted by the derived class, else the parent will proceed to destroy
+    # the object while the thread is still running.
+    # self.ShutDownComplete.emit()
 
 
   ###############################################
@@ -131,17 +135,17 @@ class tActiveObject(QObject):
 
   def StartThread(self, TimerPeriodInMs=0):
     # Now move ourself and all our new children to the thread we will start
-    self.TheThread = QThread()
-    self.moveToThread(self.TheThread)
+    #self.TheThread = QThread()
+    self.moveToThread(self)
 
     # Now start the thread.  
     # self.TheThread.started .connect(self.OnThreadStart)
-    self.TheThread.finished.connect(self.deleteLater)     # Causes the our destructor to be called when the thread exits
-    self.RequestExit       .connect(self.OnExitRequest)
+    self.finished   .connect(self.deleteLater)     # Causes the our destructor to be called when the thread exits
+    self.RequestExit.connect(self.OnExitRequest)
 
     self.TimerPeriodInMs = TimerPeriodInMs
 
-    self.TheThread.start()
+    self.start()
 
 
 
@@ -160,7 +164,7 @@ class tActiveObject(QObject):
     print('ActiveObject exiting')
     if self.TimerPeriodInMs != 0:
       self.Timer.stop()
-    self.TheThread.quit()        # Tell the thread's event loop to exit.  
+    self.quit()        # Tell the thread's event loop to exit.  
 
 
   ###############################################

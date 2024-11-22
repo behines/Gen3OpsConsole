@@ -96,7 +96,7 @@ class tPeriodicLogger(tActiveObject):
   #     
 
   def __del__(self):
-    pass
+    self.ShutDownComplete.emit()
 
 
 
