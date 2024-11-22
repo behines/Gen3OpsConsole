@@ -103,7 +103,7 @@ def WaitForSignal(SignalToWaitFor:Signal, SignalToEmit:Signal=None, TimeoutInMs=
 class tActiveObject(QThread):
 
   RequestExit      = Signal()
-  ShutDownComplete = Signal()
+  #ShutDownComplete = Signal()
 
 
   ###############################################
@@ -119,9 +119,6 @@ class tActiveObject(QThread):
   def __del__(self):
     if self.TimerPeriodInMs != 0:
       self.Timer.stop()
-    # This signal has to be emitted by the derived class, else the parent will proceed to destroy
-    # the object while the thread is still running.
-    # self.ShutDownComplete.emit()
 
 
   ###############################################
@@ -140,7 +137,7 @@ class tActiveObject(QThread):
 
     # Now start the thread.  
     # self.TheThread.started .connect(self.OnThreadStart)
-    self.finished   .connect(self.deleteLater)     # Causes the our destructor to be called when the thread exits
+    # self.finished   .connect(self.deleteLater)     # Causes the our destructor to be called when the thread exits
     self.RequestExit.connect(self.OnExitRequest)
 
     self.TimerPeriodInMs = TimerPeriodInMs

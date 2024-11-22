@@ -160,7 +160,10 @@ class MasterControl(QMainWindow):
 
   def CleanUp(self):
     # Tell the periodic logger thread to shut down, and wait for confirmation
-    WaitForSignal(SignalToWaitFor = self.PeriodicLogger.ShutDownComplete, SignalToEmit = self.PeriodicLogger.RequestExit)
+    WaitForSignal(SignalToWaitFor = self.PeriodicLogger.finished, SignalToEmit = self.PeriodicLogger.RequestExit)
+    # Now that the thread has exited, schedule it for deletion
+    self.PeriodicLogger.deleteLater()
+
 
 
 
