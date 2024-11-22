@@ -36,7 +36,7 @@ import sys
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout, QScrollArea, QVBoxLayout, QMessageBox
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore    import QFile, Qt, QElapsedTimer
+from PySide6.QtCore    import QFile, Qt, QElapsedTimer, QEventLoop
 
 # Globals, used for communicating between threads
 # import globals 
@@ -48,7 +48,7 @@ from Marquee          import tMarquee
 from TempHumSensor    import tTempHumSensor
 from Agilent          import tAgilent
 from PeriodicLogger   import tPeriodicLogger
-
+from Utilities        import WaitForSignal
 
 
 
@@ -130,6 +130,10 @@ class MasterControl(QMainWindow):
     # Get the complete channel list, adding the mainframe number as a prefix 1000, 2000, 3000, to each channel
     CompleteChannelList = [channel + 1000*(index+1) for index, agilent in enumerate(self.Agilents) for channel in agilent.ChannelList]
 
+    self.DomeTempSensor        = tTempHumSensor(DOME_TEMP_SENSOR_PORT,        parent=None)
+    self.OutsideTempSensor     = tTempHumSensor(OUTSIDE_TEMP_SENSOR_PORT,     parent=None)
+    self.ElectronicsTempSensor = tTempHumSensor(ELECTRONICS_TEMP_SENSOR_PORT, parent=None)
+
     # Get the indices of channels that we will want to pick out of the data for reporting to 
     # the marquee display
     try:
@@ -143,8 +147,20 @@ class MasterControl(QMainWindow):
     self.Collectors = None
 
     self.PeriodicLogger = tPeriodicLogger(self.Agilents, GhiChannelIndex, DniChannelIndex, BoxMeasurementIndex, 
-                                          DOME_TEMP_SENSOR_PORT, OUTSIDE_TEMP_SENSOR_PORT, ELECTRONICS_TEMP_SENSOR_PORT,
+                                          self.DomeTempSensor, self.OutsideTempSensor, self.ElectronicsTempSensor,
                                           self.Collectors, parent=self)
+
+
+  #######################################################
+  # CleanUp - Destroys objects and/or sends signals to objects to destroy themselves
+  #
+  # We wait to do this until after the window is constructed, so that information about 
+  # initialization can be reported to the log and to relevant widgets
+
+  def CleanUp(self):
+    # Tell the periodic logger thread to shut down, and wait for confirmation
+    WaitForSignal(SignalToWaitFor = self.PeriodicLogger.ShutDownComplete, SignalToEmit = self.PeriodicLogger.RequestExit)
+
 
 
   #######################################################
@@ -232,6 +248,8 @@ if __name__ == "__main__":
   MainWin.activateWindow()
   
   MainWin.StartApplication()
+
+  app.aboutToQuit.connect(MainWin.Cleanup)
 
 
   # Run the event loop, and propagate any exit error code back to the OS.

@@ -6,11 +6,11 @@
 # owned by the same thread that reads all the states, so it can communicate directly with 
 # the marquee display rather than having to use signals.
 
-from PySide6.QtCore import QObject, QElapsedTimer, Signal
+from PySide6.QtCore import QObject, Signal
 
 # Import configuration of the system
 from ConfigInfo    import *
-from Utilities     import tPeriodicThread
+from Utilities     import tActiveObject
 from Agilent       import tAgilent
 from TempHumSensor import tTempHumSensor
 from Marquee       import tMarquee
@@ -23,26 +23,27 @@ from Marquee       import tMarquee
 #
 #
 
-class tPeriodicLogger(tPeriodicThread):
+class tPeriodicLogger(tActiveObject):
 
   #######################
   # Qt Signal declarations.  This is how Qt allows us to make a function call into a
   # different thread.  See https://stackoverflow.com/questions/2970312/pyqt4-qtcore-pyqtsignal-object-has-no-attribute-connect
   # 
 
-  DniUpdate     = Signal(float)
-  GhiUpdate     = Signal(float)
-  BoxTempUpdate = Signal(float)
+  DniUpdate      = Signal(float)
+  GhiUpdate      = Signal(float)
+  BoxTempUpdate  = Signal(float)
   DomeTempUpdate = Signal(float)
 
+
   ###############################################
-  # Constructor and destructor
+  # Constructor, part 1
   # 
   # INPUTS:
   #     
 
   def __init__(self, Agilents, GhiChannelIndex, DniChannelIndex, BoxMeasurementIndex,
-               DomeTempSensorPort, OutsideTempSensorPort, ElectronicsTempSensorPort, Collectors, parent=None):
+               DomeTempSensor, OutsideTempSensor, ElectronicsTempSensor, Collectors, parent=None):
     super().__init__(parent)   # tPeriodicThread constructor
 
     self.Agilents = Agilents
@@ -51,25 +52,51 @@ class tPeriodicLogger(tPeriodicThread):
     self.DniChannelIndex       = DniChannelIndex
     self.BoxMeasurementIndex   = BoxMeasurementIndex
 
-    self.DomeTempSensor        = tTempHumSensor(DomeTempSensorPort,        self)
-    self.OutsideTempSensor     = tTempHumSensor(OutsideTempSensorPort,     self)
-    self.ElectronicsTempSensor = tTempHumSensor(ElectronicsTempSensorPort, self)
+    self.DomeTempSensor        = DomeTempSensor       
+    self.OutsideTempSensor     = OutsideTempSensor    
+    self.ElectronicsTempSensor = ElectronicsTempSensor
 
     self.Collectors            = Collectors
 
     # Marquee display
-    self.Marquee       = tMarquee(MARQUEE_COM_PORT, self)
+    self.Marquee               = tMarquee(MARQUEE_COM_PORT, self)
 
-    self.SpawnPeriodicMethodAsThreadAndSetAffinityToNewThread(LOG_INTERVAL_SECONDS * 1000, self.PeriodicMethod)
 
-    # Take ownership of the Agilents, and move Agilent objects and temp sensor objects to the thread crated by tPeriodicThread
+    # moveToThread() to changes the thread affinity of a QObject (and its children). This means that the object's
+    # slots and event handlers will be executed in the thread to which it's moved.
+
+    # Take ownership of the Agilents and temp sensor objects
     for agilent in self.Agilents:
-      agilent.moveToThread(self.TheThread)
+      #agilent.moveToThread(self)
       agilent.setParent(self)
 
-    self.DomeTempSensor       .moveToThread(self.TheThread)
-    self.OutsideTempSensor    .moveToThread(self.TheThread)
-    self.ElectronicsTempSensor.moveToThread(self.TheThread)
+    self.DomeTempSensor       .setParent(self)
+    self.OutsideTempSensor    .setParent(self)
+    self.ElectronicsTempSensor.setParent(self)
+
+    #self.DomeTempSensor       .moveToThread(self)
+    #self.OutsideTempSensor    .moveToThread(self)
+    #self.ElectronicsTempSensor.moveToThread(self)
+
+    # You can go ahead and create as many object for use in the thread as will be needed.
+
+    self.StartThread(LOG_INTERVAL_SECONDS * 1000)
+
+
+
+
+  ###############################################
+  # Destructor
+  # 
+  # This will be called when the thread exits
+  #     
+
+  def __del__(self):
+    pass
+
+
+
+  ###############################################
 
 
   ###############################################

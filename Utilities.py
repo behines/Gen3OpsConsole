@@ -10,7 +10,8 @@
 # Modules used
 #
 
-from PySide6.QtCore import QObject, QThread, Signal, QElapsedTimer, QDateTime, QTimeZone
+from PySide6.QtCore import QObject, QThread, Signal, QDateTime, QTimeZone, QTimer, QEventLoop
+import debugpy
 
 from ConfigInfo import *
 
@@ -53,6 +54,169 @@ def requires_device_open(default_return=''):
     return wrapper
   return decorator
 
+
+
+##########################################################################################
+##########################################################################################
+##########################################################################################
+# WaitForSignal - Blocks until the specified signal is received
+#
+# INPUTS:
+#   SignalToEmit - If provided, Qt will emit this signal for you in order to provoke the signal you're waiting on
+#   TimeoutInMs  - how long to wait before giving up
+
+def WaitForSignal(SignalToWaitFor:Signal, SignalToEmit:Signal=None, TimeoutInMs=0, parent=None):
+    
+  # This is Qt's funny way of blocking to wait for a signal
+  loop = QEventLoop(parent)
+  SignalToWaitFor.connect(loop.quit)
+
+  # We will also exit the event loop if the timer times out
+  if TimeoutInMs != 0:
+    Timer = QTimer(parent)
+    Timer.setSingleShot(True)
+    Timer.timeout.connect(loop.quit)
+    Timer.start(TimeoutInMs)
+
+  if not SignalToEmit is None:
+    SignalToEmit.emit()
+
+  # Block until the signal is emitted
+  loop.exec()
+
+
+##########################################################################################
+##########################################################################################
+##########################################################################################
+# tActiveObject - Class that implements a thread that starts an event loop, so that the
+#                 object can respond to signals.
+#
+# This class is meant to be inherited by any class whose main purpose is to be an "active
+# object" that can respond to signals and emit responses.
+#
+# This class will not actually start the thread.  The derivce class constructor should call
+# self.StartThread() as its last act
+#
+
+class tActiveObject(QObject):
+
+  RequestExit      = Signal()
+  ShutDownComplete = Signal()
+
+
+  ###############################################
+  # Constructor and destructor
+  # 
+  # The thread should clean up properly, but if not the destructor will tidy up
+  #   
+
+  def __init__(self,parent=None):
+    super().__init__(parent)
+    
+
+  def __del__(self):
+    if self.TimerPeriodInMs != 0:
+      self.Timer.stop()
+    self.ShutDownComplete.emit()
+
+
+  ###############################################
+  # StartThread
+  # 
+  # Causes the object's run method to start
+  # 
+  # INPUTS:
+  #   TimerPeriodInMs - if nonzero, will call self.PeriodicMethod at this interval
+  #  
+
+  def StartThread(self, TimerPeriodInMs=0):
+    # Now move ourself and all our new children to the thread we will start
+    self.TheThread = QThread()
+    self.moveToThread(self.TheThread)
+
+    # Now start the thread.  
+    # self.TheThread.started .connect(self.OnThreadStart)
+    self.TheThread.finished.connect(self.deleteLater)     # Causes the our destructor to be called when the thread exits
+    self.RequestExit       .connect(self.OnExitRequest)
+
+    self.TimerPeriodInMs = TimerPeriodInMs
+
+    self.TheThread.start()
+
+    # Set up timer if requested
+    if TimerPeriodInMs != 0:
+      self.Timer = QTimer(self)
+      self.Timer.setSingleShot(True)
+      self.Timer.timeout.connect(self.OnTimerTimeout)
+
+      # Get the current time in the specified timezone
+      current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
+      # Calculate the remaining time until the next interval
+      milliseconds_until_next_interval = int(TimerPeriodInMs - (current_time.time().msecsSinceStartOfDay() % TimerPeriodInMs))
+      # Calculate the exact datetime for the next run
+      self.ScheduledTime = current_time.addMSecs(milliseconds_until_next_interval)
+      self.Timer.start(milliseconds_until_next_interval)
+
+
+  ###############################################
+  # OnExitRequest
+  # 
+  # Called when we receive a RequestExit signal
+  #
+  # Stops the periodic timer if running
+  #
+  # Tells the thread's event loop to exit, which will cause run() to return, which will 
+  # fire the finished signal, which will call deleteLater, which will run our destructor.
+  #  
+
+  def OnExitRequest(self):
+    print('ActiveObject exiting')
+    if self.TimerPeriodInMs != 0:
+      self.Timer.stop()
+    self.TheThread.quit()        # Tell the thread's event loop to exit.  
+
+
+  ###############################################
+  # run - Starts the active object's event loop
+  #  
+
+  def run(self):
+    # Enable breakpoints within code in this thread
+    debugpy.debug_this_thread()
+    
+    # Start the thread's event loop by calling the base class run().  The default
+    # implementation simply calls exec()
+    super().run()       # i.e., self.exec()
+
+
+  ###############################################
+  # PeriodicMethod - Called whenever the timer fires.  It is intended that you
+  #                  override this with your method
+  # 
+
+  def PeriodicMethod(self):
+    pass
+  
+
+  ###############################################
+  # OnTimerTimeout - called when the periodic timer fires
+  # 
+
+  def OnTimerTimeout(self):
+    # Call the user's periodic method
+    self.PeriodicMethod()
+
+    # Compute the next time to fire the timer
+    self.ScheduledTime = self.ScheduledTime.addMSecs(self.TimerPeriodInMs)
+
+    current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
+    milliseconds_until_next_interval = current_time.msecsTo(self.ScheduledTime)
+
+    # If we've missed one or more intervals, just skip, and advance to the next scheduled time that is in the future
+    while milliseconds_until_next_interval <= 0:
+      milliseconds_until_next_interval = milliseconds_until_next_interval + self.TimerPeriodInMs
+    
+    self.Timer.start(milliseconds_until_next_interval)
 
 
 
