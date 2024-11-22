@@ -143,19 +143,6 @@ class tActiveObject(QObject):
 
     self.TheThread.start()
 
-    # Set up timer if requested
-    if TimerPeriodInMs != 0:
-      self.Timer = QTimer(self)
-      self.Timer.setSingleShot(True)
-      self.Timer.timeout.connect(self.OnTimerTimeout)
-
-      # Get the current time in the specified timezone
-      current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
-      # Calculate the remaining time until the next interval
-      milliseconds_until_next_interval = int(TimerPeriodInMs - (current_time.time().msecsSinceStartOfDay() % TimerPeriodInMs))
-      # Calculate the exact datetime for the next run
-      self.ScheduledTime = current_time.addMSecs(milliseconds_until_next_interval)
-      self.Timer.start(milliseconds_until_next_interval)
 
 
   ###############################################
@@ -184,6 +171,20 @@ class tActiveObject(QObject):
     # Enable breakpoints within code in this thread
     debugpy.debug_this_thread()
     
+    # Set up timer if requested
+    if self.TimerPeriodInMs != 0:
+      self.Timer = QTimer(self)
+      self.Timer.setSingleShot(True)
+      self.Timer.timeout.connect(self.OnTimerTimeout)
+
+      # Get the current time in the specified timezone
+      current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
+      # Calculate the remaining time until the next interval
+      milliseconds_until_next_interval = int(self.TimerPeriodInMs - (current_time.time().msecsSinceStartOfDay() % self.TimerPeriodInMs))
+      # Calculate the exact datetime for the next run
+      self.ScheduledTime = current_time.addMSecs(milliseconds_until_next_interval)
+      self.Timer.start(milliseconds_until_next_interval)
+
     # Start the thread's event loop by calling the base class run().  The default
     # implementation simply calls exec()
     super().run()       # i.e., self.exec()

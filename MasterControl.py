@@ -146,9 +146,10 @@ class MasterControl(QMainWindow):
 
     self.Collectors = None
 
+    # The parent of the object has to be None or it can't be moved to a thread
     self.PeriodicLogger = tPeriodicLogger(self.Agilents, GhiChannelIndex, DniChannelIndex, BoxMeasurementIndex, 
                                           self.DomeTempSensor, self.OutsideTempSensor, self.ElectronicsTempSensor,
-                                          self.Collectors, parent=self)
+                                          self.Collectors) #, parent=None)
 
 
   #######################################################
@@ -249,7 +250,7 @@ if __name__ == "__main__":
   
   MainWin.StartApplication()
 
-  app.aboutToQuit.connect(MainWin.Cleanup)
+  app.aboutToQuit.connect(MainWin.CleanUp)
 
 
   # Run the event loop, and propagate any exit error code back to the OS.

@@ -39,11 +39,15 @@ class tPeriodicLogger(tActiveObject):
   ###############################################
   # Constructor, part 1
   # 
+  # Note that the parent of the object has to be None or it can't be moved to a thread.  So we don't even
+  # accept a parent input
+  #
   # INPUTS:
   #     
 
   def __init__(self, Agilents, GhiChannelIndex, DniChannelIndex, BoxMeasurementIndex,
-               DomeTempSensor, OutsideTempSensor, ElectronicsTempSensor, Collectors, parent=None):
+               DomeTempSensor, OutsideTempSensor, ElectronicsTempSensor, Collectors): #, parent=None):
+    parent = None
     super().__init__(parent)   # tPeriodicThread constructor
 
     self.Agilents = Agilents
