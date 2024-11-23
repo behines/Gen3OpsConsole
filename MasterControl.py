@@ -72,8 +72,6 @@ class MasterControl(QMainWindow):
   def __init__(self, parent=None):
     super().__init__(parent)
 
-
-
     # Load MasterControl UI dynamically
     loader = QUiLoader()
     ui_file = QFile("Gen2OpsConsole.ui")
@@ -94,18 +92,6 @@ class MasterControl(QMainWindow):
     # Integrate the loaded UI
     self.setCentralWidget(ui.centralWidget())  # Use the central widget from the loaded UI
     self.setWindowTitle('Windsor Master Control Console')
-
-
-    # Construct the Agilent objects.  The '*' splats the descriptor onto the constructor arguments
-    #self.Agilents   = [ tAgilent(*descriptor, parent=self) for descriptor in AGILENTS ]
-
-
-    # Marquee display and standalone sensors
-    #Marquee       = tMarquee      (MARQUEE_COM_PORT)
-    #OutsideSensor = tTempHumSensor(OUTSIDE_SENSOR_PORT)
-    #DomeSensor    = tTempHumSensor(DOME_SENSOR_PORT)
-    #ElecSensor    = tTempHumSensor(ELEC_SENSOR_PORT)
-
 
     # Create Collector Control Window
     self.CollectorControlWindow = tCollectorControlWindow()

@@ -15,7 +15,7 @@
 import serial
 import sys
 # For implementing object locking and retry timer
-from PySide6.QtCore import QMutex, QElapsedTimer, QObject
+from PySide6.QtCore import QMutex, QElapsedTimer, QObject, Signal
 from Utilities      import requires_device_open
 from ConfigInfo     import *
 
@@ -29,6 +29,20 @@ from ConfigInfo     import *
 #
 
 class tMarquee(QObject):
+
+  DomeTempHumUpdate    = Signal(float,float)
+  OutsideTempHumUpdate = Signal(float,float)
+  ElecBoxTempUpdate    = Signal(float)
+  GHIUpdate            = Signal(float)
+  DNIUpdate            = Signal(float)
+
+
+    self.SendDomeData(DomeTempInC, DomeHumidity)
+    self.SendOutsideData(OutsideTempInC, OutsideHumidity)
+    self.SendBoxData(BoxTempInC)
+    self.SendGHI(GHI)
+    self.SendDNI(DNI)
+    self.SendCollectorStates(CollectorStates)
 
   #################################################
   #

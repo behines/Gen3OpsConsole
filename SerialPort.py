@@ -31,8 +31,7 @@ from PySide6.QtCore import Signal, QTimer, QByteArray
 #
 
 class tAutoOpenSerial(QSerialPort):
-  portOpened = Signal()  # Emitted when the port is successfully opened
-  portClosed = Signal()  # Emitted when the port is closed
+  PortOpenStateChange = Signal(bool)  # Emitted when the port is successfully opened or closed
 
 
   #######################################################
@@ -41,12 +40,17 @@ class tAutoOpenSerial(QSerialPort):
   # AutoReopenTimeoutSecs - will try to re-open a closed port periodically if non-zero
   # 
 
-  def __init__(self, AutoReopenTimeoutSecs=0, parent=None):
+  def __init__(self, portName, baudrate=9600, readBufSize=0, AutoReopenTimeoutSecs=0, parent=None):
     super().__init__(parent)
 
     self.bIsOpen = False
     self._buffer = ""
     self._AutoReopenTimeoutSecs = AutoReopenTimeoutSecs
+
+    self.setPortName(portName);
+    self.setBaudRate(baudrate)
+    if readBufSize != 0:
+      self.setReadBufferSize(readBufSize)
 
     # Setup timer for auto-reopen
     self._ReopenTimer = QTimer()
@@ -79,11 +83,16 @@ class tAutoOpenSerial(QSerialPort):
   # 
   # If the open is not successful, will arm the reopen timer
 
-  def _AttemptOpenIfNeeded(self):
+  def AttemptOpenIfNeeded(self):
+    # I write this line but don't know why.
+    #if self.errorOccurred() == QSerialPort.SerialPortError.TimeoutError:
+    #  pass
     if not self.bIsOpen:
-      if self.open(QSerialPort.ReadWrite):
+      # ReadWrite is actually a member of QIODevice base class, but this works
+      if self.open(QSerialPort.ReadWrite) and self.error() != QSerialPort.NoError:
+        self.close()
         self.bIsOpen = True
-        self.portOpened.emit()
+        self.PortOpenStateChange.emit(self.bIsOpen)
       else:
         self.bIsOpen = False
         self._ArmReopenTimerIfNotRunning()
@@ -105,8 +114,8 @@ class tAutoOpenSerial(QSerialPort):
  
   def _HandleClose(self):
     if self.bIsOpen:
-      self.portClosed.emit()
       self.bIsOpen = False
+      self.PortOpenStateChange.emit(self.bIsOpen)
       self._ArmReopenTimerIfNotRunning()
 
 
@@ -117,11 +126,12 @@ class tAutoOpenSerial(QSerialPort):
   #   Retrieved data as a QByteArray
 
   def read(self):
-    self._AttemptOpenIfNeeded()
+    self.AttemptOpenIfNeeded()
     if not self.bIsOpen:
       return QByteArray()
 
     data = self.readAll()
+    self.flush()
 
     if self.error() != QSerialPort.NoError:
       self.close()
@@ -148,7 +158,7 @@ class tAutoOpenSerial(QSerialPort):
   #   Number of characters written, or -1 if not successful
 
   def write(self, data):
-    self._AttemptOpenIfNeeded()
+    self.AttemptOpenIfNeeded()
     if not self.bIsOpen:
       return -1  # Return -1 if the port couldn't be opened
 
@@ -179,8 +189,9 @@ class tAutoOpenSerial(QSerialPort):
 
   def close(self):
     # No need to wrap this in try/except.  Qt will simply close the port gracefully or log 
-    # an error.  It won't raise an exceptoin.
-    super().close()
+    # an error.  It won't raise an exception.
+    if self.isOpen():
+      super().close()
     self._HandleClose()
     
 

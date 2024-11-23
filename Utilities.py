@@ -113,6 +113,7 @@ class tActiveObject(QThread):
   #   
 
   def __init__(self,parent=None):
+    parent = None  # ActiveObjects have to have no parent, in order to be able to move them to a thread
     super().__init__(parent)
     
 

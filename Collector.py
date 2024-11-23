@@ -12,54 +12,43 @@
 #
 
 # module used to talk over serial with the esp32
-import serial
-from datetime import datetime
+from PySide6.QtCore    import QFile, Qt, QMutex, Signal, QDateTime, QTimeZone
 
-from PySide6.QtWidgets import  QWidget
-from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore    import QFile, Qt, QElapsedTimer, QMutex
+from SerialPort        import tAutoOpenSerialWholeLine
+from Utilities         import tActiveObject
+from ConfigInfo        import *
+
 
 ##########################################################################################
 ##########################################################################################
 ##########################################################################################
-# tCollector  - Class that implements the collector pane and all collector activities
+# tCollector  - Class that implements collector I/O
 #
 # 
 #
 
-class tCollector(QWidget):
+class tCollector(tActiveObject):
+  
+  CollectorOnlineStateUpdate = Signal(bool)
   
   ###############################################
-  # Constructor and destructor
+  # Constructor part 1
+  #
+  # Part 2 of "construction" occurs when our owner calls "Start".  The space between
+  # construction and starting gives the owner a chance to connect to signals.
   # 
   # INPUTS:
+  #
+  #   parent - if provided, will be ignored, activeobject have to have no parent
   #     
 
-  def __init__(self, collectorName, portName, baudRate, parent=None):
+  def __init__(self, collectorName, portName, baud, parent=None):
     super().__init__(parent)   # QWidget constructor
+
+    self.CollectorName = collectorName
+    self.PortName      = portName
+    self.bInit         = False
       
-    self.bInit    = False
-    self.bResponded  = False
-    self.name     = 'Foo' #collectorName
-    self.port     = None
-
-    # Load CollectorPane UI dynamically
-    loader = QUiLoader()
-    ui_file = QFile("CollectorPane.ui")
-    ui_file.open(QFile.ReadOnly)
-    ui = loader.load(ui_file, self)
-    ui_file.close()
-
-    # Auto-bind widgets as attributes of self.  Not needed if we compile the UI with pyside6-uic,
-    # but QUiLoader does not do this automatically.
-    for widget in ui.findChildren(QWidget):
-      setattr(self, widget.objectName(), widget)
-
-    self.setFixedSize(ui.size())
-
-    collectorName = 'Collector ' + collectorName
-    self.CollectorGroup.setTitle(collectorName)
-
     try:
       # Mutex for controlling access to the device
       self._lock = QMutex()
@@ -67,87 +56,91 @@ class tCollector(QWidget):
       # We set rtscts and dsrdtr even though this is a virtual COM Port.  This provides a way for 
       # the virtual port driver to inform when it isn't yet initialized or otherwise ready for
       # data, which can happen.
-      self.port  = serial.Serial(portName, baudRate, timeout=5)
-      self.dtr = True
-      self.rts = True
+      self.SerialPort  = tAutoOpenSerialWholeLine(portName, baudrate=baud, readBufSize=COLLECTOR_RX_BUFFER_SIZE,
+                                                  AutoReopenTimeoutSecs=COLLECTOR_RETRY_TIMEOUT_SECS, parent=self)
+      # Monitor the port for open/close state changes
+      self.SerialPort.PortOpenStateChange.connect(self.OnlineStatusUpdate)
 
-      #try:
-        # Undocumented func on windows.  Needed to keep it from buffering output and losing characters
-        # at the end
-      #  self.port.set_buffer_size(tx_size = 0)
-      #except AttributeError as err:
-      #  print('PySerial::set_buffer_size not supported on this platform, continuing')
-      #time.sleep(0.5)
-
-      self.bInit = True
     except:
       print('tCollector: Could not open collector ',collectorName,'on port ', portName)
 
 
-  def __del__(self):
-    if self.port:
-      self.port.flush()
-      self.port.close()
-
-
   ###############################################
-  # Open the port
+  # Destructor
   # 
+  # This will be called when the thread exits
   #     
-     
-  def Open(self):
-    if (self.SerialPort is None) :
-      try:
-        if (LongName == None):
-          if (self.LongName == None):
-            print("tUart::Open: must supply a LongName either as argument to Open() or via SetLongName()"  )
-            return -1
-          else:
-            LongName = self.LongName
-        print("Attempting to open ", self.Port, ": ", LongName)
-        if ((not (self.Port is None)) and (CAN_OVER_SERIAL_PORT_NAME in LongName)):
-          # This appears to be our Arduino Due relaying CAN bus over serial - set the baud rate to match it
-          self.Baud = CAN_OVER_SERIAL_BAUD_RATE
-          self.bIsCanOverSerial = True
-          print("Adjusted to use CAN baud rate of ", CAN_OVER_SERIAL_BAUD_RATE)
-        else:
-          self.bIsCanOverSerial = False
-        self.SerialPort = serial.Serial(self.Port, self.Baud, timeout = self.TimeoutSecs)  # , rtscts = True)
-        print("Serial port is ", self.SerialPort.name)         # check which port was really used
-        try:
-          self.SerialPort.set_buffer_size(rx_size = RX_BUFFER_SIZE, tx_size = TX_BUFFER_SIZE)
-        except AttributeError as err:
-          print("PySerial::set_buffer_size not supported on this platform, continuing"  )
-        return 0
-      except OSError as err:
-        print("Error opening serial port:", err)
-        self.SerialPort = None
-        return -1
-    else:
-      print("Serial port ", self.SerialPort.name, " already open")  
-      return 1
+
+  def __del__(self):
+    pass
+
 
 
   ###############################################
-  # tUart::Close
+  # Start 
   # 
-  #
- 
-  def Close(self):
-    if (self.IsOpen()) : 
-      self.port.close()
-      self.port = None
+  # This will be called when the thread exits
+  #     
+
+  def Start(self):
+    if self.SerialPort.IsOpen():
+      self.InitializeConnection()
+      self.bInit = True
+    else:
+      print('tCollector: Could not open collector ',self.CollectorName,'on port ', self.PortName)
+
+    # Monitor the port for open/close state changes
+    self.SerialPort.PortOpenStateChange.connect(self.OnlineStatusUpdate)
+
+    # Start our event loop going, also with a timer that will try to reconnect if not connected
+    self.StartThread(COLLECTOR_RETRY_TIMEOUT_SECS * 1000)
+
 
 
   ###############################################
-  # tUart::IsOpen
+  # InitializeConnection - Configures a newly connected collector for I/O
+  # 
+  # This method simply sends the "Telemetry on" command
   #
- 
-  def IsOpen(self):
-    return (not (self.port is None))
+
+  def InitializeConnection(self):
+    if not self.SerialPort.IsOpen():
+      print('tCollector: ERROR: Collector ', self.CollectorName, ' offline in InitializeConnection')
+    
+    self.FlushCommandInput()
+    self.SetTimeToNow(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
+    self.SetTelemetryOnOff(True)
 
 
+  ###############################################
+  # OnlineStatusUpdate - Called when the serial port connection state changes
+  # 
+  # This method sends the "Telemetry on" command
+  #
 
+  def OnlineStatusUpdate(self, bState):
+    bOldState = self.bInit
+    self.bInit = self.SerialPort.IsOpen()
+
+    # If the connection has just come online, initialize it
+    if self.bInit and not bOldState:
+      self.InitializeConnection()
+
+
+  ###############################################
+  # PeriodicMethod
+  # 
+  # This method just attempts to periodically reopen the port if needed
+  #
+
+  def PeriodicMethod(self):
+    self.SerialPort.AttemptOpenIfNeeded()
+    if not self.SerialPort.IsOpen():
+      print('tCollector: Collector ', self.CollectorName, ' on port ', self.PortName,' offline')
+
+
+  
+  
   ###############################################
   # __enter__ and __exit__ for use with "with"
   # 
@@ -183,100 +176,20 @@ class tCollector(QWidget):
   
 
   ###############################################
-  # WaitForLineReady
-  # 
-  # Waits for DSR and CTS to be ready, with timeout
-  #
-  # RETURNS:
-  #   True if ready, False if timed out
-  #     
-
-  def WaitForLineReady(self, TimeoutInSeconds):
-    return True
-    #bDidPrint = False
-    #bRetVal   = False
-#
-    #while TimeoutInSeconds >= 0:
-    #  if self.port.dsr and self.port.cts:
-    #    bRetVal = True
-    #    break
-    #  else:
-    #    TimeoutInSeconds = TimeoutInSeconds - 0.2
-    #    bDidPrint = True
-    #    if self.port.dsr:
-    #      print('D.', end='')
-    #    else:
-    #      print('d', end='')
-    #    if self.port.cts:
-    #      print('C.', end='')
-    #    else:
-    #      print('c', end='')
-#
-    #    time.sleep(0.2)
-#
-    #if bDidPrint:
-    #  if bRetVal:
-    #    print('>')
-    #  else:
-    #    print('X')
-  #
-    #return bRetVal
-
-
-   
-  ###############################################
-  # ReadLine
-  # 
-  # Returns a line of text from the controller, if available
-  #     
-
-  def ReadLine(self):
-    if self.port.in_waiting == 0:
-      return None
-    
-    # Read lines from the port until there are no more
-    if self.port.in_waiting > 0:
-      line = self.port.readline().decode('utf-8').strip()
-
-    return line
-  
-
-  ###############################################
-  # WriteChars
-  # 
-  # Writes characters to the controller.  Pass the message in as a string. Does NOT 
-  # append a newline or carriage return
-  #
-  # Returns the number of bytes written.
-  #     
-
-  def WriteChars(self, Msg):
-    if not self.WaitForLineReady(5):
-      print('Collector ', self.name,': Failed to write ', Msg)
-      
-    try:
-      nWritten = self.port.write(Msg.encode('utf-8'))
-      #self.port.flush()
-      return nWritten
-    except:
-      return -1
-    
-
-
-  ###############################################
   # FlushInput
   # 
   # Write extras characters just to flush any pending "/" command and get back in sync
-  # The longest command is 10 characters, so send ten blanks.
+  # The longest command is 10 characters, so send 11 blanks.
   #     
 
-  def FlushInput(self):
+  def FlushCommandInput(self):
+    nToSend = 11
     # Write extras characters just to flush any pending "/" command and get back in sync
     # The longest command is 10 characters, so send 11 blanks.
-    result = self.WriteChars('           ')
+    result = self.SerialPort.write(nToSend * ' ')
 
-    if result != 11:
-      print('Error flushing input for collector ', self.name)
+    if result != nToSend:
+      print('Error flushing input for collector ', self.CollectorName)
       return -1  
     
     return 0
@@ -289,14 +202,14 @@ class tCollector(QWidget):
   #     
 
   def Stow(self):
-    result = self.WriteChars('/Q')
+    result = self.SerialPort.write('/Q')
 
     if result == 2:
-      print ('Stowing collector ', self.name)
+      print ('Stowing collector ', self.CollectorName)
       self.bResponded = True
       return 0
     else:
-      print('Could not stow ', self.name)
+      print('Could not stow ', self.CollectorName)
       return -1  
 
 
@@ -307,14 +220,14 @@ class tCollector(QWidget):
   #     
 
   def Track(self):
-    result = self.WriteChars('/t')
+    result = self.SerialPort.write('/t')
 
     if result == 2:
-      print ('Tracking collector ', self.name)
+      print ('Tracking collector ', self.CollectorName)
       self.bResponded = True
       return 0
     else:
-      print('Could not track ', self.name)
+      print('Could not track ', self.CollectorName)
       return -1
     
 
@@ -327,14 +240,14 @@ class tCollector(QWidget):
   def Home(self):
     # Write extras characters just to flush any pending "/" command and get back in sync
     # The longest command is 10 characters, so send ten blanks.
-    result = self.WriteChars('/h')
+    result = self.SerialPort.write('/h')
 
     if result == 2:
-      print ('Homing collector ', self.name)
+      print ('Homing collector ', self.CollectorName)
       self.bResponded = True
       return 0
     else:
-      print('Could not home ', self.name)
+      print('Could not home ', self.CollectorName)
       return -1
     
 
@@ -347,14 +260,14 @@ class tCollector(QWidget):
   def Off(self):
     # Write extras characters just to flush any pending "/" command and get back in sync
     # The longest command is 10 characters, so send ten blanks.
-    result = self.WriteChars('/o')
+    result = self.SerialPort.write('/o')
 
     if result == 2:
-      print ('Turning off collector ', self.name)
+      print ('Turning off collector ', self.CollectorName)
       self.bResponded = True
       return 0
     else:
-      print('Could not turn off ', self.name)
+      print('Could not turn off ', self.CollectorName)
       return -1
 
 
@@ -371,21 +284,45 @@ class tCollector(QWidget):
   ###############################################
   # SetTimeToNow()
   # 
-  # Comamnds the collector to Home
+  #  Sets the time on the collector
   #     
 
-  def SetTimeToNow(self, timezone):
+  def SetTimeToNow(self, timezone : QTimeZone):
+    if not isinstance(timezone, QTimeZone):
+      raise TypeError("timezone must be of type QTimeZone")
 
-    current_time = datetime.now(pytz.timezone(timezone))
+    current_time = QDateTime.currentDateTime(timezone)
     
     # Format to HHMMSS.s (with 0.1 second resolution)
-    SetTimeCmd = '/K' + current_time.strftime('%H%M%S') + f"{int(current_time.microsecond / 100000)}"
-    print('Set time (',self.name,'): ', SetTimeCmd)
+    SetTimeCmd = '/K' + current_time.toString('hhmmss') + f"{int(current_time.time().msec() / 100)}"
+    print('Set time (',self.CollectorName,'): ', SetTimeCmd)
 
-    result = self.WriteChars(SetTimeCmd)
+    result = self.SerialPort.write(SetTimeCmd)
 
     if result != 9:
-      print ('Could not set time for ', self.name)
+      print ('Could not set time for ', self.CollectorName)
+      self.bResponded = True
+      return -1
+    else:
+      return 0
+    
+
+  ###############################################
+  # SetTelemetryOnOff()
+  # 
+  # Turns telemetry on or off
+  #
+  # INPUTS:
+  #   bTelemetryOn - desired state
+  #     
+
+  def SetTelemetryOnOff(self, bTelemetryOn : bool):
+    cmd = '/L' if bTelemetryOn else 'l'
+
+    result = self.SerialPort.write(cmd)
+
+    if result != 2:
+      print ('Could not set telemetry on state for ', self.CollectorName)
       self.bResponded = True
       return -1
     else:
