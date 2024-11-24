@@ -142,14 +142,15 @@ class tCollector(tActiveObject):
   ###############################################
   # PeriodicMethod
   # 
-  # This method just attempts to periodically reopen the port if needed
+  # This method just attempts to periodically reopen the port if it's not open
   #
 
   def PeriodicMethod(self):
-    print('Collector reopen attempt',flush=True)
+    #print('Collector reopen attempt',flush=True)
     self.SerialPort.AttemptOpenIfNeeded()  # Will be a no-op if the port is open
     if not self.SerialPort.IsOpen():
-      print('tCollector: Collector ' + self.CollectorName + ' on port ' + self.PortName + ' offline', flush=True)
+      #print('tCollector: Collector ' + self.CollectorName + ' on port ' + self.PortName + ' offline', flush=True)
+      pass
 
 
   

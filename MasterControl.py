@@ -19,6 +19,11 @@
 #   ESP32 for the marquee display
 #   Dome and Outside Temp/Humidity sensors
 #
+# ************* COMPILING THE UI ***************
+# It is nececcsary to convert the .ui files from Qt Creator into _ui.py files that the app will
+# load at runtime.  To do this:
+#   pyside6-uic Gen2OpsConsole.ui -o Gen2OpsConsole_ui.py
+#   pyside6-uic  CollectorPane.ui -o  CollectorPane_ui.py  
 #
 
 #################################################
@@ -36,19 +41,19 @@ import sys
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout, QScrollArea, QVBoxLayout, QMessageBox
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore    import QFile, Qt, QElapsedTimer, QEventLoop
+from PySide6.QtCore    import QFile, QThread, QDateTime, QTimeZone, QTimer
 
 # Globals, used for communicating between threads
 # import globals 
 
 # Import configuration of the system
-from ConfigInfo       import *
-from CollectorControl import tCollectorControlWindow
-from Marquee          import tMarquee
-from TempHumSensor    import tTempHumSensor
-from Agilent          import tAgilent
-from PeriodicLogger   import tPeriodicLogger
-from Utilities        import WaitForSignal
+from Gen2OpsConsole_ui import Ui_MasterControl
+from ConfigInfo        import *
+from CollectorControl  import tCollectorControlWindow
+from TempHumSensor     import tTempHumSensor
+from Agilent           import tAgilent
+from PeriodicLogger    import tPeriodicLogger
+from Utilities         import WaitForSignal
 
 
 
@@ -73,25 +78,39 @@ class MasterControl(QMainWindow):
     super().__init__(parent)
 
     # Load MasterControl UI dynamically
-    loader = QUiLoader()
-    ui_file = QFile("Gen2OpsConsole.ui")
+    #loader = QUiLoader()
+    #ui_file = QFile("Gen2OpsConsole.ui")
     
-    if not ui_file.exists():
-      QMessageBox.critical(self, "Error", "UI file not found: Gen2OpsConsole.ui")
-      sys.exit(1)
+    #if not ui_file.exists():
+    #  QMessageBox.critical(self, "Error", "UI file not found: Gen2OpsConsole.ui")
+    #  sys.exit(1)
     
-    ui_file.open(QFile.ReadOnly)
-    ui = loader.load(ui_file, self)
-    ui_file.close()
-    
+    #ui_file.open(QFile.ReadOnly)
+    #self.ui = loader.load(ui_file, self)   # Have to assign to self so that ui and all its children persist after the constructor exits
+    #ui_file.close()
+
+    #self.ui.centralWidget().setParent(self)
+
     # Auto-bind widgets as attributes of self.  Not needed if we compile the UI with pyside6-uic,
     # but QUiLoader does not do this automatically.
-    for widget in ui.findChildren(QWidget):
-      setattr(self, widget.objectName(), widget)
+    #for widget in self.ui.findChildren(QWidget):
+    #  setattr(self, widget.objectName(), widget)
 
     # Integrate the loaded UI
-    self.setCentralWidget(ui.centralWidget())  # Use the central widget from the loaded UI
+    #self.setCentralWidget(self.ui.centralWidget())  # Use the central widget from the loaded UI
+    #self.setCentralWidget(self.ui)  # Use the central widget from the loaded UI
+
+    # Instantiate the UI class and set it up
+    self.ui = Ui_MasterControl()
+    self.ui.setupUi(self)
+    
     self.setWindowTitle('Windsor Master Control Console')
+
+
+
+
+    print('TimeLabel = ', self.ui.SystemTimeLabel)  # Should not be None
+
 
     # Create Collector Control Window
     self.CollectorControlWindow = tCollectorControlWindow()
@@ -143,6 +162,18 @@ class MasterControl(QMainWindow):
     for Collector in self.Collectors:
       Collector.Start()
 
+    # Set up a 1-second timer
+    self.OneSecondTimer = QTimer(self)
+    self.OneSecondTimer.setSingleShot(False)
+    self.OneSecondTimer.timeout.connect(self.OneSecondTick)
+
+    # Get the current time in the specified timezone
+    current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
+    # Pause a fraction of a second to get perfect sync
+    milliseconds_until_next_interval = current_time.time().msecsSinceStartOfDay() % 1000
+    QThread.msleep(milliseconds_until_next_interval)
+
+    self.OneSecondTimer.start(1000)
 
 
   #######################################################
@@ -156,21 +187,20 @@ class MasterControl(QMainWindow):
     WaitForSignal(SignalToWaitFor = self.PeriodicLogger.TheThread.finished, SignalToEmit = self.PeriodicLogger.RequestExit)
     # Now that the thread has exited, schedule it for deletion
     self.PeriodicLogger.deleteLater()
-
-
+    self.OneSecondTimer.stop()
 
 
   #######################################################
-  # closeEvent handler - causes Collector window to close along with main window
+  # OneSecondTick handler 
   #
   # contains all the collectors
   #
 
-  def closeEvent(self, event):
-    # Ensure the CollectorControlWindow is closed when the main window is closed
-    if self.CollectorControlWindow:
-      self.CollectorControlWindow.ForceClose()
-    event.accept()  # Proceed with closing MainWin
+  def OneSecondTick(self):
+   current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
+   TimeString = current_time.toString('HH:mm:ss')
+   self.ui.SystemTimeLabel.setText(TimeString)
+  
 
 
 ##########################################################################################

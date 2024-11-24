@@ -14,6 +14,7 @@ from PySide6.QtWidgets import QWidget, QGridLayout, QScrollArea, QVBoxLayout, QM
 from PySide6.QtCore    import Qt, QFile
 
 # Import configuration of the system
+from CollectorPane_ui  import Ui_Form
 from ConfigInfo        import *
 from Collector         import tCollector
 from Utilities         import WaitForSignal
@@ -45,21 +46,26 @@ class tCollectorPane(QWidget):
     self.port     = None
 
     # Load CollectorPane UI dynamically
-    loader = QUiLoader()
-    ui_file = QFile("CollectorPane.ui")
-    ui_file.open(QFile.ReadOnly)
-    ui = loader.load(ui_file, self)
-    ui_file.close()
+    #loader = QUiLoader()
+    #ui_file = QFile("CollectorPane.ui")
+    #ui_file.open(QFile.ReadOnly)
+    #self.ui = loader.load(ui_file, self)    # Have to assign to self so that ui and all its children persist after the constructor exits
+    #ui_file.close()
 
     # Auto-bind widgets as attributes of self.  Not needed if we compile the UI with pyside6-uic,
     # but QUiLoader does not do this automatically.
-    for widget in ui.findChildren(QWidget):
-      setattr(self, widget.objectName(), widget)
+    #for widget in self.ui.findChildren(QWidget):
+    #  setattr(self, widget.objectName(), widget)
+    # self.setFixedSize(self.ui.size())
 
-    self.setFixedSize(ui.size())
+
+    self.ui = Ui_Form()
+    self.ui.setupUi(self)
+    
+    self.setFixedSize(self.size())
 
     collectorTitle = 'Collector ' + collectorName
-    self.CollectorGroup.setTitle(collectorTitle)
+    self.ui.CollectorGroup.setTitle(collectorTitle)
 
 
     # Create the Collector object that interfaces to the hardware
