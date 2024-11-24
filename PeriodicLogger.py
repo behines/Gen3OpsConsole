@@ -112,6 +112,7 @@ class tPeriodicLogger(tActiveObject):
   #   ScheduledTime - the QDateTime that the method was scheduled to run, in the current time zone
 
   def LogTemperatureData(self):
+    print('Templogger',flush=True)
     return 0
     ###
     # Collect all data

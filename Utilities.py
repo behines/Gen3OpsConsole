@@ -86,6 +86,64 @@ def WaitForSignal(SignalToWaitFor:Signal, SignalToEmit:Signal=None, TimeoutInMs=
   loop.exec()
 
 
+
+
+##########################################################################################
+##########################################################################################
+##########################################################################################
+# tActiveThread - Class that implements the thread for a tActiveObject.  
+#
+# The main job of the thread is to start an event loop, by calleing the base class run() method
+#
+
+class tActiveThread(QThread):
+
+
+  ###############################################
+  # Constructor and destructor
+  # 
+  # We make use of parent in the class.  We know that the parent is a tActiveObject,
+  # so we can reach into the ActiveObject and start its timer for it if need be.
+  #   
+
+  def __init__(self, ActiveObject, parent=None):
+    super().__init__(parent)
+    self.ActiveObject = ActiveObject
+
+  def __del__(self):
+    pass
+
+  ###############################################
+  # run - Starts the active object's event loop
+  #  
+
+  def run(self):
+    # Enable breakpoints within code in this thread
+    debugpy.debug_this_thread()
+    
+    print('ActiveObject thread started')
+
+    # Set up timer if requested
+    if self.ActiveObject.TimerPeriodInMs != 0:
+      self.ActiveObject.Timer = QTimer(self)
+      self.ActiveObject.Timer.setSingleShot(True)
+      self.ActiveObject.Timer.timeout.connect(self.ActiveObject.OnTimerTimeout)
+
+      # Get the current time in the specified timezone
+      current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
+      # Calculate the remaining time until the next interval
+      milliseconds_until_next_interval = int(self.ActiveObject.TimerPeriodInMs - (current_time.time().msecsSinceStartOfDay() % self.ActiveObject.TimerPeriodInMs))
+      # Calculate the exact datetime for the next run
+      self.ActiveObject.ScheduledTime = current_time.addMSecs(milliseconds_until_next_interval)
+      print('Starting ActiveObject Timer, period = ' + str(self.ActiveObject.TimerPeriodInMs) + ' in init, object id = ' + str(id(self)), flush=True)
+      print(f"Timer creation thread: {QThread.currentThread()}")
+      self.ActiveObject.Timer.start(milliseconds_until_next_interval)
+
+    # Start the thread's event loop by calling the base class run().  The default
+    # implementation simply calls exec()
+    super().run()       # i.e., self.exec()
+
+
 ##########################################################################################
 ##########################################################################################
 ##########################################################################################
@@ -95,13 +153,13 @@ def WaitForSignal(SignalToWaitFor:Signal, SignalToEmit:Signal=None, TimeoutInMs=
 # This class is meant to be inherited by any class whose main purpose is to be an "active
 # object" that can respond to signals and emit responses.
 #
-# This class will not actually start the thread.  The derivce class constructor should call
+# This class will not actually start the thread.  The derived class constructor should call
 # self.StartThread() as its last act
 #
 # Your derived class's destructor should call self.ShutDownComplete.emit() as its last act
 #
 
-class tActiveObject(QThread):
+class tActiveObject(QObject):
 
   RequestExit      = Signal()
   #ShutDownComplete = Signal()
@@ -135,8 +193,8 @@ class tActiveObject(QThread):
 
   def StartThread(self, TimerPeriodInMs=0):
     # Now move ourself and all our new children to the thread we will start
-    #self.TheThread = QThread()
-    self.moveToThread(self)
+    self.TheThread = tActiveThread(self, self)
+    self.moveToThread(self.TheThread)
 
     # Now start the thread.  
     # self.TheThread.started .connect(self.OnThreadStart)
@@ -145,7 +203,11 @@ class tActiveObject(QThread):
 
     self.TimerPeriodInMs = TimerPeriodInMs
 
-    self.start()
+    # Now start the thread.  
+    #self.TheThread.started .connect(self.OnThreadStart)
+    self.TheThread.finished.connect(self.deleteLater)     # Causes the our destructor to be called when the thread exits
+
+    self.TheThread.start()
 
 
 
@@ -164,35 +226,7 @@ class tActiveObject(QThread):
     print('ActiveObject exiting')
     if self.TimerPeriodInMs != 0:
       self.Timer.stop()
-    self.quit()        # Tell the thread's event loop to exit.  
-
-
-  ###############################################
-  # run - Starts the active object's event loop
-  #  
-
-  def run(self):
-    # Enable breakpoints within code in this thread
-    debugpy.debug_this_thread()
-    
-    # Set up timer if requested
-    if self.TimerPeriodInMs != 0:
-      self.Timer = QTimer(self)
-      self.Timer.setSingleShot(True)
-      self.Timer.timeout.connect(self.OnTimerTimeout)
-
-      # Get the current time in the specified timezone
-      current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
-      # Calculate the remaining time until the next interval
-      milliseconds_until_next_interval = int(self.TimerPeriodInMs - (current_time.time().msecsSinceStartOfDay() % self.TimerPeriodInMs))
-      # Calculate the exact datetime for the next run
-      self.ScheduledTime = current_time.addMSecs(milliseconds_until_next_interval)
-      print('Starting ActiveObject Timer at init, object id = ' + str(id(self)), flush=True)
-      self.Timer.start(milliseconds_until_next_interval)
-
-    # Start the thread's event loop by calling the base class run().  The default
-    # implementation simply calls exec()
-    super().run()       # i.e., self.exec()
+    self.TheThread.quit()        # Tell the thread's event loop to exit.  
 
 
   ###############################################
@@ -217,13 +251,14 @@ class tActiveObject(QThread):
 
     current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
     milliseconds_until_next_interval = current_time.msecsTo(self.ScheduledTime)
+    print(f"Timeout thread: {self.Timer.thread()}")
 
     # If we've missed one or more intervals, just skip, and advance to the next scheduled time that is in the future
     while milliseconds_until_next_interval <= 0:
       milliseconds_until_next_interval = milliseconds_until_next_interval + self.TimerPeriodInMs
     
-    print('Starting ActiveObject Timer on Timeout, object id = ' + str(id(self)), flush=True)
     self.Timer.start(milliseconds_until_next_interval)
+    print(f"After timer start attempt: thread: {self.Timer.thread()}")
 
 
 ''' This code not used a present
