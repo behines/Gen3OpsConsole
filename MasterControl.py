@@ -130,12 +130,19 @@ class MasterControl(QMainWindow):
     DniChannelIndex = FindFirstNonNoneValueForField(CompleteChannelList, 'DNI channels') 
     GhiChannelIndex = FindFirstNonNoneValueForField(CompleteChannelList, 'GHI channels') 
 
-    self.Collectors = None
 
-    # The parent of the object has to be None or it can't be moved to a thread
+    # The parent of the object has to be None or it can't be moved to a thread.  The Logger needs to be passed the
+    # collector list just so that it can pass it on to the Marquee object, which it creates.
+    self.Collectors = self.CollectorControlWindow.CollectorList()
     self.PeriodicLogger = tPeriodicLogger(self.Agilents, GhiChannelIndex, DniChannelIndex, BoxMeasurementIndex, 
                                           self.DomeTempSensor, self.OutsideTempSensor, self.ElectronicsTempSensor,
                                           self.Collectors) #, parent=None)
+    
+    # Now that everything is going, we can start the collector monitoring threads.  At this point, the 
+    # Collectors are still in this thread that created them, but they will now move to their own threads
+    for Collector in self.Collectors:
+      Collector.Start()
+
 
 
   #######################################################

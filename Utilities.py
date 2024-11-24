@@ -125,7 +125,8 @@ class tActiveObject(QThread):
   ###############################################
   # StartThread
   # 
-  # Causes the object's run method to start
+  # Causes the object's run method to start.  Also moves the affinity of the caller (and all
+  # its children) to the thread.
   # 
   # INPUTS:
   #   TimerPeriodInMs - if nonzero, will call self.PeriodicMethod at this interval

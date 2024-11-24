@@ -24,12 +24,16 @@ from ConfigInfo        import *
 ##########################################################################################
 # tCollector  - Class that implements collector I/O
 #
+# At construction, the AutoOpenSerial device is created but is not yet moved to its own thread,
+# and not started.  This is so that other objects can connect to its signals prior to it starting
+# up.
 # 
 #
 
 class tCollector(tActiveObject):
   
   CollectorOnlineStateUpdate = Signal(bool)
+  CollectorStateUpdate       = Signal(str, int)  # New collector state as an int.  First arg is the collector name ('1A', '1B', etc.)
   
   ###############################################
   # Constructor part 1
@@ -45,9 +49,10 @@ class tCollector(tActiveObject):
   def __init__(self, collectorName, portName, baud, parent=None):
     super().__init__(parent)   # QWidget constructor
 
-    self.CollectorName = collectorName
-    self.PortName      = portName
-    self.bInit         = False
+    self.CollectorName  = collectorName
+    self.PortName       = portName
+    self.bInit          = False
+    self.CollectorState = CollectorNativeStates.UNKNOWN
       
     try:
       # Mutex for controlling access to the device
@@ -62,7 +67,7 @@ class tCollector(tActiveObject):
       self.SerialPort.PortOpenStateChange.connect(self.OnlineStatusUpdate)
 
     except:
-      print('tCollector: Could not open collector ',collectorName,'on port ', portName)
+      print('tCollector: Could not open collector',collectorName,'on port', portName)
 
 
   ###############################################
@@ -107,6 +112,7 @@ class tCollector(tActiveObject):
     if not self.SerialPort.IsOpen():
       print('tCollector: ERROR: Collector ', self.CollectorName, ' offline in InitializeConnection')
     
+    self.CollectorState = CollectorNativeStates.UNKNOWN
     self.FlushCommandInput()
     self.SetTimeToNow(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
     self.SetTelemetryOnOff(True)
@@ -121,6 +127,10 @@ class tCollector(tActiveObject):
   def OnlineStatusUpdate(self, bState):
     bOldState = self.bInit
     self.bInit = self.SerialPort.IsOpen()
+
+    # If the connection is offline, mark the status as unknown
+    if not self.bInit:
+      self.CollectorState = CollectorNativeStates.UNKNOWN
 
     # If the connection has just come online, initialize it
     if self.bInit and not bOldState:

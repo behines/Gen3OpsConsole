@@ -25,24 +25,13 @@ from ConfigInfo     import *
 ##########################################################################################
 # tMarquee 
 #
-# 
+# The Marquee object is owned by the PeriodicLogger so shares its thread, so it can call methods
+# of tMarquee directly.  That means that there is no need to provide signals to tell the Marquee
+# to update GHI, DNI, or temperatures.  The only signals required are for collector updates, which
+# come from other threads. 
 #
 
 class tMarquee(QObject):
-
-  DomeTempHumUpdate    = Signal(float,float)
-  OutsideTempHumUpdate = Signal(float,float)
-  ElecBoxTempUpdate    = Signal(float)
-  GHIUpdate            = Signal(float)
-  DNIUpdate            = Signal(float)
-
-
-    self.SendDomeData(DomeTempInC, DomeHumidity)
-    self.SendOutsideData(OutsideTempInC, OutsideHumidity)
-    self.SendBoxData(BoxTempInC)
-    self.SendGHI(GHI)
-    self.SendDNI(DNI)
-    self.SendCollectorStates(CollectorStates)
 
   #################################################
   #
@@ -59,7 +48,7 @@ class tMarquee(QObject):
   # INPUTS:
   #     
 
-  def __init__(self, portName, parent=None):
+  def __init__(self, portName, CollectorList, parent=None):
     super().__init__(parent)
 
     # Mutex for controlling access to the device
@@ -71,6 +60,10 @@ class tMarquee(QObject):
     self.RetryTimer     = QElapsedTimer()
     self.RetryTimeoutMs = MARQUEE_RETRY_TIMEOUT_SECS * 1000  # Convert minutes to milliseconds
     self.OpenPort()
+
+    # Connect to the collector signals that indicate state updates
+    for Collector in CollectorList:
+      Collector.CollectorStateUpdate.connect(self.SendCollectorState)
 
   def __del__(self):
     if not self.port is None:
@@ -196,17 +189,7 @@ class tMarquee(QObject):
     self.SendMessage(f"D{int(DNI)}\n")
 
 
-  ###############################################
-  # SendCollectorStates
-  #
-  # INPUTS:
-  #   A list of collector states, 0-N
-  #     
-  
-  @requires_device_open()
-  def SendCollectorStates(self, StatesList):
-    msg = 'C' + ''.join(str(digit) for digit in StatesList)
-    self.SendMessage(msg + '\n')
+
 
 
   ###############################################
@@ -221,3 +204,51 @@ class tMarquee(QObject):
     self.SendGHI(GHI)
     self.SendDNI(DNI)
     self.SendCollectorStates(CollectorStates)
+
+
+  ###############################################
+  # SendTemps
+  #     
+
+  @requires_device_open()
+  def SendTemps(self, DomeTempInC, DomeHumidity, OutsideTempInC, OutsideHumidity, BoxTempInC):
+    self.SendDomeData(DomeTempInC, DomeHumidity)
+    self.SendOutsideData(OutsideTempInC, OutsideHumidity)
+    self.SendBoxData(BoxTempInC)
+
+
+  ###############################################
+  # SendSun
+  #     
+
+  @requires_device_open()
+  def SendSun(self, GHI, DNI):
+    self.SendGHI(GHI)
+    self.SendDNI(DNI)
+
+
+  ###############################################
+  # SendCollectorState
+  # 
+  # Called when 
+
+  @requires_device_open()
+  def SendCollectorState(self, CollectorName: str, NewState: CollectorNativeStates):
+
+    # Look up the collector number from the array
+    try:
+      CollectorNum = [port_info[0] for port_info in COLLECTOR_PORTS].index(CollectorName)
+    except ValueError:
+      print('SendCollectorState: Unrecognized Collector Name ', str)
+      return
+
+    try:
+      MarqueeStateNum = CollectorNativeStateToMarqueeState[NewState].value
+    except KeyError:
+      print('Could not find state ', NewState.name, ' in CollectorNativeStates enum')
+      return
+
+    # Encode the CollectorNum and the state as ASCII characters, starting from 64
+    # So the encoding ia @=0, A=1, etc.
+    msg = 'C' + chr(ord('@') + CollectorNum) + chr(ord('@') + MarqueeStateNum)
+    self.SendMessage(msg + '\n')

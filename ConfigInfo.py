@@ -5,6 +5,7 @@
 # 
 
 from collections import namedtuple
+from enum        import IntEnum, auto
 
 #################################################
 #
@@ -133,6 +134,66 @@ COLLECTOR_PORTS = [
   ['5B', 'COM60'],
   ['5C', 'COM62'],
 ]
+
+class CollectorNativeStates(IntEnum): 
+  UNKNOWN              = -1
+  OFF                  =  0
+  HOME_ELEVATION_LOW   = auto()
+  HOME_ELEVATION_HIGH  = auto()
+  HOME_ELEVATION_ERROR = auto()
+  CHECK_LIMIT_CABLE    = auto()
+  HOME_AZIMUTH_NEG     = auto()
+  HOME_AZIMUTH_POS     = auto()
+  HOME_AZIMUTH_ERROR   = auto()
+  ACQ_BEGIN            = auto()
+  ACQ_ELEVATION_WAIT   = auto()
+  ACQ_AZ               = auto()
+  ACQ_ERROR            = auto()
+  ACQUIRE              = auto()
+  WAITING_FOR_SUN      = auto()
+  TRACK                = auto()
+  CLOUD_PAUSE          = auto()
+  STOWING              = auto()
+  STOWED               = auto()
+  STOW_ERROR           = auto()
+  ERROR                = auto()
+
+class CollectorMarqueeStates(IntEnum):
+  UNKNOWN      = 0
+  OFF          = auto()
+  HOMING       = auto()
+  ACQUIRE      = auto()
+  WAIT_FOR_SUN = auto()    
+  TRACK        = auto()
+  CLOUD_PAUSE  = auto()
+  STOWING      = auto()
+  STOWED       = auto()
+  ERROR        = auto()
+
+CollectorNativeStateToMarqueeState = {
+  CollectorNativeStates.UNKNOWN              : CollectorMarqueeStates.UNKNOWN,
+  CollectorNativeStates.OFF                  : CollectorMarqueeStates.OFF,
+  CollectorNativeStates.HOME_ELEVATION_LOW   : CollectorMarqueeStates.HOMING,
+  CollectorNativeStates.HOME_ELEVATION_HIGH  : CollectorMarqueeStates.HOMING,
+  CollectorNativeStates.HOME_ELEVATION_ERROR : CollectorMarqueeStates.ERROR,
+  CollectorNativeStates.CHECK_LIMIT_CABLE    : CollectorMarqueeStates.ERROR,
+  CollectorNativeStates.HOME_AZIMUTH_NEG     : CollectorMarqueeStates.HOMING,
+  CollectorNativeStates.HOME_AZIMUTH_POS     : CollectorMarqueeStates.HOMING,
+  CollectorNativeStates.HOME_AZIMUTH_ERROR   : CollectorMarqueeStates.ERROR,
+  CollectorNativeStates.ACQ_BEGIN            : CollectorMarqueeStates.ACQUIRE,
+  CollectorNativeStates.ACQ_ELEVATION_WAIT   : CollectorMarqueeStates.ACQUIRE,
+  CollectorNativeStates.ACQ_AZ               : CollectorMarqueeStates.ACQUIRE,
+  CollectorNativeStates.ACQ_ERROR            : CollectorMarqueeStates.ERROR,
+  CollectorNativeStates.ACQUIRE              : CollectorMarqueeStates.ACQUIRE,
+  CollectorNativeStates.WAITING_FOR_SUN      : CollectorMarqueeStates.WAIT_FOR_SUN,
+  CollectorNativeStates.TRACK                : CollectorMarqueeStates.TRACK,
+  CollectorNativeStates.CLOUD_PAUSE          : CollectorMarqueeStates.CLOUD_PAUSE,
+  CollectorNativeStates.STOWING              : CollectorMarqueeStates.STOWING,
+  CollectorNativeStates.STOWED               : CollectorMarqueeStates.STOWED,
+  CollectorNativeStates.STOW_ERROR           : CollectorMarqueeStates.ERROR,
+  CollectorNativeStates.ERROR                : CollectorMarqueeStates.ERROR,
+}
+
 
 #########
 # Logging - daily folder is not in Nextcloud, to avoid constant thrashing

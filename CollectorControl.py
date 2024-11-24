@@ -58,8 +58,8 @@ class tCollectorPane(QWidget):
 
     self.setFixedSize(ui.size())
 
-    collectorName = 'Collector ' + collectorName
-    self.CollectorGroup.setTitle(collectorName)
+    collectorTitle = 'Collector ' + collectorName
+    self.CollectorGroup.setTitle(collectorTitle)
 
 
     # Create the Collector object that interfaces to the hardware
@@ -89,9 +89,8 @@ class tCollectorPane(QWidget):
   #     
 
   def ConnectionEvent(self):
-
-
-
+    # TODO - update display to show connected state
+    pass
 
 
 
@@ -115,8 +114,8 @@ class tCollectorControlWindow(QWidget):
     # Create the collector array.  We have to do it here, rather than at a higher level,
     # because the tCollector widget needs to be told its parent.  The collector panes will 
     # create and own the collecor objects
-    CollectorPanes = [ tCollectorPane(*port_info, COLLECTOR_BAUD_RATE, self) for port_info in COLLECTOR_PORTS ]
-    Collector_iterator = (CollectorPane for CollectorPane in CollectorPanes)  # Compact generator for use in loop below
+    self.CollectorPanes = [ tCollectorPane(*port_info, COLLECTOR_BAUD_RATE, self) for port_info in COLLECTOR_PORTS ]
+    Collector_iterator = (CollectorPane for CollectorPane in self.CollectorPanes)  # Compact generator for use in loop below
     for row in range(5):
       for col in range(3):
         layout.addWidget(next(Collector_iterator), row, col)
@@ -140,9 +139,19 @@ class tCollectorControlWindow(QWidget):
 
     self.bAllowClose = False
 
+
+  ###############################################
+  # ForceClose - used by MainWin to shut us down at exit
+  #    
+
   def ForceClose(self):
     self.bAllowClose = True
     self.close()
+
+
+  ###############################################
+  # closeEvent - rejects any attempt to close the window directly - it must follow MainWin
+  #    
 
   def closeEvent(self, event):
     if not self.bAllowClose:
@@ -150,3 +159,11 @@ class tCollectorControlWindow(QWidget):
       QMessageBox.warning(self, "Warning", "You cannot close this window directly.")
       event.ignore()
 
+
+  ###############################################
+  # CollectorList - Returns a list of all 15 collectors
+  # 
+
+  def CollectorList(self):
+    CollectorList = [ CollectorPane.Collector for CollectorPane in self.CollectorPanes ]
+    return CollectorList

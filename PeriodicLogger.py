@@ -62,7 +62,7 @@ class tPeriodicLogger(tActiveObject):
     self.Collectors            = Collectors
 
     # Marquee display
-    self.Marquee               = tMarquee(MARQUEE_COM_PORT, self)
+    self.Marquee               = tMarquee(MARQUEE_COM_PORT, Collectors, self)
 
 
     # moveToThread() to changes the thread affinity of a QObject (and its children). This means that the object's
@@ -81,10 +81,8 @@ class tPeriodicLogger(tActiveObject):
     #self.OutsideTempSensor    .moveToThread(self)
     #self.ElectronicsTempSensor.moveToThread(self)
 
-    # You can go ahead and create as many object for use in the thread as will be needed.
-
+    # StartThread moves ourself, and all our children, to the thread
     self.StartThread(LOG_INTERVAL_SECONDS * 1000)
-
 
 
 
@@ -97,10 +95,6 @@ class tPeriodicLogger(tActiveObject):
   def __del__(self):
     pass
     #self.ShutDownComplete.emit()
-
-
-
-  ###############################################
 
 
   ###############################################
@@ -181,11 +175,12 @@ class tPeriodicLogger(tActiveObject):
     #  pass #Sequencer.StartNewDay()
 
     # Send data to the marquee display
-    CollectorStates =  [ 1,2,3,4,5, 0,0,0,0,0, 5,4,3,2,1 ]
-    
-    self.Marquee.SendAll(*DomeReadings, *OutsideReadings, BoxTemp, GHI, DNI, CollectorStates)
+    with self.Marquee as marquee:    
+      marquee.SendTemps(*DomeReadings, *OutsideReadings, BoxTemp)
+      marquee.SendSun(GHI, DNI)
 
     print(self.ScheduledTime.toString('yyyy-MM-dd HH:mm:ss'),': Temps: Box=', BoxTemp, 'Dome=', DomeTemp, ' Elec=', ElecTemp,' Stan=',StanTemp,' DNI=', DNI, ' GHI=', GHI)
   
     # Return 0 to request continuing scheduling
     return 0
+  
