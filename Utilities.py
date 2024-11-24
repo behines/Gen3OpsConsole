@@ -76,6 +76,7 @@ def WaitForSignal(SignalToWaitFor:Signal, SignalToEmit:Signal=None, TimeoutInMs=
     Timer = QTimer(parent)
     Timer.setSingleShot(True)
     Timer.timeout.connect(loop.quit)
+    print('WaitForSignal timer start')
     Timer.start(TimeoutInMs)
 
   if not SignalToEmit is None:
@@ -186,6 +187,7 @@ class tActiveObject(QThread):
       milliseconds_until_next_interval = int(self.TimerPeriodInMs - (current_time.time().msecsSinceStartOfDay() % self.TimerPeriodInMs))
       # Calculate the exact datetime for the next run
       self.ScheduledTime = current_time.addMSecs(milliseconds_until_next_interval)
+      print('Starting ActiveObject Timer at init, object id = ' + str(id(self)), flush=True)
       self.Timer.start(milliseconds_until_next_interval)
 
     # Start the thread's event loop by calling the base class run().  The default
@@ -220,9 +222,11 @@ class tActiveObject(QThread):
     while milliseconds_until_next_interval <= 0:
       milliseconds_until_next_interval = milliseconds_until_next_interval + self.TimerPeriodInMs
     
+    print('Starting ActiveObject Timer on Timeout, object id = ' + str(id(self)), flush=True)
     self.Timer.start(milliseconds_until_next_interval)
 
 
+''' This code not used a present
 
 ##########################################################################################
 ##########################################################################################
@@ -378,3 +382,5 @@ class tPeriodicThread(tThreadRunner):
     except Exception as e:
       print('Error in tPeriodicThread::_run: ', str(e))
       self.error.emit(str(e))
+
+'''

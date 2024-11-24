@@ -112,7 +112,7 @@ class tPeriodicLogger(tActiveObject):
   #   ScheduledTime - the QDateTime that the method was scheduled to run, in the current time zone
 
   def LogTemperatureData(self):
-
+    return 0
     ###
     # Collect all data
     #
@@ -179,7 +179,7 @@ class tPeriodicLogger(tActiveObject):
       marquee.SendTemps(*DomeReadings, *OutsideReadings, BoxTemp)
       marquee.SendSun(GHI, DNI)
 
-    print(self.ScheduledTime.toString('yyyy-MM-dd HH:mm:ss'),': Temps: Box=', BoxTemp, 'Dome=', DomeTemp, ' Elec=', ElecTemp,' Stan=',StanTemp,' DNI=', DNI, ' GHI=', GHI)
+    print(self.ScheduledTime.toString('yyyy-MM-dd HH:mm:ss'),': Temps: Box=', BoxTemp, 'Dome=', DomeTemp, ' Elec=', ElecTemp,' Stan=',StanTemp,' DNI=', DNI, ' GHI=', GHI, flush=True)
   
     # Return 0 to request continuing scheduling
     return 0

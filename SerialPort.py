@@ -47,18 +47,18 @@ class tAutoOpenSerial(QSerialPort):
     self._buffer = ""
     self._AutoReopenTimeoutSecs = AutoReopenTimeoutSecs
 
-    self.setPortName(portName);
+    self.setPortName(portName)
     self.setBaudRate(baudrate)
     if readBufSize != 0:
       self.setReadBufferSize(readBufSize)
 
     # Setup timer for auto-reopen
     self._ReopenTimer = QTimer()
-    self._ReopenTimer.timeout.connect(self._AttemptOpenIfNeeded)
+    self._ReopenTimer.timeout.connect(self.AttemptOpenIfNeeded)
     self._ReopenTimer.setSingleShot(True)  
 
     # Initial attempt to open the port
-    self._AttemptOpenIfNeeded()
+    self.AttemptOpenIfNeeded()
 
 
   #######################################################
@@ -79,7 +79,7 @@ class tAutoOpenSerial(QSerialPort):
 
 
   #######################################################
-  # _AttemptOpenIfNeeded - Attempt to open the port and emit a signal if successful
+  # AttemptOpenIfNeeded - Attempt to open the port and emit a signal if successful
   # 
   # If the open is not successful, will arm the reopen timer
 
@@ -180,7 +180,7 @@ class tAutoOpenSerial(QSerialPort):
 
   def Reopen(self):
     self.close()
-    self._AttemptOpenIfNeeded()
+    self.AttemptOpenIfNeeded()
 
 
   #######################################################

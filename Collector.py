@@ -54,20 +54,20 @@ class tCollector(tActiveObject):
     self.bInit          = False
     self.CollectorState = CollectorNativeStates.UNKNOWN
       
-    try:
-      # Mutex for controlling access to the device
-      self._lock = QMutex()
+    #try:
+    # Mutex for controlling access to the device
+    self._lock = QMutex()
 
-      # We set rtscts and dsrdtr even though this is a virtual COM Port.  This provides a way for 
-      # the virtual port driver to inform when it isn't yet initialized or otherwise ready for
-      # data, which can happen.
-      self.SerialPort  = tAutoOpenSerialWholeLine(portName, baudrate=baud, readBufSize=COLLECTOR_RX_BUFFER_SIZE,
-                                                  AutoReopenTimeoutSecs=COLLECTOR_RETRY_TIMEOUT_SECS, parent=self)
-      # Monitor the port for open/close state changes
-      self.SerialPort.PortOpenStateChange.connect(self.OnlineStatusUpdate)
+    # We set rtscts and dsrdtr even though this is a virtual COM Port.  This provides a way for 
+    # the virtual port driver to inform when it isn't yet initialized or otherwise ready for
+    # data, which can happen.
+    self.SerialPort  = tAutoOpenSerialWholeLine(portName, baudrate=baud, readBufSize=COLLECTOR_RX_BUFFER_SIZE,
+                                                AutoReopenTimeoutSecs=COLLECTOR_RETRY_TIMEOUT_SECS, parent=self)
+    # Monitor the port for open/close state changes
+    self.SerialPort.PortOpenStateChange.connect(self.OnlineStatusUpdate)
 
-    except:
-      print('tCollector: Could not open collector',collectorName,'on port', portName)
+    #except:
+    #  print('tCollector: Could not open collector',collectorName,'on port', portName)
 
 
   ###############################################
@@ -92,7 +92,7 @@ class tCollector(tActiveObject):
       self.InitializeConnection()
       self.bInit = True
     else:
-      print('tCollector: Could not open collector ',self.CollectorName,'on port ', self.PortName)
+      print('tCollector: Could not open collector',self.CollectorName,'on port', self.PortName, flush=True)
 
     # Monitor the port for open/close state changes
     self.SerialPort.PortOpenStateChange.connect(self.OnlineStatusUpdate)
@@ -110,7 +110,7 @@ class tCollector(tActiveObject):
 
   def InitializeConnection(self):
     if not self.SerialPort.IsOpen():
-      print('tCollector: ERROR: Collector ', self.CollectorName, ' offline in InitializeConnection')
+      print('tCollector: ERROR: Collector', self.CollectorName, 'offline in InitializeConnection', flush=True)
     
     self.CollectorState = CollectorNativeStates.UNKNOWN
     self.FlushCommandInput()
@@ -146,7 +146,7 @@ class tCollector(tActiveObject):
   def PeriodicMethod(self):
     self.SerialPort.AttemptOpenIfNeeded()
     if not self.SerialPort.IsOpen():
-      print('tCollector: Collector ', self.CollectorName, ' on port ', self.PortName,' offline')
+      print('tCollector: Collector ' + self.CollectorName + ' on port ' + self.PortName + ' offline', flush=True)
 
 
   
@@ -199,7 +199,7 @@ class tCollector(tActiveObject):
     result = self.SerialPort.write(nToSend * ' ')
 
     if result != nToSend:
-      print('Error flushing input for collector ', self.CollectorName)
+      print('Error flushing input for collector ', self.CollectorName, flush=True)
       return -1  
     
     return 0
