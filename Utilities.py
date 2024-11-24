@@ -135,8 +135,9 @@ class tActiveThread(QThread):
       milliseconds_until_next_interval = int(self.ActiveObject.TimerPeriodInMs - (current_time.time().msecsSinceStartOfDay() % self.ActiveObject.TimerPeriodInMs))
       # Calculate the exact datetime for the next run
       self.ActiveObject.ScheduledTime = current_time.addMSecs(milliseconds_until_next_interval)
-      print('Starting ActiveObject Timer, period = ' + str(self.ActiveObject.TimerPeriodInMs) + ' in init, object id = ' + str(id(self)), flush=True)
-      print(f"Timer creation thread: {QThread.currentThread()}")
+      #print('Starting ActiveObject Timer, period = ' + str(self.ActiveObject.TimerPeriodInMs) + ' in init, object id = ' + str(id(self)), flush=True)
+      #print(f"Timer creation thread: {QThread.currentThread()}")
+
       self.ActiveObject.Timer.start(milliseconds_until_next_interval)
 
     # Start the thread's event loop by calling the base class run().  The default
@@ -251,14 +252,14 @@ class tActiveObject(QObject):
 
     current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
     milliseconds_until_next_interval = current_time.msecsTo(self.ScheduledTime)
-    print(f"Timeout thread: {self.Timer.thread()}")
+    #print(f"Timeout thread: {self.Timer.thread()}")
 
     # If we've missed one or more intervals, just skip, and advance to the next scheduled time that is in the future
     while milliseconds_until_next_interval <= 0:
       milliseconds_until_next_interval = milliseconds_until_next_interval + self.TimerPeriodInMs
     
     self.Timer.start(milliseconds_until_next_interval)
-    print(f"After timer start attempt: thread: {self.Timer.thread()}")
+    #print(f"After timer start attempt: thread: {self.Timer.thread()}")
 
 
 ''' This code not used a present

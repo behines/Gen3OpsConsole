@@ -74,11 +74,9 @@ class tCollectorPane(QWidget):
   #      
   def __del__(self):
     # Tell the periodic logger thread to shut down, and wait for confirmation
-    WaitForSignal(SignalToWaitFor = self.Collector.finished, SignalToEmit = self.Collector.RequestExit)
+    WaitForSignal(SignalToWaitFor = self.Collector.TheThread.finished, SignalToEmit = self.Collector.RequestExit)
     # Now that the thread has exited, schedule it for deletion
     self.Collector.deleteLater()
-
-
 
 
   ###############################################

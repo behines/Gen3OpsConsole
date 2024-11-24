@@ -98,9 +98,9 @@ class tCollector(tActiveObject):
     self.SerialPort.PortOpenStateChange.connect(self.OnlineStatusUpdate)
 
     # Start our event loop going, also with a timer that will try to reconnect if not connected
-    # self.StartThread(COLLECTOR_RETRY_TIMEOUT_SECS * 1000)
+    self.StartThread(COLLECTOR_RETRY_TIMEOUT_SECS * 1000)
     # Start our event loop going.  We do NOT need a reconnect timer because this is handled by the AutoOpenSerial class if a timeout is specified
-    self.StartThread()
+    # self.StartThread()
 
 
 
@@ -146,7 +146,8 @@ class tCollector(tActiveObject):
   #
 
   def PeriodicMethod(self):
-    self.SerialPort.AttemptOpenIfNeeded()
+    print('Collector reopen attempt',flush=True)
+    self.SerialPort.AttemptOpenIfNeeded()  # Will be a no-op if the port is open
     if not self.SerialPort.IsOpen():
       print('tCollector: Collector ' + self.CollectorName + ' on port ' + self.PortName + ' offline', flush=True)
 
