@@ -10,7 +10,7 @@
 # Modules used
 #
 
-from PySide6.QtCore import QObject, QThread, Signal, QDateTime, QTimeZone, QTimer, QEventLoop
+from PySide6.QtCore import QObject, QThread, Signal, QDateTime, QTimeZone, QTimer, QEventLoop, QCoreApplication
 import debugpy
 
 from ConfigInfo import *
@@ -82,8 +82,10 @@ def WaitForSignal(SignalToWaitFor:Signal, SignalToEmit:Signal=None, TimeoutInMs=
   if not SignalToEmit is None:
     SignalToEmit.emit()
 
+  print('Exit request emitted',flush=True)
   # Block until the signal is emitted
   loop.exec()
+  print('Event loop exited',flush=True)
 
 
 
@@ -143,6 +145,11 @@ class tActiveThread(QThread):
     # Start the thread's event loop by calling the base class run().  The default
     # implementation simply calls exec()
     super().run()       # i.e., self.exec()
+
+    if self.ActiveObject.TimerPeriodInMs != 0:
+      self.ActiveObject.Timer.stop()
+
+    print('ActiveThread exiting')
 
 
 ##########################################################################################
@@ -206,7 +213,7 @@ class tActiveObject(QObject):
 
     # Now start the thread.  
     #self.TheThread.started .connect(self.OnThreadStart)
-    self.TheThread.finished.connect(self.deleteLater)     # Causes the our destructor to be called when the thread exits
+    #self.TheThread.finished.connect(self.deleteLater)     # Causes our destructor to be called when the thread exits
 
     self.TheThread.start()
 
@@ -225,9 +232,18 @@ class tActiveObject(QObject):
 
   def OnExitRequest(self):
     print('ActiveObject exiting')
-    if self.TimerPeriodInMs != 0:
-      self.Timer.stop()
-    self.TheThread.quit()        # Tell the thread's event loop to exit.  
+    #if self.TimerPeriodInMs != 0:
+    #  self.Timer.stop()
+      
+    # Schedule the thread for deletion, so that it doesn't get killed while it's still running
+    #self.TheThread.deleteLater()
+
+    # This method is being processed by the thread we are trying to shut down.
+    #QCoreApplication.exit(0)     # Safely exit the event loop
+    #self.TheThread.quit()        # Tell the thread's event loop to exit.  
+    #self.TheThread.wait()
+    #self.TheThread.deleteLater()
+    print('ActiveObject exited')
 
 
   ###############################################

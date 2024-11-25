@@ -74,15 +74,27 @@ class tCollectorPane(QWidget):
 
 
   ###############################################
-  # Destructor - Clean up our orphaned child
+  # closeEvent - Shut down collector thread
   # 
-  # INPUTS:
-  #      
-  def __del__(self):
+
+
+  def closeEvent(self, event):
+    print("CollectorPane is closing",flush=True)
+
     # Tell the periodic logger thread to shut down, and wait for confirmation
-    WaitForSignal(SignalToWaitFor = self.Collector.TheThread.finished, SignalToEmit = self.Collector.RequestExit)
+    # WaitForSignal(SignalToWaitFor = self.Collector.TheThread.finished, SignalToEmit = self.Collector.RequestExit)
     # Now that the thread has exited, schedule it for deletion
-    self.Collector.deleteLater()
+    #self.Collector.deleteLater()
+    print("Collector cleaned up",flush=True)
+
+
+  ###############################################
+  # Destructor - Clean up 
+  # 
+
+  def __del__(self):
+    pass
+
 
 
   ###############################################
@@ -159,6 +171,7 @@ class tCollectorControlWindow(QWidget):
   #    
 
   def closeEvent(self, event):
+    print("CollectorWindow close event")
     if not self.bAllowClose:
       # Ignore any close events
       QMessageBox.warning(self, "Warning", "You cannot close this window directly.")

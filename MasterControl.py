@@ -177,17 +177,64 @@ class MasterControl(QMainWindow):
 
 
   #######################################################
+  # closeEvent - Fires when MainWin is closed by the user - our signal to tidy up and exit
+  #
+  # We do this rather than connect to app.aboutToQuit, because there is a chicken-and-egg problem.
+  # The app will not try to quit until the MainWin event loop exits, which won't happen until 
+  # the various threads stop.  So we have to trap earlier in the process to initiate shutdown.
+  #
+
+  def closeEvent(self, event):
+    print("MainWin is closing")
+    self.CleanUp()  # Call your cleanup method here
+    super().closeEvent(event)
+
+
+  #######################################################
   # CleanUp - Destroys objects and/or sends signals to objects to destroy themselves
   #
   # We wait to do this until after the window is constructed, so that information about 
   # initialization can be reported to the log and to relevant widgets
 
   def CleanUp(self):
-    # Tell the periodic logger thread to shut down, and wait for confirmation
-    WaitForSignal(SignalToWaitFor = self.PeriodicLogger.TheThread.finished, SignalToEmit = self.PeriodicLogger.RequestExit)
-    # Now that the thread has exited, schedule it for deletion
-    self.PeriodicLogger.deleteLater()
+    # Stop the 1-second tick
     self.OneSecondTimer.stop()
+
+
+    print("Cleanup")
+
+    # Shut down all the collectors
+    for Collector in self.Collectors:
+      Collector.RequestExit.emit()
+      Collector.TheThread.quit()        # Tell the thread's event loop to exit.  
+      Collector.TheThread.wait()
+      Collector.TheThread.deleteLater()
+      #WaitForSignal(SignalToWaitFor = Collector.TheThread.finished, SignalToEmit = Collector.RequestExit)
+      #Collector.TheThread.deleteLater()
+      print("Collector cleaned up",flush=True)
+
+    QThread.msleep(1000)
+    print("Done sleeping 1")
+
+    # Tell the periodic logger thread to shut down, and wait for confirmation
+    self.PeriodicLogger.RequestExit.emit()
+    self.PeriodicLogger.TheThread.quit()        # Tell the thread's event loop to exit.  
+    self.PeriodicLogger.TheThread.wait()
+    self.PeriodicLogger.TheThread.deleteLater()
+    #WaitForSignal(SignalToWaitFor = self.PeriodicLogger.TheThread.finished, SignalToEmit = self.PeriodicLogger.RequestExit)
+    print("Done signaling ",flush=True)
+    QThread.msleep(1000)
+    print("Done sleeping2 ",flush=True)
+    # Now that the threads has exited, schedule it for deletion
+    #self.PeriodicLogger.TheThread.deleteLater()
+    print("Logger cleaned up",flush=True)
+
+    # Shut down the collector window
+    self.CollectorControlWindow.ForceClose()
+
+    # Allows for any dummy threads to finish cleanup
+    #app.processEvents()
+
 
 
   #######################################################
@@ -262,7 +309,7 @@ def FindFirstNonNoneValueForField(CompleteChannelList, FieldName):
 
 
 if __name__ == "__main__":
-
+  global app
   # Get some basic stuff out of the way before even trying to create a window
   ValidateAGILENTSEntries()
 
@@ -273,11 +320,14 @@ if __name__ == "__main__":
   MainWin.show()
   getattr(MainWin, "raise")()
   MainWin.activateWindow()
+
+  #app.aboutToQuit.connect(lambda: print("aboutToQuit signal emitted"))
+  #app.aboutToQuit.connect(MainWin.CleanUp)
   
   MainWin.StartApplication()
 
-  app.aboutToQuit.connect(MainWin.CleanUp)
 
 
   # Run the event loop, and propagate any exit error code back to the OS.
-  sys.exit(app.exec())
+  exitCode = app.exec()
+  sys.exit(exitCode)

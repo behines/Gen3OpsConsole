@@ -77,7 +77,8 @@ class tCollector(tActiveObject):
   #     
 
   def __del__(self):
-    pass
+    if self.SerialPort.IsOpen():
+      self.SerialPort.close()
 
 
 
