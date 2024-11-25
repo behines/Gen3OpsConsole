@@ -10,7 +10,7 @@
 # Modules used
 #
 
-from PySide6.QtCore import QObject, QThread, Signal, QDateTime, QTimeZone, QTimer, QEventLoop, QCoreApplication
+from PySide6.QtCore import QObject, QThread, Signal, QDateTime, QTimeZone, QTimer, QEventLoop, QMutexLocker
 import debugpy
 
 from ConfigInfo import *
@@ -21,6 +21,13 @@ from ConfigInfo import *
 ##########################################################################################
 ##########################################################################################
 # Decorators
+#
+# Note, these can be nested.  Recommended is to put them in this order:
+#   @requires_device_open()
+#   @with_lock()
+#   def Method(self)
+#
+# The inner decorator with_lock will be called first, ensuring the lock is in place during the open attempt
 #
 
 ##############################################
@@ -53,6 +60,17 @@ def requires_device_open(default_return=''):
       return method(self, *args, **kwargs)
     return wrapper
   return decorator
+
+
+##############################################
+# with_lock - Decorator that grabs a lock on the class's mutex _lock
+#             for the duration of the method
+
+def with_lock(method):
+  def wrapper(self, *args, **kwargs):
+    with QMutexLocker(self._lock):  # Ensure the mutex is locked during the method call
+      return method(self, *args, **kwargs)
+  return wrapper
 
 
 

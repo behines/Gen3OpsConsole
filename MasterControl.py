@@ -39,7 +39,7 @@ from collections import namedtuple
 import os
 import sys
 
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout, QScrollArea, QVBoxLayout, QMessageBox
+from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout, QScrollArea, QVBoxLayout, QMessageBox, QLabel
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore    import QFile, QThread, QDateTime, QTimeZone, QTimer
 
@@ -141,10 +141,11 @@ class MasterControl(QMainWindow):
 
     # Get the indices of channels that we will want to pick out of the data for reporting to 
     # the marquee display
-    try:
-      BoxMeasurementIndex = CompleteChannelList.index(BOX_CHANNEL_FOR_MARQUEE_DISPLAY)
-    except ValueError:
-      BoxMeasurementIndex = None
+    BoxMeasurementIndex     = CompleteChannelList.index(BOX_CHANNEL_FOR_MARQUEE_DISPLAY)
+    SandTopMeasurementIndex = CompleteChannelList.index(SAND_TOP_CHANNEL)
+    SandMidMeasurementIndex = CompleteChannelList.index(SAND_MID_CHANNEL)
+    SandBotMeasurementIndex = CompleteChannelList.index(SAND_BOT_CHANNEL)
+
     # Determine which channels to use for reporting DNI and GHI to marquee
     DniChannelIndex = FindFirstNonNoneValueForField(CompleteChannelList, 'DNI channels') 
     GhiChannelIndex = FindFirstNonNoneValueForField(CompleteChannelList, 'GHI channels') 
@@ -154,6 +155,7 @@ class MasterControl(QMainWindow):
     # collector list just so that it can pass it on to the Marquee object, which it creates.
     self.Collectors = self.CollectorControlWindow.CollectorList()
     self.PeriodicLogger = tPeriodicLogger(self.Agilents, GhiChannelIndex, DniChannelIndex, BoxMeasurementIndex, 
+                                          SandTopMeasurementIndex, SandMidMeasurementIndex, SandBotMeasurementIndex,
                                           self.DomeTempSensor, self.OutsideTempSensor, self.ElectronicsTempSensor,
                                           self.Collectors) #, parent=None)
     
@@ -161,6 +163,9 @@ class MasterControl(QMainWindow):
     # Collectors are still in this thread that created them, but they will now move to their own threads
     for Collector in self.Collectors:
       Collector.Start()
+
+    # Connect to signals
+    self.ConnectToSignals()
 
     # Set up a 1-second timer
     self.OneSecondTimer = QTimer(self)
@@ -174,6 +179,30 @@ class MasterControl(QMainWindow):
     QThread.msleep(milliseconds_until_next_interval)
 
     self.OneSecondTimer.start(1000)
+
+
+  #######################################################
+  # ConnectToSignals - Sign up for all the signals that MasterControl wants to receive
+  #
+  
+  def ConnectToSignals(self):
+    self.PeriodicLogger.DniUpdate        .connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.DniLabel        , floatVal))
+    self.PeriodicLogger.GhiUpdate        .connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.GhiLabel        , floatVal))
+    self.PeriodicLogger.BoxTempUpdate    .connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.BoxTempLabel    , floatVal))
+    self.PeriodicLogger.DomeTempUpdate   .connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.DomeTempLabel   , floatVal))
+    self.PeriodicLogger.ElecTempUpdate   .connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.ElecTempLabel   , floatVal))
+    self.PeriodicLogger.StanTempUpdate   .connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.StanleyTempLabel, floatVal))
+    self.PeriodicLogger.SandTopTempUpdate.connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.SandTopTempLabel, floatVal))
+    self.PeriodicLogger.SandMidTempUpdate.connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.SandMidTempLabel, floatVal))
+    self.PeriodicLogger.SandBotTempUpdate.connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.SandBotTempLabel, floatVal))
+
+
+  #######################################################
+  # Update4DigitIntLabel - Updates values that are 4-digit integer label fields
+  #
+  
+  def Update4DigitIntLabel(self, field: QLabel, value: float):
+    field.setText(str(int(value)))
 
 
   #######################################################

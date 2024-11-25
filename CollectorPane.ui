@@ -593,10 +593,10 @@
     <property name="title">
      <string>Narrow</string>
     </property>
-    <widget class="QLabel" name="NarrowUL">
+    <widget class="QLabel" name="NarrowUp">
      <property name="geometry">
       <rect>
-       <x>4</x>
+       <x>22</x>
        <y>20</y>
        <width>41</width>
        <height>16</height>
@@ -618,11 +618,11 @@
       <string>00000</string>
      </property>
     </widget>
-    <widget class="QLabel" name="NarrowLL">
+    <widget class="QLabel" name="NarrowLeft">
      <property name="geometry">
       <rect>
        <x>4</x>
-       <y>40</y>
+       <y>35</y>
        <width>41</width>
        <height>16</height>
       </rect>
@@ -643,11 +643,11 @@
       <string>00000</string>
      </property>
     </widget>
-    <widget class="QLabel" name="NarrowUR">
+    <widget class="QLabel" name="NarrowDown">
      <property name="geometry">
       <rect>
-       <x>43</x>
-       <y>20</y>
+       <x>22</x>
+       <y>50</y>
        <width>41</width>
        <height>16</height>
       </rect>
@@ -668,11 +668,11 @@
       <string>00000</string>
      </property>
     </widget>
-    <widget class="QLabel" name="NarrowLR">
+    <widget class="QLabel" name="NarrowRight">
      <property name="geometry">
       <rect>
        <x>43</x>
-       <y>40</y>
+       <y>35</y>
        <width>41</width>
        <height>16</height>
       </rect>

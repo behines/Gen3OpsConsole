@@ -334,7 +334,7 @@
                  <item>
                   <widget class="QLabel" name="label_11">
                    <property name="text">
-                    <string>Outside:</string>
+                    <string> </string>
                    </property>
                   </widget>
                  </item>
@@ -398,7 +398,7 @@
                     </font>
                    </property>
                    <property name="text">
-                    <string>0000</string>
+                    <string> </string>
                    </property>
                   </widget>
                  </item>
@@ -501,7 +501,7 @@
                   </widget>
                  </item>
                  <item>
-                  <widget class="QLabel" name="SanBotTempLabel">
+                  <widget class="QLabel" name="SandBotTempLabel">
                    <property name="font">
                     <font>
                      <pointsize>11</pointsize>

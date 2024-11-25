@@ -12,10 +12,10 @@
 #
 
 # module used to talk over serial with the esp32
-from PySide6.QtCore    import QFile, Qt, QMutex, Signal, QDateTime, QTimeZone, QTime
+from PySide6.QtCore    import QFile, Qt, QRecursiveMutex, Signal, QDateTime, QTimeZone, QTime
 
 from SerialPort        import tAutoOpenSerialWholeLine
-from Utilities         import tActiveObject
+from Utilities         import tActiveObject, with_lock
 from ConfigInfo        import *
 
 
@@ -60,7 +60,17 @@ class tCollector(tActiveObject):
   # Signal to emit parsed telemetry data as a dictionary
   TelemetryUpdate            = Signal(dict)
 
-  
+  # Commands
+  DoOff                      = Signal()
+  DoHome                     = Signal()
+  DoTrack                    = Signal()
+  DoStow                     = Signal()
+  DoSetTime                  = Signal()
+  DoMotStatus                = Signal()
+  DoUnstick                  = Signal()
+  DoReboot                   = Signal()
+
+  SetThresholds              = Signal(int,int,int)    # WideAngleIllumPercent, NarrowSkyBackgroundPercent, NarrowIlluminationPercent
   
   ###############################################
   # Constructor part 1
@@ -83,7 +93,7 @@ class tCollector(tActiveObject):
       
     #try:
     # Mutex for controlling access to the device
-    self._lock = QMutex()
+    self._lock = QRecursiveMutex()
 
     # We set rtscts and dsrdtr even though this is a virtual COM Port.  This provides a way for 
     # the virtual port driver to inform when it isn't yet initialized or otherwise ready for
@@ -96,9 +106,17 @@ class tCollector(tActiveObject):
     # And for text strings
     self.SerialPort.readyLine.connect(self.ProcessLineOfOutput)
 
-    #except:
-    #  print('tCollector: Could not open collector',collectorName,'on port', portName)
+    # Connect signals to methods
+    self.DoOff        .connect(self.Off      )
+    self.DoHome       .connect(self.Home     )
+    self.DoTrack      .connect(self.Track    )
+    self.DoStow       .connect(self.Stow     )
+    self.DoSetTime    .connect(self.SetTime  )
+    self.DoMotStatus  .connect(self.MotStatus)
+    self.DoUnstick    .connect(self.Unstick  )
+    self.DoReboot     .connect(self.Reboot   )
 
+    self.SetThresholds.connect(self.SetThresholdPercentages)
 
   ###############################################
   # Destructor
@@ -117,7 +135,8 @@ class tCollector(tActiveObject):
   # 
   # Call this after construction to start the collector's active objects running.
   #     
-
+  
+  @with_lock
   def Start(self):
     if self.SerialPort.IsOpen():
       self.InitializeConnection()
@@ -141,13 +160,14 @@ class tCollector(tActiveObject):
   # This method simply sends the "Telemetry on" command
   #
 
+  @with_lock
   def InitializeConnection(self):
     if not self.SerialPort.IsOpen():
       print('tCollector: ERROR: Collector', self.CollectorName, 'offline in InitializeConnection', flush=True)
     
     self.CollectorState = CollectorNativeStates.UNKNOWN
     self.FlushCommandInput()
-    self.SetTimeToNow(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
+    self.SetTimeToNow()
     self.SetTelemetryOnOff(True)
 
 
@@ -176,6 +196,7 @@ class tCollector(tActiveObject):
   # This method just attempts to periodically reopen the port if it's not open
   #
 
+  @with_lock
   def PeriodicMethod(self):
     #print('Collector reopen attempt',flush=True)
     self.SerialPort.AttemptOpenIfNeeded()  # Will be a no-op if the port is open
@@ -299,6 +320,7 @@ class tCollector(tActiveObject):
   # The longest command is 10 characters, so send 11 blanks.
   #     
 
+  @with_lock
   def FlushCommandInput(self):
     nToSend = 11
     # Write extras characters just to flush any pending "/" command and get back in sync
@@ -318,6 +340,7 @@ class tCollector(tActiveObject):
   # Comamnds the collector to Stow
   #     
 
+  @with_lock
   def Stow(self):
     result = self.SerialPort.write('/Q')
 
@@ -336,6 +359,7 @@ class tCollector(tActiveObject):
   # Comamnds the collector to Track
   #     
 
+  @with_lock
   def Track(self):
     result = self.SerialPort.write('/t')
 
@@ -354,6 +378,7 @@ class tCollector(tActiveObject):
   # Comamnds the collector to Home
   #     
 
+  @with_lock
   def Home(self):
     # Write extras characters just to flush any pending "/" command and get back in sync
     # The longest command is 10 characters, so send ten blanks.
@@ -374,9 +399,8 @@ class tCollector(tActiveObject):
   # Comamnds the collector to turn off
   #     
 
+  @with_lock
   def Off(self):
-    # Write extras characters just to flush any pending "/" command and get back in sync
-    # The longest command is 10 characters, so send ten blanks.
     result = self.SerialPort.write('/o')
 
     if result == 2:
@@ -404,9 +428,11 @@ class tCollector(tActiveObject):
   #  Sets the time on the collector
   #     
 
-  def SetTimeToNow(self, timezone : QTimeZone):
-    if not isinstance(timezone, QTimeZone):
-      raise TypeError("timezone must be of type QTimeZone")
+  @with_lock
+  def SetTimeToNow(self):
+    timezone = QTimeZone(SITE_TIMEZONE.encode('utf-8'))
+    #if not isinstance(timezone, QTimeZone):
+    #  raise TypeError("timezone must be of type QTimeZone")
 
     current_time = QDateTime.currentDateTime(timezone)
     
@@ -422,7 +448,61 @@ class tCollector(tActiveObject):
       return -1
     else:
       return 0
-    
+
+
+  ###############################################
+  # MotStatus - sends a pair of commands to cause the collector to print motor status info
+  # 
+  #     
+
+  @with_lock
+  def MotStatus(self):
+    result = self.SerialPort.write('/s')
+
+    if result != 2:
+      return -1    
+
+    result = self.SerialPort.write('/u')
+
+    if result != 2:
+      return -1    
+
+    self.bResponded = True
+    return 0
+
+
+
+  ###############################################
+  # Unstick - Sends an Unstick command
+  # 
+  #     
+
+  @with_lock
+  def Unstick(self):
+    result = self.SerialPort.write('/G')
+
+    if result != 2:
+      return -1    
+
+    self.bResponded = True
+    return 0
+
+
+  ###############################################
+  # Reboot - Sends an Unstick command
+  # 
+  #     
+
+  @with_lock
+  def Reboot(self):
+    result = self.SerialPort.write('/IREBOOT')
+
+    if result != 8:
+      return -1    
+
+    self.bResponded = True
+    return 0
+
 
   ###############################################
   # SetTelemetryOnOff()
@@ -433,6 +513,7 @@ class tCollector(tActiveObject):
   #   bTelemetryOn - desired state
   #     
 
+  @with_lock
   def SetTelemetryOnOff(self, bTelemetryOn : bool):
     cmd = '/L' if bTelemetryOn else 'l'
 
@@ -453,6 +534,7 @@ class tCollector(tActiveObject):
   # Sends a message Jnnnmmmppp with the three percentages
   #     
 
+  @with_lock
   def SetThresholdPercentages(self, WideAngleIllumPercent, NarrowSkyBackgroundPercent, NarrowIlluminationPercent):
     
     SetThresholdsCmd = '/J' + f"{WideAngleIllumPercent:03d}{NarrowSkyBackgroundPercent:03d}{NarrowIlluminationPercent:03d}"

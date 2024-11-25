@@ -154,7 +154,6 @@ class tCollectorPane(QWidget):
 
   ###############################################
   # NewUserWideIllumPercent
-    
   def NewUserWideIllumPercent(self):
     try:
       new_value = int(self.ui.WideIllumPercentLineEdit.text())
@@ -166,11 +165,12 @@ class tCollectorPane(QWidget):
       new_value = 0
 
     self.WideIllumPercentEntry = new_value
-
     # If it's a valid new value, send it to the target
     if new_value != 0:
-      pass  # Send to target
+      self.Collector.emit(self.WideIllumPercentEntry, self.NarrowSkyBgEntry, self.NarrowIllumThreshEntry)
 
+  ###############################################
+  # NewUserNarrowSkyBackground
   def NewUserNarrowSkyBackground(self):
     try:
       new_value = int(self.ui.NarrowSkyBackgroundLineEdit.text())
@@ -182,12 +182,12 @@ class tCollectorPane(QWidget):
       new_value = 0
 
     self.NarrowSkyBgEntry = new_value
-
     # If it's a valid new value, send it to the target
     if new_value != 0:
-      pass  # Send to target
-
-
+      self.Collector.emit(self.WideIllumPercentEntry, self.NarrowSkyBgEntry, self.NarrowIllumThreshEntry)
+  
+  ###############################################
+  # NewUserNarrowIllumPercent
   def NewUserNarrowIllumPercent(self):
     try:
       new_value = int(self.ui.NarrowIllumPercentLineEdit.text())
@@ -199,10 +199,10 @@ class tCollectorPane(QWidget):
       new_value = 0
 
     self.NarrowIllumThreshEntry = new_value
-
     # If it's a valid new value, send it to the target
     if new_value != 0:
-      pass  # Send to target
+      self.Collector.emit(self.WideIllumPercentEntry, self.NarrowSkyBgEntry, self.NarrowIllumThreshEntry)
+
 
 
 

@@ -226,11 +226,11 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
     print('NIP Tracker powering up')
     with self.agilent as agilent:
       agilent.SetRelayState(self.NipPowerChannels, tAgilent.ON)
-      time.sleep(NIP_TRACKER_POWER_ON_DELAY)
+      QThread.sleep(NIP_TRACKER_POWER_ON_DELAY)
 
       # Press the soft power button, then release it
       agilent.SetRelayState(self.NipOnOffButtonChannel, tAgilent.ON)
-      time.sleep(NIP_TRACKER_POWER_BUTTON_PRESS_TIME)
+      QThread.sleep(NIP_TRACKER_POWER_BUTTON_PRESS_TIME)
       agilent.SetRelayState(self.NipOnOffButtonChannel, tAgilent.OFF)
 
 

@@ -15,8 +15,6 @@ from datetime import datetime
 import pyvisa  
 # module used to talk over serial with the esp32
 import serial
-# module used to control delays
-import time
 # module used to write to csv file
 import csv
 # module used to navigate directories for csv file
@@ -25,8 +23,8 @@ import os
 import sys
 
 # For implementing object locking and retry timer
-from PySide6.QtCore import QMutex, QElapsedTimer, QObject
-from Utilities      import requires_device_open
+from PySide6.QtCore import QRecursiveMutex, QElapsedTimer, QObject, QThread
+from Utilities      import requires_device_open, with_lock
 
 
 from ConfigInfo       import *
@@ -120,7 +118,7 @@ class tAgilent(QObject):
       print(tAgilent.PyVisaResourceManager.list_resources())
 
     # Mutex for controlling access to the device
-    self._lock          = QMutex()
+    self._lock          = QRecursiveMutex()
     self.RetryTimer     = QElapsedTimer()
     self.RetryTimeoutMs = AGILENT_RETRY_TIMEOUT_SECS * 1000  # Convert minutes to milliseconds
 
@@ -229,6 +227,7 @@ class tAgilent(QObject):
   # 
 
   @requires_device_open()
+  @with_lock
   def Reset(self):
     # Clear the Agilent of any data stored in memory from previous scans
     self.device.write('*CLS')     
@@ -240,7 +239,7 @@ class tAgilent(QObject):
     self.device.write('*RST')
 
     # This is necessary in order to avoid input buffer overruns
-    time.sleep(1)
+    QThread.sleep(1)
 
     # Configure the unit to not report units or channel numbers or time - just readings
     self.device.write('FORMAT:READING:UNIT OFF')
@@ -257,6 +256,7 @@ class tAgilent(QObject):
   #   NipCalibrationFactorInMicrovolts - Microvolts per W/m^2 from the nameplate on the NIP 
 
   @requires_device_open()
+  @with_lock
   def ConfigureChannelsforDNI(self,ChannelList,NipCalibrationFactorInMicrovolts):
     scanlist = '(@' + str(ChannelList) + ')'
     # Configure channel list for DC voltage reading, 10 mV range
@@ -281,6 +281,7 @@ class tAgilent(QObject):
   #   Agilent channel number - e.g. 101, 304, etc.
 
   @requires_device_open()
+  @with_lock
   def SelectChannelToDisplayOnFrontPanel(self,Channel):
     # Convert to string in case the channel was passed in as an int
     Channel = str(Channel)
@@ -299,6 +300,7 @@ class tAgilent(QObject):
   # 
 
   @requires_device_open()
+  @with_lock
   def ConfigureChannelsforGHI(self,ChannelList):
     scanlist = '(@' + str(ChannelList) + ')'
     # Configure channel list for DC voltage reading, 0-10V range
@@ -320,6 +322,7 @@ class tAgilent(QObject):
   # 
 
   @requires_device_open()
+  @with_lock
   def ConfigureChannelsAsThermocouple(self,ChannelList,TCType):
     scanlist = '(@' + ChannelList + ')'
 
@@ -346,7 +349,8 @@ class tAgilent(QObject):
   # The scan will then occur when a trigger is sent.
   # 
 
-  @requires_device_open()    
+  @requires_device_open()
+  @with_lock    
   def ConfigureScanList(self, FullScanChannelList):
     scanlist = '(@' + FullScanChannelList + ')'
     self.device.write("ROUTE:SCAN " + scanlist) 
@@ -373,6 +377,7 @@ class tAgilent(QObject):
   # timeout back
 
   @requires_device_open()
+  @with_lock
   def FlushInputBuffer(self):
     curTimeout          = self.device.timeout 
     self.device.timeout = 0
@@ -400,6 +405,7 @@ class tAgilent(QObject):
   #   A comma-separated list of values.  If the reading times out, it will return -1 for all readings
 
   @requires_device_open()
+  @with_lock
   def Read(self, bTrimCrLf):
     # Flush any characters in the port.  This is defensive, in case the last read timed out and then actually returned something later.
     self.FlushInputBuffer()
@@ -426,7 +432,7 @@ class tAgilent(QObject):
         return ','.join(str(num) for num in minus_ones)
 
     if bTrimCrLf:
-      response = response[:-2]
+      response = response.strip()  #[:-2]
       
     return response
 
@@ -440,6 +446,7 @@ class tAgilent(QObject):
   #   0 after a successful wait, -1 if timed out
 
   @requires_device_open()
+  @with_lock
   def _WaitForScanToComplete(self, timeout = 3):
     IsBusyOrScanning = True
     while IsBusyOrScanning:
@@ -450,7 +457,7 @@ class tAgilent(QObject):
         timeout = timeout - 0.1
         if (timeout < 0):
           return -1
-        time.sleep(0.1)
+        QThread.msleep(100)
 
     return 0
 
@@ -465,7 +472,8 @@ class tAgilent(QObject):
   #   State        - tAgilent.OPEN or tAgilent.CLOSE
   # 
 
-  @requires_device_open()    
+  @requires_device_open()
+  @with_lock    
   def SetRelayState(self, ChannelList, State):
     if State == self.OPEN:
       Command = 'ROUTE:OPEN '
@@ -476,3 +484,31 @@ class tAgilent(QObject):
     
     scanlist = '(@' + ChannelList + ')'
     self.device.write(Command + scanlist) 
+
+
+  ###############################################
+  # GetRelayState - Returns the state of the specified relays
+  #
+  # INPUTS:
+  #   channel list - channel list string of relays to read
+  # RETURNS:
+  #   list of relay readings, as 0's and 1's
+
+  @requires_device_open()
+  @with_lock    
+  def GetRelayState(self, ChannelList):
+    Command = 'ROUTE:CLOS? '
+    
+    scanlist = '(@' + ChannelList + ')'
+    self.device.write(Command + scanlist)
+
+    try:
+      response = self.device.read()
+    except pyvisa.errors.VisaIOError:
+      print('Agilent timeout reading relay state, Retrying...')
+      return []
+
+    # Remove CrLf:
+    response = response.strip()  #[:-2]
+      
+    return list(map(int,response.split(',')))

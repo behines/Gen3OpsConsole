@@ -78,6 +78,10 @@ SHUTTERS = [
 # the first unit in the list above.
 BOX_CHANNEL_FOR_MARQUEE_DISPLAY = 2104  # 2104 = thermocouple 64, in the air just above the sand, in the center    # 1303   # A303 == Thermocouple 43
 
+SAND_TOP_CHANNEL = 1303  # Thermocouple 43, channel 1303
+SAND_MID_CHANNEL = 1302  # Thermocouple 42, channel 1302
+SAND_BOT_CHANNEL = 1216  # Thermocouple 36, channel 1216
+
 
 ##########
 # COM PORT GENERAL DEFAULT CONFIG

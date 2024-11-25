@@ -30,11 +30,15 @@ class tPeriodicLogger(tActiveObject):
   # different thread.  See https://stackoverflow.com/questions/2970312/pyqt4-qtcore-pyqtsignal-object-has-no-attribute-connect
   # 
 
-  DniUpdate      = Signal(float)
-  GhiUpdate      = Signal(float)
-  BoxTempUpdate  = Signal(float)
-  DomeTempUpdate = Signal(float)
-
+  DniUpdate         = Signal(float)
+  GhiUpdate         = Signal(float)
+  BoxTempUpdate     = Signal(float)
+  DomeTempUpdate    = Signal(float)
+  ElecTempUpdate    = Signal(float)
+  StanTempUpdate    = Signal(float)
+  SandTopTempUpdate = Signal(float)
+  SandMidTempUpdate = Signal(float)
+  SandBotTempUpdate = Signal(float)
 
   ###############################################
   # Constructor
@@ -46,6 +50,7 @@ class tPeriodicLogger(tActiveObject):
   #     
 
   def __init__(self, Agilents, GhiChannelIndex, DniChannelIndex, BoxMeasurementIndex,
+               SandTopMeasurementIndex, SandMidMeasurementIndex, SandBotMeasurementIndex,
                DomeTempSensor, OutsideTempSensor, ElectronicsTempSensor, Collectors, parent=None):
     super().__init__(parent)   # tPeriodicThread constructor
 
@@ -54,6 +59,10 @@ class tPeriodicLogger(tActiveObject):
     self.GhiChannelIndex       = GhiChannelIndex
     self.DniChannelIndex       = DniChannelIndex
     self.BoxMeasurementIndex   = BoxMeasurementIndex
+
+    self.SandTopMeasurementIndex = SandTopMeasurementIndex
+    self.SandMidMeasurementIndex = SandMidMeasurementIndex
+    self.SandBotMeasurementIndex = SandBotMeasurementIndex
 
     self.DomeTempSensor        = DomeTempSensor       
     self.OutsideTempSensor     = OutsideTempSensor    
@@ -76,10 +85,6 @@ class tPeriodicLogger(tActiveObject):
     self.DomeTempSensor       .setParent(self)
     self.OutsideTempSensor    .setParent(self)
     self.ElectronicsTempSensor.setParent(self)
-
-    #self.DomeTempSensor       .moveToThread(self)
-    #self.OutsideTempSensor    .moveToThread(self)
-    #self.ElectronicsTempSensor.moveToThread(self)
 
     # StartThread moves ourself, and all our children, to the thread
     self.StartThread(LOG_INTERVAL_SECONDS * 1000)
@@ -108,12 +113,14 @@ class tPeriodicLogger(tActiveObject):
   ###############################################
   # LogTemperatureData
   # 
+  # Note that for the Agilents and Temp sensors and the marquee display, it's okay
+  # to use "with" and read directly rather than signaling, because those objects 
+  # are in the same thread with us.
+  #
   # INPUTS:
   #   ScheduledTime - the QDateTime that the method was scheduled to run, in the current time zone
 
   def LogTemperatureData(self):
-    print('Templogger',flush=True)
-    return 0
     ###
     # Collect all data
     #
@@ -124,19 +131,27 @@ class tPeriodicLogger(tActiveObject):
       with agilent:  # Acquire the lock
         OutputLine = OutputLine + agilent.Read(True) + ','
 
-
-
+    OutputLineParsed = float(OutputLine.split(','))
     try:
       # Get the "box" reading to send to the marquee display
-      BoxTemp = float(OutputLine.split(',')[self.BoxMeasurementIndex])
+      BoxTemp     = OutputLineParsed[self.BoxMeasurementIndex]
       if BoxTemp<-1E37:   # bad thermocouple
         BoxTemp = 0
+      SandTopTemp = OutputLineParsed[self.SandTopMeasurementIndex]
+      if SandTopTemp < -1E37:
+        SandTopTemp = 0
+      SandMidTemp = OutputLineParsed[self.SandMidMeasurementIndex]
+      if SandMidTemp < -1E37:
+        SandMidTemp = 0
+      SandBotTemp = OutputLineParsed[self.SandBotMeasurementIndex]
+      if SandBotTemp < -1E37:
+        SandBotTemp = 0
 
       # Get the GHI and DNI
       if not self.GhiChannelIndex is None:
-        GHI = float(OutputLine.split(',')[self.GhiChannelIndex])
+        GHI = OutputLineParsed[self.GhiChannelIndex]
       if not self.DniChannelIndex is None:
-        DNI = float(OutputLine.split(',')[self.DniChannelIndex])
+        DNI = OutputLineParsed[self.DniChannelIndex]
       GHI = 0.0 if GHI < 0.0 else GHI
       DNI = 0.0 if DNI < 0.0 else DNI
     except (ValueError, IndexError, TypeError) as e:
@@ -165,6 +180,16 @@ class tPeriodicLogger(tActiveObject):
 
     # Append the Outside and Dome and elec box readings to the data record
     OutputLine = OutputLine + ','.join(map(str, OutsideReadings + DomeReadings + ElecBoxReadings))
+
+    self.DniUpdate        .emit(DNI)
+    self.GhiUpdate        .emit(GHI)
+    self.BoxTempUpdate    .emit(BoxTemp)
+    self.DomeTempUpdate   .emit(DomeTemp)
+    self.ElecTempUpdate   .emit(ElecTemp)
+    self.StanTempUpdate   .emit(StanTemp)
+    self.SandTopTempUpdate.emit(SandTopTemp)
+    self.SandMidTempUpdate.emit(SandMidTemp)
+    self.SandBotTempUpdate.emit(SandBotTemp)
 
     #####
     # Log and display data

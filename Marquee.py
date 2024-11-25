@@ -15,8 +15,8 @@
 import serial
 import sys
 # For implementing object locking and retry timer
-from PySide6.QtCore import QMutex, QElapsedTimer, QObject, Signal
-from Utilities      import requires_device_open
+from PySide6.QtCore import QRecursiveMutex, QElapsedTimer, QObject, Signal
+from Utilities      import requires_device_open, with_lock
 from ConfigInfo     import *
 
 
@@ -52,7 +52,7 @@ class tMarquee(QObject):
     super().__init__(parent)
 
     # Mutex for controlling access to the device
-    self._lock = QMutex()
+    self._lock = QRecursiveMutex()
 
     self.port     = None
     self.portName = portName
@@ -122,6 +122,7 @@ class tMarquee(QObject):
   #     
   
   @requires_device_open()
+  @with_lock
   def SendMessage(self, line):
     # If the port is closed, try to reopen it
     if self.port is None:
@@ -146,6 +147,7 @@ class tMarquee(QObject):
   #     
   
   @requires_device_open()
+  @with_lock
   def SendOutsideData(self, TempInC, Humidity):
     TempInF = TempInC * 9/5 + 32
     self.SendMessage(f"T{TempInF}\n")
@@ -157,6 +159,7 @@ class tMarquee(QObject):
   #     
   
   @requires_device_open()
+  @with_lock
   def SendDomeData(self, TempInC, Humidity):
     TempInF = TempInC * 9/5 + 32
     self.SendMessage(f"t{TempInF}\n")
@@ -168,6 +171,7 @@ class tMarquee(QObject):
   #     
   
   @requires_device_open()
+  @with_lock
   def SendBoxData(self, TempInC):
     self.SendMessage(f"B{TempInC}\n")
 
@@ -185,6 +189,7 @@ class tMarquee(QObject):
   #     
   
   @requires_device_open()
+  @with_lock
   def SendDNI(self, DNI):
     self.SendMessage(f"D{int(DNI)}\n")
 
@@ -197,13 +202,14 @@ class tMarquee(QObject):
   #     
 
   @requires_device_open()
-  def SendAll(self, DomeTempInC, DomeHumidity, OutsideTempInC, OutsideHumidity, BoxTempInC, GHI, DNI, CollectorStates):
+  @with_lock
+  def SendAll(self, DomeTempInC, DomeHumidity, OutsideTempInC, OutsideHumidity, BoxTempInC, GHI, DNI): #, CollectorStates):
     self.SendDomeData(DomeTempInC, DomeHumidity)
     self.SendOutsideData(OutsideTempInC, OutsideHumidity)
     self.SendBoxData(BoxTempInC)
     self.SendGHI(GHI)
     self.SendDNI(DNI)
-    self.SendCollectorStates(CollectorStates)
+    #self.SendCollectorStates(CollectorStates)
 
 
   ###############################################
@@ -211,6 +217,7 @@ class tMarquee(QObject):
   #     
 
   @requires_device_open()
+  @with_lock
   def SendTemps(self, DomeTempInC, DomeHumidity, OutsideTempInC, OutsideHumidity, BoxTempInC):
     self.SendDomeData(DomeTempInC, DomeHumidity)
     self.SendOutsideData(OutsideTempInC, OutsideHumidity)
@@ -222,6 +229,7 @@ class tMarquee(QObject):
   #     
 
   @requires_device_open()
+  @with_lock
   def SendSun(self, GHI, DNI):
     self.SendGHI(GHI)
     self.SendDNI(DNI)
@@ -233,6 +241,7 @@ class tMarquee(QObject):
   # Called when 
 
   @requires_device_open()
+  @with_lock
   def SendCollectorState(self, CollectorName: str, NewState: CollectorNativeStates):
 
     # Look up the collector number from the array
