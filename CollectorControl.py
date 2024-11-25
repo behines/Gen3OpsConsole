@@ -417,7 +417,7 @@ class tCollectorControlWindow(QWidget):
   #    
 
   def closeEvent(self, event):
-    print("CollectorWindow close event")
+    # print("CollectorWindow close event")
     if not self.bAllowClose:
       # Ignore any close events
       QMessageBox.warning(self, "Warning", "You cannot close this window directly.")

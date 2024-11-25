@@ -106,12 +106,6 @@ class MasterControl(QMainWindow):
     
     self.setWindowTitle('Windsor Master Control Console')
 
-
-
-
-    print('TimeLabel = ', self.ui.SystemTimeLabel)  # Should not be None
-
-
     # Create Collector Control Window
     self.CollectorControlWindow = tCollectorControlWindow()
     self.CollectorControlWindow.show()

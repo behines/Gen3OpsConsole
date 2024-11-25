@@ -87,7 +87,7 @@ class tPeriodicLogger(tActiveObject):
     self.ElectronicsTempSensor.setParent(self)
 
     # StartThread moves ourself, and all our children, to the thread
-    self.StartThread(LOG_INTERVAL_SECONDS * 1000)
+    self.StartThread(LOG_INTERVAL_SECONDS * 1000, "Logger")
 
 
 
@@ -131,8 +131,9 @@ class tPeriodicLogger(tActiveObject):
       with agilent:  # Acquire the lock
         OutputLine = OutputLine + agilent.Read(True) + ','
 
-    OutputLineParsed = float(OutputLine.split(','))
+
     try:
+      OutputLineParsed = list(map(float,OutputLine.split(',')))
       # Get the "box" reading to send to the marquee display
       BoxTemp     = OutputLineParsed[self.BoxMeasurementIndex]
       if BoxTemp<-1E37:   # bad thermocouple
@@ -158,6 +159,9 @@ class tPeriodicLogger(tActiveObject):
       GHI = 0.0
       DNI = 0.0
       BoxTemp = 0.0
+      SandTopTemp = 0
+      SandMidTemp = 0
+      SandBotTemp = 0      
 
     # Tell the sequencer about the new values
     #SystemState |= {'GHI': GHI, 'DNI': DNI}

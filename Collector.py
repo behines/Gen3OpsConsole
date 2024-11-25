@@ -111,7 +111,7 @@ class tCollector(tActiveObject):
     self.DoHome       .connect(self.Home     )
     self.DoTrack      .connect(self.Track    )
     self.DoStow       .connect(self.Stow     )
-    self.DoSetTime    .connect(self.SetTime  )
+    self.DoSetTime    .connect(self.SetTimeToNow)
     self.DoMotStatus  .connect(self.MotStatus)
     self.DoUnstick    .connect(self.Unstick  )
     self.DoReboot     .connect(self.Reboot   )
@@ -148,7 +148,7 @@ class tCollector(tActiveObject):
     self.SerialPort.PortOpenStateChange.connect(self.OnlineStatusUpdate)
 
     # Start our event loop going, also with a timer that will try to reconnect if not connected
-    self.StartThread(COLLECTOR_RETRY_TIMEOUT_SECS * 1000)
+    self.StartThread(COLLECTOR_RETRY_TIMEOUT_SECS * 1000, self.CollectorName)
     # Start our event loop going.  We do NOT need a reconnect timer because this is handled by the AutoOpenSerial class if a timeout is specified
     # self.StartThread()
 

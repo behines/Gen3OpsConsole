@@ -12,6 +12,7 @@
 
 from PySide6.QtCore import QObject, QThread, Signal, QDateTime, QTimeZone, QTimer, QEventLoop, QMutexLocker
 import debugpy
+import threading
 
 from ConfigInfo import *
 
@@ -138,6 +139,7 @@ class tActiveThread(QThread):
   #  
 
   def run(self):
+    threading.currentThread().name = self.objectName()  # Set Python thread name
     # Enable breakpoints within code in this thread
     debugpy.debug_this_thread()
     
@@ -215,11 +217,15 @@ class tActiveObject(QObject):
   # 
   # INPUTS:
   #   TimerPeriodInMs - if nonzero, will call self.PeriodicMethod at this interval
+  #   name            - a descriptive name for the thread that will show up in the debugger
   #  
 
-  def StartThread(self, TimerPeriodInMs=0):
+  def StartThread(self, TimerPeriodInMs=0, name=None):
     # Now move ourself and all our new children to the thread we will start
     self.TheThread = tActiveThread(self, self)
+    if not name is None:
+      print('Setting thread name to ',name)
+      self.TheThread.setObjectName(name)
     self.moveToThread(self.TheThread)
 
     # Now start the thread.  

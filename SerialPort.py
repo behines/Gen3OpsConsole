@@ -89,13 +89,12 @@ class tAutoOpenSerial(QSerialPort):
     #  pass
     if not self.bIsOpen:
       # ReadWrite is actually a member of QIODevice base class, but this works
-      if self.open(QSerialPort.ReadWrite) and self.error() != QSerialPort.NoError:
-        self.close()
+      if self.open(QSerialPort.ReadWrite) and self.error() == QSerialPort.NoError:
         self.bIsOpen = True
         self.PortOpenStateChange.emit(self.bIsOpen)
       else:
+        self.close()
         self.bIsOpen = False
-        #self._ArmReopenTimerIfNotRunning()
 
 
   #######################################################
