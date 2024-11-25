@@ -185,7 +185,7 @@ class MasterControl(QMainWindow):
   #
 
   def closeEvent(self, event):
-    print("MainWin is closing")
+    # print("MainWin is closing")
     self.CleanUp()  # Call your cleanup method here
     super().closeEvent(event)
 
@@ -200,9 +200,6 @@ class MasterControl(QMainWindow):
     # Stop the 1-second tick
     self.OneSecondTimer.stop()
 
-
-    print("Cleanup")
-
     # Shut down all the collectors
     for Collector in self.Collectors:
       Collector.RequestExit.emit()
@@ -210,11 +207,7 @@ class MasterControl(QMainWindow):
       Collector.TheThread.wait()
       Collector.TheThread.deleteLater()
       #WaitForSignal(SignalToWaitFor = Collector.TheThread.finished, SignalToEmit = Collector.RequestExit)
-      #Collector.TheThread.deleteLater()
-      print("Collector cleaned up",flush=True)
-
-    QThread.msleep(1000)
-    print("Done sleeping 1")
+      #print("Collector cleaned up",flush=True)
 
     # Tell the periodic logger thread to shut down, and wait for confirmation
     self.PeriodicLogger.RequestExit.emit()
@@ -222,12 +215,6 @@ class MasterControl(QMainWindow):
     self.PeriodicLogger.TheThread.wait()
     self.PeriodicLogger.TheThread.deleteLater()
     #WaitForSignal(SignalToWaitFor = self.PeriodicLogger.TheThread.finished, SignalToEmit = self.PeriodicLogger.RequestExit)
-    print("Done signaling ",flush=True)
-    QThread.msleep(1000)
-    print("Done sleeping2 ",flush=True)
-    # Now that the threads has exited, schedule it for deletion
-    #self.PeriodicLogger.TheThread.deleteLater()
-    print("Logger cleaned up",flush=True)
 
     # Shut down the collector window
     self.CollectorControlWindow.ForceClose()
@@ -325,8 +312,6 @@ if __name__ == "__main__":
   #app.aboutToQuit.connect(MainWin.CleanUp)
   
   MainWin.StartApplication()
-
-
 
   # Run the event loop, and propagate any exit error code back to the OS.
   exitCode = app.exec()

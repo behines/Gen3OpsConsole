@@ -431,7 +431,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QGroupBox" name="groupBox_5">
+   <widget class="QGroupBox" name="WideGroup">
     <property name="geometry">
      <rect>
       <x>155</x>
@@ -449,10 +449,10 @@
     <property name="title">
      <string>Wide</string>
     </property>
-    <widget class="QLabel" name="WideUp">
+    <widget class="QLabel" name="WideUL">
      <property name="geometry">
       <rect>
-       <x>23</x>
+       <x>4</x>
        <y>20</y>
        <width>41</width>
        <height>16</height>
@@ -474,61 +474,61 @@
       <string>00000</string>
      </property>
     </widget>
-    <widget class="QLabel" name="WideDown">
-     <property name="geometry">
-      <rect>
-       <x>23</x>
-       <y>49</y>
-       <width>41</width>
-       <height>16</height>
-      </rect>
-     </property>
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="font">
-      <font>
-       <pointsize>10</pointsize>
-       <bold>false</bold>
-      </font>
-     </property>
-     <property name="text">
-      <string>00000</string>
-     </property>
-    </widget>
-    <widget class="QLabel" name="WideLeft">
-     <property name="geometry">
-      <rect>
-       <x>4</x>
-       <y>35</y>
-       <width>41</width>
-       <height>16</height>
-      </rect>
-     </property>
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="font">
-      <font>
-       <pointsize>10</pointsize>
-       <bold>false</bold>
-      </font>
-     </property>
-     <property name="text">
-      <string>00000</string>
-     </property>
-    </widget>
-    <widget class="QLabel" name="WideRight">
+    <widget class="QLabel" name="WideLR">
      <property name="geometry">
       <rect>
        <x>43</x>
-       <y>35</y>
+       <y>41</y>
+       <width>41</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>10</pointsize>
+       <bold>false</bold>
+      </font>
+     </property>
+     <property name="text">
+      <string>00000</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="WideLL">
+     <property name="geometry">
+      <rect>
+       <x>4</x>
+       <y>41</y>
+       <width>41</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>10</pointsize>
+       <bold>false</bold>
+      </font>
+     </property>
+     <property name="text">
+      <string>00000</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="WideUR">
+     <property name="geometry">
+      <rect>
+       <x>43</x>
+       <y>20</y>
        <width>41</width>
        <height>16</height>
       </rect>
@@ -575,7 +575,7 @@
      </property>
     </widget>
    </widget>
-   <widget class="QGroupBox" name="groupBox_6">
+   <widget class="QGroupBox" name="NarrowGroup">
     <property name="geometry">
      <rect>
       <x>240</x>
@@ -593,10 +593,10 @@
     <property name="title">
      <string>Narrow</string>
     </property>
-    <widget class="QLabel" name="NarrowUp">
+    <widget class="QLabel" name="NarrowUL">
      <property name="geometry">
       <rect>
-       <x>23</x>
+       <x>4</x>
        <y>20</y>
        <width>41</width>
        <height>16</height>
@@ -618,36 +618,11 @@
       <string>00000</string>
      </property>
     </widget>
-    <widget class="QLabel" name="NarrowDown">
-     <property name="geometry">
-      <rect>
-       <x>23</x>
-       <y>49</y>
-       <width>41</width>
-       <height>16</height>
-      </rect>
-     </property>
-     <property name="sizePolicy">
-      <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
-       <horstretch>0</horstretch>
-       <verstretch>0</verstretch>
-      </sizepolicy>
-     </property>
-     <property name="font">
-      <font>
-       <pointsize>10</pointsize>
-       <bold>false</bold>
-      </font>
-     </property>
-     <property name="text">
-      <string>00000</string>
-     </property>
-    </widget>
-    <widget class="QLabel" name="NarrowLeft">
+    <widget class="QLabel" name="NarrowLL">
      <property name="geometry">
       <rect>
        <x>4</x>
-       <y>35</y>
+       <y>40</y>
        <width>41</width>
        <height>16</height>
       </rect>
@@ -668,11 +643,11 @@
       <string>00000</string>
      </property>
     </widget>
-    <widget class="QLabel" name="NarrowRight">
+    <widget class="QLabel" name="NarrowUR">
      <property name="geometry">
       <rect>
        <x>43</x>
-       <y>35</y>
+       <y>20</y>
        <width>41</width>
        <height>16</height>
       </rect>
@@ -693,7 +668,32 @@
       <string>00000</string>
      </property>
     </widget>
-    <widget class="QLabel" name="WideIntensity_2">
+    <widget class="QLabel" name="NarrowLR">
+     <property name="geometry">
+      <rect>
+       <x>43</x>
+       <y>40</y>
+       <width>41</width>
+       <height>16</height>
+      </rect>
+     </property>
+     <property name="sizePolicy">
+      <sizepolicy hsizetype="Fixed" vsizetype="Fixed">
+       <horstretch>0</horstretch>
+       <verstretch>0</verstretch>
+      </sizepolicy>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>10</pointsize>
+       <bold>false</bold>
+      </font>
+     </property>
+     <property name="text">
+      <string>00000</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="NarrowIntensity">
      <property name="geometry">
       <rect>
        <x>0</x>
@@ -744,7 +744,7 @@
      <string>CurrentState</string>
     </property>
    </widget>
-   <widget class="QGroupBox" name="groupBox_7">
+   <widget class="QGroupBox" name="ThresholdGroup">
     <property name="geometry">
      <rect>
       <x>320</x>
@@ -1076,7 +1076,7 @@
      <string>HH:MM:SS</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="RebootPushButton_2">
+   <widget class="QPushButton" name="UnstickPushButton">
     <property name="geometry">
      <rect>
       <x>353</x>

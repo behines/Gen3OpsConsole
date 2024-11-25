@@ -76,16 +76,16 @@ def WaitForSignal(SignalToWaitFor:Signal, SignalToEmit:Signal=None, TimeoutInMs=
     Timer = QTimer(parent)
     Timer.setSingleShot(True)
     Timer.timeout.connect(loop.quit)
-    print('WaitForSignal timer start')
+    #print('WaitForSignal timer start')
     Timer.start(TimeoutInMs)
 
   if not SignalToEmit is None:
     SignalToEmit.emit()
 
-  print('Exit request emitted',flush=True)
+  #print('Exit request emitted',flush=True)
   # Block until the signal is emitted
   loop.exec()
-  print('Event loop exited',flush=True)
+  #print('Event loop exited',flush=True)
 
 
 
@@ -123,7 +123,7 @@ class tActiveThread(QThread):
     # Enable breakpoints within code in this thread
     debugpy.debug_this_thread()
     
-    print('ActiveObject thread started')
+    #print('ActiveObject thread started')
 
     # Set up timer if requested
     if self.ActiveObject.TimerPeriodInMs != 0:
@@ -149,7 +149,7 @@ class tActiveThread(QThread):
     if self.ActiveObject.TimerPeriodInMs != 0:
       self.ActiveObject.Timer.stop()
 
-    print('ActiveThread exiting')
+    #print('ActiveThread exiting')
 
 
 ##########################################################################################
@@ -231,7 +231,7 @@ class tActiveObject(QObject):
   #  
 
   def OnExitRequest(self):
-    print('ActiveObject exiting')
+    #print('ActiveObject exiting')
     #if self.TimerPeriodInMs != 0:
     #  self.Timer.stop()
       
@@ -243,7 +243,8 @@ class tActiveObject(QObject):
     #self.TheThread.quit()        # Tell the thread's event loop to exit.  
     #self.TheThread.wait()
     #self.TheThread.deleteLater()
-    print('ActiveObject exited')
+    #print('ActiveObject exited')
+    pass
 
 
   ###############################################

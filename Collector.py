@@ -12,7 +12,7 @@
 #
 
 # module used to talk over serial with the esp32
-from PySide6.QtCore    import QFile, Qt, QMutex, Signal, QDateTime, QTimeZone
+from PySide6.QtCore    import QFile, Qt, QMutex, Signal, QDateTime, QTimeZone, QTime
 
 from SerialPort        import tAutoOpenSerialWholeLine
 from Utilities         import tActiveObject
@@ -29,11 +29,38 @@ from ConfigInfo        import *
 # up.
 # 
 #
+# When telemetry is emitted as a dictionary, it takes on this form
+#  Key                 Value
+# -----                -----
+#   P                  Tuple of az/el motor positions
+#   V                  Tuple of az/el motor velocities
+#   N                  Tuple of the four narrow-angle readings
+#   W                  Tuple of the four wide-angle readings
+#   R                  Tuple of thresholds - wide illum, narrow sky BG %, narrow illum %
+#   E                  Servo error, either velocity or position error depending on servo mode
+#   G                  Narrow sky background in counts
+#   I                  Tuple of Total intensity on detector in counts, and as a percentage
+# IsNarrowMode         True if in narrow-angle mode, else wide
+# NarrowAngleThreshold Threshold for switching to narrow angle
+# LimitStates          boolean[5] - az low, az high, el low, el high, home
+# PositionMode         boolean - true if in positoin mode, false if velocity mode
+#   C                  Spot coordinate x-y (float)
+# ModeNum              Current mode of the collector (integer)
+# ModeString           Current mode of the collecor (string)
+# Timestring           Current time as a string HH:MM:SS
+#
 
 class tCollector(tActiveObject):
   
-  CollectorOnlineStateUpdate = Signal(bool)
+  # CollectorOnlineStateUpdate = Signal(bool)
+
+  # Telemetry signals
+  TextLineReceived           = Signal(str)       # a non-telemetry line, should just be sent to the console
   CollectorStateUpdate       = Signal(str, int)  # New collector state as an int.  First arg is the collector name ('1A', '1B', etc.)
+  # Signal to emit parsed telemetry data as a dictionary
+  TelemetryUpdate            = Signal(dict)
+
+  
   
   ###############################################
   # Constructor part 1
@@ -65,6 +92,9 @@ class tCollector(tActiveObject):
                                                 AutoReopenTimeoutSecs=COLLECTOR_RETRY_TIMEOUT_SECS, parent=self)
     # Monitor the port for open/close state changes
     self.SerialPort.PortOpenStateChange.connect(self.OnlineStatusUpdate)
+
+    # And for text strings
+    self.SerialPort.readyLine.connect(self.ProcessLineOfOutput)
 
     #except:
     #  print('tCollector: Could not open collector',collectorName,'on port', portName)
@@ -181,14 +211,86 @@ class tCollector(tActiveObject):
   
 
   ###############################################
-  # GetTelemLine
+  # ProcessLineOfOutput
   # 
-  # Returns a telemetry string from the controller
+  # Processes lines of text as they arrive from the collector
+  #
+  # If the line is not a telemetry burst, it is emitted as a "TextLineReceived"
+  # signal.  If it is telemetry, it is parsed into a dictionary and emitted.
   #     
 
-  def GetTelemLine(self):
-    return ' '
-  
+  def ProcessLineOfOutput(self, Line: str):
+    if not Line.startswith("TEL:"):
+      # Emit signal for non-TEL line
+      self.TextLineReceived.emit(Line)
+      return
+
+    # Remove "TEL:" and parse the telemetry line
+    try:
+      Line = Line[4:]  # Remove "TEL:"
+      fields = Line.strip().split(":")  # Split into segments FieldTagged by single-character field names
+
+      parsed_data = {}
+      for field in fields:
+        if len(field) < 2:
+          continue  # Skip malformed fields
+        
+        FieldTag   = field[0]   # First character is the Field Tag
+        FieldValue = field[1:]  # Remaining is the value(s)
+        
+        # Parse fields based on content
+        if FieldTag in "PVNWRE":
+          # Multiple signed numbers separated by commas.  "map" here simply applies the "int" function to each of the split strings
+          parsed_data[FieldTag] = tuple(map(int, FieldValue.split(",")))
+
+        elif FieldTag in "GI":
+          # Single number fields (integer)
+          parsed_data[FieldTag] = int(FieldValue)
+
+        elif FieldTag == "H":
+          # First character is 'N' or 'W', followed by a 5-digit integer
+          IsNarrowMode = (FieldValue[0] == "N")
+          NarrowAngleThreshold = int(FieldValue[1:])  # Remaining characters are the threshold
+          parsed_data["IsNarrowMode"        ] = IsNarrowMode
+          parsed_data["NarrowAngleThreshold"] = NarrowAngleThreshold
+
+        elif FieldTag == "L":
+          # Five characters are '0' or '1', converted to a boolean array
+          LimitStates = [char == "1" for char in FieldValue]
+          parsed_data["LimitStates"] = LimitStates
+
+        elif FieldTag == "S":
+          # Characters are 'V' or 'P', converted to a boolean array for motor modes
+          bPositionMode = [char == "P" for char in FieldValue]
+          parsed_data["PositionMode"] = bPositionMode
+
+        elif FieldTag == "C":
+          # Multiple signed numbers separated by commas.  "map" here simply applies the "int" function to each of the split strings
+          parsed_data[FieldTag] = tuple(map(float, FieldValue.split(",")))
+
+        elif FieldTag == "M":
+          # First two characters are the integer ModeNum
+          ModeNum = int(FieldValue[:2])
+          # Remaining part after the comma is the ModeString
+          ModeString = FieldValue[3:]  # Skip the comma at index 2
+          parsed_data["ModeNum"   ] = ModeNum
+          parsed_data["ModeString"] = ModeString
+
+        elif FieldTag == "T":
+          # Parse Thhmmss and format as "hh:mm:ss"
+          hours      = FieldValue[ :2]
+          minutes    = FieldValue[2:4]
+          seconds    = FieldValue[4:6]
+          TimeString = f"{hours}:{minutes}:{seconds}"
+          parsed_data["TimeString"] = TimeString
+
+      # Emit signal with parsed telemetry data
+      self.TelemetryUpdate.emit(parsed_data)
+
+    except Exception as e:
+      # Handle unexpected errors
+      print(f"Error parsing TEL line: {e}")
+
 
   ###############################################
   # FlushInput
@@ -342,3 +444,25 @@ class tCollector(tActiveObject):
       return -1
     else:
       return 0
+
+
+
+  ###############################################
+  # SetThresholdPercentages()
+  # 
+  # Sends a message Jnnnmmmppp with the three percentages
+  #     
+
+  def SetThresholdPercentages(self, WideAngleIllumPercent, NarrowSkyBackgroundPercent, NarrowIlluminationPercent):
+    
+    SetThresholdsCmd = '/J' + f"{WideAngleIllumPercent:03d}{NarrowSkyBackgroundPercent:03d}{NarrowIlluminationPercent:03d}"
+
+    result = self.SerialPort.write(SetThresholdsCmd)
+
+    if result !=11:
+      print ('Could not set threshold percentages for ', self.CollectorName)
+      self.bResponded = True
+      return -1
+    else:
+      return 0
+    
