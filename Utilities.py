@@ -78,34 +78,64 @@ def with_lock(method):
 ##########################################################################################
 ##########################################################################################
 ##########################################################################################
-# WaitForSignal - Blocks until the specified signal is received
+# SignalThenWaitFor - Sends a stimulus then blocks until the specified signal is received
+#   and
+# SignalEmitter     - Helper function for packaging a signal emitter with arguments
+#
+# The idea here is that StimulusFuncToCall must take no arguments, but it can be a closure
+# with the ability to do whatever complex operation you like.  Most often this will be
+# emitting a signal..
+#
+# So if you want the stimulus to be emitting a signal MySignal(channel,value), then write
+#    
+#   SignalThenWaitFor(SomeSignalToWaitFor, SignalEmitter(MySignal,channel,value), TimeoutInMs=5000, parent=self)
 #
 # INPUTS:
-#   SignalToEmit - If provided, Qt will emit this signal for you in order to provoke the signal you're waiting on
-#   TimeoutInMs  - how long to wait before giving up
+#   SignalToWaitFor    - the routine will block until this signal arrives, or until a timeout 
+#   StimulusFuncToCall - If provided, Qt will ecall this function in order to stimulate the emission of 
+#                        the signal you're waiting on.  It should take no arguments.
+#   TimeoutInMs        - how long to wait before giving up, 0 == forever
+# RETURNS:
+#   The payload that was returned by the waited-for signal, as a list of argument values
 
-def WaitForSignal(SignalToWaitFor:Signal, SignalToEmit:Signal=None, TimeoutInMs=0, parent=None):
-    
-  # This is Qt's funny way of blocking to wait for a signal
+def SignalThenWaitFor(SignalToWaitFor:Signal, StimulusFuncToCall=None, TimeoutInMs=0, parent=None, *args, **kwargs):
+
+  # To store the payload of SignalToWaitFor
+  payload = []
+  def capture_payload(*signal_args):
+    payload.extend(signal_args)
+    loop.quit()    
+
+  # This is Qt's funny way of blocking to wait for a signal.  The canonical way it to just have the signal
+  # connect to loop.quit, to cause the event loop to exit.  But we also want to capture the payload.
   loop = QEventLoop(parent)
-  SignalToWaitFor.connect(loop.quit)
+  SignalToWaitFor.connect(capture_payload)
 
   # We will also exit the event loop if the timer times out
   if TimeoutInMs != 0:
     Timer = QTimer(parent)
     Timer.setSingleShot(True)
     Timer.timeout.connect(loop.quit)
-    #print('WaitForSignal timer start')
+    #print('SignalThenWaitFor timer start')
     Timer.start(TimeoutInMs)
 
-  if not SignalToEmit is None:
-    SignalToEmit.emit()
+  if not StimulusFuncToCall is None:
+    StimulusFuncToCall()
 
   #print('Exit request emitted',flush=True)
   # Block until the signal is emitted
   loop.exec()
   #print('Event loop exited',flush=True)
 
+  return payload
+
+
+############
+# SignalEmitter helper function
+def SignalEmitter(TheSignal, *args, **kwargs):
+  def emitter():
+      TheSignal.emit(*args, **kwargs)
+  return emitter
 
 
 

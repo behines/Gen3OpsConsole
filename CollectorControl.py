@@ -9,7 +9,6 @@
 
 from collections import namedtuple
 
-from PySide6.QtUiTools import QUiLoader
 from PySide6.QtWidgets import QWidget, QGridLayout, QScrollArea, QVBoxLayout, QMessageBox
 from PySide6.QtCore    import Qt, QFile
 
@@ -17,7 +16,7 @@ from PySide6.QtCore    import Qt, QFile
 from CollectorPane_ui  import Ui_Form
 from ConfigInfo        import *
 from Collector         import tCollector
-from Utilities         import WaitForSignal
+from Utilities         import SignalThenWaitFor
 
 
 
@@ -98,7 +97,7 @@ class tCollectorPane(QWidget):
     print("CollectorPane is closing",flush=True)
 
     # Tell the periodic logger thread to shut down, and wait for confirmation
-    # WaitForSignal(SignalToWaitFor = self.Collector.TheThread.finished, SignalToEmit = self.Collector.RequestExit)
+    # SignalThenWaitFor(SignalToWaitFor = self.Collector.TheThread.finished, SignalToEmit = self.Collector.RequestExit)
     # Now that the thread has exited, schedule it for deletion
     #self.Collector.deleteLater()
     print("Collector cleaned up",flush=True)

@@ -101,9 +101,9 @@ class tAutoOpenSerial(QSerialPort):
   # _ArmReopenTimerIfNotRunning - 
   # 
  
-  def _ArmReopenTimerIfNotRunning(self):
-    if self._AutoReopenTimeoutSecs > 0 and not self._ReopenTimer.isActive():
-      self._ReopenTimer.start(self._AutoReopenTimeoutSecs * 1000)
+  #def _ArmReopenTimerIfNotRunning(self):
+  #  if self._AutoReopenTimeoutSecs > 0 and not self._ReopenTimer.isActive():
+  #    self._ReopenTimer.start(self._AutoReopenTimeoutSecs * 1000)
 
 
   #######################################################

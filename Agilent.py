@@ -23,7 +23,7 @@ import os
 import sys
 
 # For implementing object locking and retry timer
-from PySide6.QtCore import QRecursiveMutex, QElapsedTimer, QObject, QThread
+from PySide6.QtCore import QRecursiveMutex, QElapsedTimer, QObject, QThread, Signal 
 from Utilities      import requires_device_open, with_lock
 
 
@@ -80,6 +80,17 @@ class tAgilent(QObject):
   ON                       = CLOSE
   OFF                      = OPEN
 
+  #################################################
+  #
+  # Signals
+  #
+
+  # Incoming
+  DoSetRelayState   = Signal(str,int)     # ChannelList e.g. '218:220', and 0 or 1 (tAgilent.ON or OFF)
+  DoGetRelayState   = Signal(str)         # ChannelList
+
+  # Outbound
+  RelayStateInfo    = Signal(dict)         # Dictionary of channel, value
 
 
   #################################################
@@ -135,6 +146,10 @@ class tAgilent(QObject):
     # Explode the channel list as provided into a fully elaborated list
     # We can do this in the constructor becuase it doesn't require the device to be open
     self.ChannelList = tAgilent.AgilentChannelListToPythonList(FullScanChannelList)
+
+    # Connect signals
+    self.DoSetRelayState.connect(self.SetRelayState)
+    self.DoGetRelayState.connect(self.GetRelayState)
 
     self.OpenAndConfigureDevice()
 
@@ -492,7 +507,8 @@ class tAgilent(QObject):
   # INPUTS:
   #   channel list - channel list string of relays to read
   # RETURNS:
-  #   list of relay readings, as 0's and 1's
+  #   A list of relay readings, as 0's and 1's  
+  #   Emits a RelayStateInfo signal, a dictionary of Channel Num/relay readings, as 0's and 1's
 
   @requires_device_open()
   @with_lock    
@@ -511,4 +527,13 @@ class tAgilent(QObject):
     # Remove CrLf:
     response = response.strip()  #[:-2]
       
-    return list(map(int,response.split(',')))
+    PythonChannelList = self.AgilentChannelListToPythonList(ChannelList)
+    RelayStateList    = list(map(int,response.split(',')))
+
+    # Create a dictionary from the two lists
+    RelayStateDict = {channel: value for channel, value in zip(PythonChannelList, RelayStateList)}
+
+    # Emit the signal
+    self.RelayStateInfo.emit(RelayStateDict)
+
+    return RelayStateList

@@ -41,7 +41,7 @@ import sys
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout, QScrollArea, QVBoxLayout, QMessageBox, QLabel
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore    import QFile, QThread, QDateTime, QTimeZone, QTimer
+from PySide6.QtCore    import QFile, QThread, QDateTime, QTimeZone, QTimer, QSignalBlocker
 
 # Globals, used for communicating between threads
 # import globals 
@@ -53,7 +53,8 @@ from CollectorControl  import tCollectorControlWindow
 from TempHumSensor     import tTempHumSensor
 from Agilent           import tAgilent
 from PeriodicLogger    import tPeriodicLogger
-from Utilities         import WaitForSignal
+from PowerControl      import tPowerControl
+from Utilities         import SignalThenWaitFor
 
 
 
@@ -145,6 +146,13 @@ class MasterControl(QMainWindow):
     GhiChannelIndex = FindFirstNonNoneValueForField(CompleteChannelList, 'GHI channels') 
 
 
+    # Motor and USB hub power relay objects.  Set the checkboxes based on the current relay state
+    self.MotorPower  = tPowerControl(self.Agilents[AGILENT_WITH_POWER_RELAYS], 'Motors',  MOTOR_POWER_CHANNELS,  tPowerControl.NORMALLY_CLOSED)
+    self.UsbHubPower = tPowerControl(self.Agilents[AGILENT_WITH_POWER_RELAYS], 'USB Hub', USB_HUB_POWER_CHANNEL, tPowerControl.NORMALLY_CLOSED)
+    self.MotorPowerCheckBoxUpdate(self.MotorPower .GetPowerState())
+    self.UsbPowerCheckBoxUpdate  (self.UsbHubPower.GetPowerState())
+
+
     # The parent of the object has to be None or it can't be moved to a thread.  The Logger needs to be passed the
     # collector list just so that it can pass it on to the Marquee object, which it creates.
     self.Collectors = self.CollectorControlWindow.CollectorList()
@@ -190,6 +198,14 @@ class MasterControl(QMainWindow):
     self.PeriodicLogger.SandMidTempUpdate.connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.SandMidTempLabel, floatVal))
     self.PeriodicLogger.SandBotTempUpdate.connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.SandBotTempLabel, floatVal))
 
+    # These are for messages about the power relays from the relay class
+    #self.MotorPower.PowerRelayStateUpdate.connect(self.MotorPowerCheckboxUpdate)
+    #self.UsbPower  .PowerRelayStateUpdate.connect(self.UsbPowerCheckboxUpdate  )
+    # These are for when the user actually checks the box
+    self.ui.MotorPowerCheckBox.connect(self.UserCheckedMotorPower)
+    self.ui.UsbPowerCheckBox  .connect(self.UserCheckedUsbPower  )
+
+
 
   #######################################################
   # Update4DigitIntLabel - Updates values that are 4-digit integer label fields
@@ -197,6 +213,23 @@ class MasterControl(QMainWindow):
   
   def Update4DigitIntLabel(self, field: QLabel, value: float):
     field.setText(str(int(value)))
+
+
+  #######################################################
+  # MotorPowerCheckboxUpdate - Updates the checkbox based on signals from the class
+
+  def MotorPowerCheckboxUpdate(self, value: bool):
+    # Don't self-stimulate - turn off signals before updating the checkbox
+    blocker = QSignalBlocker(self.ui.MotorPowerCheckBox)
+    self.ui.MotorPowerCheckBox.setChecked(value)
+
+  #######################################################
+  # UsbPowerCheckboxUpdate - Updates values that are 4-digit integer label fields
+ 
+  def UsbPowerCheckboxUpdate(self, value: bool):
+    # Don't self-stimulate - turn off signals before updating the checkbox
+    blocker = QSignalBlocker(self.ui.UsbPowerCheckBox)
+    self.ui.UsbPowerCheckBox.setChecked(value)
 
 
   #######################################################
@@ -229,7 +262,7 @@ class MasterControl(QMainWindow):
       Collector.TheThread.quit()        # Tell the thread's event loop to exit.  
       Collector.TheThread.wait()
       Collector.TheThread.deleteLater()
-      #WaitForSignal(SignalToWaitFor = Collector.TheThread.finished, SignalToEmit = Collector.RequestExit)
+      #SignalThenWaitFor(SignalToWaitFor = Collector.TheThread.finished, SignalToEmit = Collector.RequestExit)
       #print("Collector cleaned up",flush=True)
 
     # Tell the periodic logger thread to shut down, and wait for confirmation
@@ -237,7 +270,7 @@ class MasterControl(QMainWindow):
     self.PeriodicLogger.TheThread.quit()        # Tell the thread's event loop to exit.  
     self.PeriodicLogger.TheThread.wait()
     self.PeriodicLogger.TheThread.deleteLater()
-    #WaitForSignal(SignalToWaitFor = self.PeriodicLogger.TheThread.finished, SignalToEmit = self.PeriodicLogger.RequestExit)
+    #SignalThenWaitFor(SignalToWaitFor = self.PeriodicLogger.TheThread.finished, SignalToEmit = self.PeriodicLogger.RequestExit)
 
     # Shut down the collector window
     self.CollectorControlWindow.ForceClose()
