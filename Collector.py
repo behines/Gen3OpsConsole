@@ -70,7 +70,7 @@ class tCollector(tActiveObject):
   DoUnstick                  = Signal()
   DoReboot                   = Signal()
 
-  SetThresholds              = Signal(int,int,int)    # WideAngleIllumPercent, NarrowSkyBackgroundPercent, NarrowIlluminationPercent
+  UpdateThresholds           = Signal()
   
   ###############################################
   # Constructor part 1
@@ -90,7 +90,12 @@ class tCollector(tActiveObject):
     self.PortName       = portName
     self.bInit          = False
     self.CollectorState = CollectorNativeStates.UNKNOWN
-      
+
+    # These are cached values.  When they change (via a GUI event), we send a command to the collector
+    self.WideAngleIllumPercent      = 0
+    self.NarrowSkyBackgroundPercent = 0
+    self.NarrowIlluminationPercent  = 0
+
     #try:
     # Mutex for controlling access to the device
     self._lock = QRecursiveMutex()
@@ -116,7 +121,8 @@ class tCollector(tActiveObject):
     self.DoUnstick    .connect(self.Unstick  )
     self.DoReboot     .connect(self.Reboot   )
 
-    self.SetThresholds.connect(self.SetThresholdPercentages)
+    self.UpdateThresholds.connect(self.SendThresholdPercentages)
+
 
   ###############################################
   # Destructor
@@ -535,9 +541,8 @@ class tCollector(tActiveObject):
   #     
 
   @with_lock
-  def SetThresholdPercentages(self, WideAngleIllumPercent, NarrowSkyBackgroundPercent, NarrowIlluminationPercent):
-    
-    SetThresholdsCmd = '/J' + f"{WideAngleIllumPercent:03d}{NarrowSkyBackgroundPercent:03d}{NarrowIlluminationPercent:03d}"
+  def SendThresholdPercentages(self):
+    SetThresholdsCmd = '/J' + f"{self.WideAngleIllumPercent:03d}{self.NarrowSkyBackgroundPercent:03d}{self.NarrowIlluminationPercent:03d}"
 
     result = self.SerialPort.write(SetThresholdsCmd)
 
@@ -548,3 +553,35 @@ class tCollector(tActiveObject):
     else:
       return 0
     
+
+  ###############################################
+  # SetWideIllumPercentThreshold
+  # 
+  # Thread-safe method for adjusting threshold
+  #     
+
+  def SetWideIllumPercentThreshold(self, WideIllumPercent):
+    self.WideAngleIllumPercent = WideIllumPercent
+    self.UpdateThresholds.emit()
+
+
+  ###############################################
+  # SetNarrowSkyBackgroundPercentThreshold
+  # 
+  # Thread-safe method for adjusting threshold
+  #     
+
+  def SetNarrowSkyBackgroundPercentThreshold(self, NarrowBgPercent):
+    self.NarrowSkyBackgroundPercent = NarrowBgPercent
+    self.UpdateThresholds.emit()
+
+
+  ###############################################
+  # SetNarrowIllumPercentThreshold
+  # 
+  # Thread-safe method for adjusting threshold
+  #     
+
+  def SetNarrowIllumPercentThreshold(self, NarrowIllumPercent):
+    self.NarrowIlluminationPercent = NarrowIllumPercent
+    self.UpdateThresholds.emit()

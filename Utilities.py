@@ -103,8 +103,14 @@ def SignalThenWaitFor(SignalToWaitFor:Signal, StimulusFuncToCall=None, TimeoutIn
   # To store the payload of SignalToWaitFor
   payload = []
   def capture_payload(*signal_args):
-    payload.extend(signal_args)
+    payload.extend(signal_args)     # Nonlocal not required since this is not an assignment so it has to look outside
     loop.quit()    
+
+  bTimedOut = False
+  def TimedOut():
+    nonlocal bTimedOut
+    bTimedOut = True
+    loop.quit()   
 
   # This is Qt's funny way of blocking to wait for a signal.  The canonical way it to just have the signal
   # connect to loop.quit, to cause the event loop to exit.  But we also want to capture the payload.
@@ -115,7 +121,7 @@ def SignalThenWaitFor(SignalToWaitFor:Signal, StimulusFuncToCall=None, TimeoutIn
   if TimeoutInMs != 0:
     Timer = QTimer(parent)
     Timer.setSingleShot(True)
-    Timer.timeout.connect(loop.quit)
+    Timer.timeout.connect(TimedOut)
     #print('SignalThenWaitFor timer start')
     Timer.start(TimeoutInMs)
 
@@ -126,6 +132,8 @@ def SignalThenWaitFor(SignalToWaitFor:Signal, StimulusFuncToCall=None, TimeoutIn
   # Block until the signal is emitted
   loop.exec()
   #print('Event loop exited',flush=True)
+  if bTimedOut:
+    raise TimeoutError
 
   return payload
 
@@ -219,7 +227,7 @@ class tActiveThread(QThread):
 
 class tActiveObject(QObject):
 
-  RequestExit      = Signal()
+  RequestExitSignal = Signal()
   #ShutDownComplete = Signal()
 
 
@@ -254,14 +262,14 @@ class tActiveObject(QObject):
     # Now move ourself and all our new children to the thread we will start
     self.TheThread = tActiveThread(self, self)
     if not name is None:
-      print('Setting thread name to ',name)
+      # print('Setting thread name to ',name)
       self.TheThread.setObjectName(name)
     self.moveToThread(self.TheThread)
 
     # Now start the thread.  
     # self.TheThread.started .connect(self.OnThreadStart)
     # self.finished   .connect(self.deleteLater)     # Causes the our destructor to be called when the thread exits
-    self.RequestExit.connect(self.OnExitRequest)
+    self.RequestExitSignal.connect(self.OnExitRequest)
 
     self.TimerPeriodInMs = TimerPeriodInMs
 
@@ -272,11 +280,23 @@ class tActiveObject(QObject):
     self.TheThread.start()
 
 
+  ###############################################
+  # RequestExit - Ask the ActiveObject to exit
+  # 
+  # Sends itself the RequestExitSignal signal
+  #  
+
+  def RequestExit(self):
+    self.RequestExitSignal.emit()
+    self.TheThread.quit()        # Tell the thread's event loop to exit.  
+    self.TheThread.wait()
+    self.TheThread.deleteLater()
+
 
   ###############################################
   # OnExitRequest
   # 
-  # Called when we receive a RequestExit signal
+  # Called when we receive a RequestExitSignal signal
   #
   # Stops the periodic timer if running
   #

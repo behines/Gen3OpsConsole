@@ -24,7 +24,7 @@ import sys
 
 # For implementing object locking and retry timer
 from PySide6.QtCore import QRecursiveMutex, QElapsedTimer, QObject, QThread, Signal 
-from Utilities      import requires_device_open, with_lock
+from Utilities      import requires_device_open, with_lock, SignalThenWaitFor, SignalEmitter
 
 
 from ConfigInfo       import *
@@ -54,7 +54,7 @@ class tAgilent(QObject):
   STOP_BITS    = pyvisa.constants.StopBits.one
   FLOW_CONTROL = pyvisa.constants.ControlFlow.rts_cts
 
-  TIMEOUT_SECS = 5           # How long to give the instrument to respond before raising a timeout error
+  TIMEOUT_SECS = 2           # How long to give the instrument to respond before raising a timeout error
 
   #################################################
   #
@@ -79,6 +79,8 @@ class tAgilent(QObject):
   CLOSE                    = 1
   ON                       = CLOSE
   OFF                      = OPEN
+  RELAY_NORMALLY_OPEN      = 1
+  RELAY_NORMALLY_CLOSED    = 2
 
   #################################################
   #
@@ -148,8 +150,8 @@ class tAgilent(QObject):
     self.ChannelList = tAgilent.AgilentChannelListToPythonList(FullScanChannelList)
 
     # Connect signals
-    self.DoSetRelayState.connect(self.SetRelayState)
-    self.DoGetRelayState.connect(self.GetRelayState)
+    self.DoSetRelayState.connect(self._SetRelayState)
+    self.DoGetRelayState.connect(self._GetRelayState)
 
     self.OpenAndConfigureDevice()
 
@@ -478,7 +480,7 @@ class tAgilent(QObject):
 
 
   ###############################################
-  # SetRelayState 
+  # _SetRelayState 
   #
   # Opens or closes the specified relays
   #
@@ -489,7 +491,7 @@ class tAgilent(QObject):
 
   @requires_device_open()
   @with_lock    
-  def SetRelayState(self, ChannelList, State):
+  def _SetRelayState(self, ChannelList, State):
     if State == self.OPEN:
       Command = 'ROUTE:OPEN '
     elif State == self.CLOSE:
@@ -502,7 +504,7 @@ class tAgilent(QObject):
 
 
   ###############################################
-  # GetRelayState - Returns the state of the specified relays
+  # _GetRelayState - Returns the state of the specified relays
   #
   # INPUTS:
   #   channel list - channel list string of relays to read
@@ -512,7 +514,7 @@ class tAgilent(QObject):
 
   @requires_device_open()
   @with_lock    
-  def GetRelayState(self, ChannelList):
+  def _GetRelayState(self, ChannelList):
     Command = 'ROUTE:CLOS? '
     
     scanlist = '(@' + ChannelList + ')'
@@ -521,7 +523,7 @@ class tAgilent(QObject):
     try:
       response = self.device.read()
     except pyvisa.errors.VisaIOError:
-      print('Agilent timeout reading relay state, Retrying...')
+      #print('Agilent timeout reading relay state, Retrying...')
       return []
 
     # Remove CrLf:
@@ -537,3 +539,49 @@ class tAgilent(QObject):
     self.RelayStateInfo.emit(RelayStateDict)
 
     return RelayStateList
+  
+
+
+
+  ###############################################
+  # SetRelayState
+  #
+  # INPUTS:
+  #   RelayChannels - a list of relay channels in a string like '218:220'
+  #   RelayType     - tAgilent.RELAY_NORMALLY_OPEN or tAgilent.RELAY_NORMALLY_CLOSED
+  #   NewRelayState - True for on and False for off
+  # RETURNS:
+  #   True if power is on on the first realy in the list
+
+  def SetRelayState(self, RelayChannels, RelayType, bState: bool):
+    if bState:
+      NewRelayState = tAgilent.ON  if RelayType == tAgilent.RELAY_NORMALLY_OPEN else tAgilent.OFF
+    else:
+      NewRelayState = tAgilent.OFF if RelayType == tAgilent.RELAY_NORMALLY_OPEN else tAgilent.ON
+
+    self.DoSetRelayState.emit(RelayChannels, NewRelayState)
+
+
+  ###############################################
+  # GetRelayState
+  #
+  # If you provide a list of relays, this assumes they all have the same state and just
+  # returns the first one.
+  # 
+  # INPUTS:
+  #   RelayChannels - a relaychannel string like '218:220'
+  # RETURNS:
+  #   True if power is on on the first realy in the list
+  # RAISES:
+  #   TimeoutError if the operation times out
+
+  def GetRelayState(self, RelayChannels, RelayType) -> bool:
+    RelayStateInfo = SignalThenWaitFor(self.RelayStateInfo, SignalEmitter(self.DoGetRelayState, RelayChannels), TimeoutInMs=500)
+
+    # RelayStateInfo is dict.  Let's just return the value of the first entry in the dict and assume they're 
+    # all the same
+    FirstRelayValue = RelayStateInfo[next(iter(RelayStateInfo))]
+
+    bRelayIsClosed  = (RelayType == self.RELAY_NORMALLY_OPEN   and FirstRelayValue == tAgilent.ON or
+                       RelayType == self.RELAY_NORMALLY_CLOSED and FirstRelayValue == tAgilent.OFF)
+    return bRelayIsClosed

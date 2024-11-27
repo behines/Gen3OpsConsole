@@ -18,7 +18,14 @@
 # https://github.com/pytransitions/transitions?tab=readme-ov-file#hsm
 #
 #
-# A bit of info on the transitions library terminology.  It offers a pair of
+# A note on how the library works.  It's confusing if you come back to 
+# it after a couple of years.  What happens is that for every transition defined
+# in the "transitions" array, it dynamically creates methods with those names and
+# adds them to the object specified by the "model" parameter that you pass in when
+# the machine is created.
+#
+#
+# Also, a bit of info on the transitions library terminology.  It offers a pair of
 # features that seem the same at first before/after callbacks, and on_enter/on_exit
 # callbacks.  The subtlety is that one is associated with *states*, while the other
 # is associated with transitions.  What's the difference?  
@@ -45,14 +52,19 @@
 #
 
 # module used to get the current date and time
-from datetime    import datetime
+from datetime       import datetime
 
 import time
 
-from Agilent     import tAgilent
-from Sun         import tSun
-from transitions import Machine
+from Agilent        import tAgilent
+from PeriodicLogger import tPeriodicLogger
+from Sun            import tSun
+from transitions    import Machine
 from transitions.extensions.states import add_state_features, Timeout
+
+# module used to get the current date and time for the sun calcs
+from datetime import datetime, timedelta
+import pytz
 
 from PySide6.QtCore import QObject
 
@@ -143,14 +155,21 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
   #   SystemState - a state dictionary (will be passed by reference)
 
   def __init__(self, Agilent, NipPowerChannels, NipOnOffButtonChannel, 
-               PyranometerPowerChannel, SystemState, Sun):
-    super().__init__()
+               PyranometerPowerChannel, Sun: tSun, PeriodicLogger: tPeriodicLogger, parent):
+    super().__init__(parent)
+
     self.agilent                 = Agilent
     self.NipPowerChannels        = NipPowerChannels
     self.NipOnOffButtonChannel   = NipOnOffButtonChannel
     self.PyranometerPowerChannel = PyranometerPowerChannel
-    self.SystemState             = SystemState
     self.sun                     = Sun
+    self.SystemState             =   SystemState = {
+                                       'GHI'         : 0,
+                                       'DNI'         : 0,
+                                       'ClearSkyGHI' : 0,
+                                       'sunrise'     : datetime.now(pytz.timezone(SITE_TIMEZONE)) + timedelta(days=1),
+                                       'sunset'      : datetime.now(pytz.timezone(SITE_TIMEZONE)) - timedelta(days=1)
+                                     }
 
     # Initialize the state machine.  We ignore invalid triggers, since our approach with
     # this machine is to simply inform the machine of stimuli and have it decide whether
@@ -169,6 +188,10 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
     self.PowerDown()
 
     self.PyranometerPowerState = None
+
+    # Connect to GHI and DNI updates from the logger
+    PeriodicLogger.DniUpdate.connect(self.DniUpdate)
+    PeriodicLogger.DniUpdate.connect(self.GhiUpdate)
 
     return
   
@@ -244,6 +267,22 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
     bIsSunOut = (self.SystemState['GHI'] > NIP_GHI_SUN_IS_OUT_THRESHOLD * self.SystemState['ClearSkyGHI'] and
                  self.SystemState['GHI'] > NIP_GHI_SUN_IS_OUT_MIN)
     return bIsSunOut
+
+
+  ###############################################
+  # DniUpdate - called when a DNI update signal is received from the PeriodicLogger
+  # 
+
+  def DniUpdate(self, DNI):
+    self.SystemState['DNI'] = DNI
+
+
+  ###############################################
+  # GhiUpdate - called when a DGHINI update signal is received from the PeriodicLogger
+  # 
+
+  def GhiUpdate(self, GHI):
+    self.SystemState['GHI'] = GHI
 
 
   ###############################################

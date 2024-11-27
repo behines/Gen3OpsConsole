@@ -9,9 +9,7 @@
 #   psutil   (needed for visa interface discovery)
 #   transitions
 #   astral   # used by Sun.py, pulls in tzdata
-#
-# I don't think these are needed anymore but were in the original list that I copied in
-#   pytz   # Now using QTimeZone
+#   pytz     # Used by Sun.py, needed even though we are using QTimeZone in most places
 #   tzlocal (installed along with pytz, I believe)
 #
 # HARDWARE ASSUMPTIONS
@@ -39,9 +37,9 @@ from collections import namedtuple
 import os
 import sys
 
-from PySide6.QtWidgets import QApplication, QMainWindow, QWidget, QGridLayout, QScrollArea, QVBoxLayout, QMessageBox, QLabel
+from PySide6.QtWidgets import QApplication, QMainWindow, QCheckBox, QLabel, QWidget, QGridLayout, QScrollArea, QVBoxLayout, QMessageBox
 from PySide6.QtUiTools import QUiLoader
-from PySide6.QtCore    import QFile, QThread, QDateTime, QTimeZone, QTimer, QSignalBlocker
+from PySide6.QtCore    import Qt, QFile, QThread, QDateTime, QTimeZone, QTimer, QSignalBlocker
 
 # Globals, used for communicating between threads
 # import globals 
@@ -54,6 +52,8 @@ from TempHumSensor     import tTempHumSensor
 from Agilent           import tAgilent
 from PeriodicLogger    import tPeriodicLogger
 from PowerControl      import tPowerControl
+from Sun               import tSun
+from NipSequencer      import tNipSequencer
 from Utilities         import SignalThenWaitFor
 
 
@@ -145,12 +145,17 @@ class MasterControl(QMainWindow):
     DniChannelIndex = FindFirstNonNoneValueForField(CompleteChannelList, 'DNI channels') 
     GhiChannelIndex = FindFirstNonNoneValueForField(CompleteChannelList, 'GHI channels') 
 
-
     # Motor and USB hub power relay objects.  Set the checkboxes based on the current relay state
-    self.MotorPower  = tPowerControl(self.Agilents[AGILENT_WITH_POWER_RELAYS], 'Motors',  MOTOR_POWER_CHANNELS,  tPowerControl.NORMALLY_CLOSED)
-    self.UsbHubPower = tPowerControl(self.Agilents[AGILENT_WITH_POWER_RELAYS], 'USB Hub', USB_HUB_POWER_CHANNEL, tPowerControl.NORMALLY_CLOSED)
-    self.MotorPowerCheckBoxUpdate(self.MotorPower .GetPowerState())
-    self.UsbPowerCheckBoxUpdate  (self.UsbHubPower.GetPowerState())
+    self.MotorPower  = tPowerControl(self.Agilents[AGILENT_WITH_POWER_RELAYS], 'Motors',  MOTOR_POWER_CHANNELS,  tAgilent.RELAY_NORMALLY_CLOSED, self)
+    self.UsbHubPower = tPowerControl(self.Agilents[AGILENT_WITH_POWER_RELAYS], 'USB Hub', USB_HUB_POWER_CHANNEL, tAgilent.RELAY_NORMALLY_CLOSED, self)
+    try:
+      self.MotorPowerCheckboxUpdate(self.MotorPower .GetPowerState())
+    except TimeoutError:
+      print('Motor power relay not responding')
+    try:
+      self.UsbPowerCheckboxUpdate  (self.UsbHubPower.GetPowerState())
+    except TimeoutError:
+      print('USB power relay not responding')
 
 
     # The parent of the object has to be None or it can't be moved to a thread.  The Logger needs to be passed the
@@ -160,7 +165,7 @@ class MasterControl(QMainWindow):
                                           SandTopMeasurementIndex, SandMidMeasurementIndex, SandBotMeasurementIndex,
                                           self.DomeTempSensor, self.OutsideTempSensor, self.ElectronicsTempSensor,
                                           self.Collectors) #, parent=None)
-    
+
     # Now that everything is going, we can start the collector monitoring threads.  At this point, the 
     # Collectors are still in this thread that created them, but they will now move to their own threads
     for Collector in self.Collectors:
@@ -182,6 +187,14 @@ class MasterControl(QMainWindow):
 
     self.OneSecondTimer.start(1000)
 
+    # Start the NIP sequencer
+    # The third Agilent is the one with the Actuator card in it for sequencing
+    self.Sun          = tSun(SITE_LATITUDE, SITE_LONGITUDE, SITE_ELEVATION, SITE_TIMEZONE)
+    self.NipSequencer = tNipSequencer(self.Agilents[AGILENT_WITH_POWER_RELAYS], NIP_POWER_CHANNELS, 
+                                NIP_ON_OFF_BUTTON_CHANNEL, PYRANOMETER_POWER_CHANNEL,
+                                self.Sun, self.PeriodicLogger, self)
+    self.NipSequencer.start()
+
 
   #######################################################
   # ConnectToSignals - Sign up for all the signals that MasterControl wants to receive
@@ -202,8 +215,8 @@ class MasterControl(QMainWindow):
     #self.MotorPower.PowerRelayStateUpdate.connect(self.MotorPowerCheckboxUpdate)
     #self.UsbPower  .PowerRelayStateUpdate.connect(self.UsbPowerCheckboxUpdate  )
     # These are for when the user actually checks the box
-    self.ui.MotorPowerCheckBox.connect(self.UserCheckedMotorPower)
-    self.ui.UsbPowerCheckBox  .connect(self.UserCheckedUsbPower  )
+    self.ui.MotorPowerCheckBox.checkStateChanged.connect(self.UserCheckedMotorPower)
+    self.ui.UsbPowerCheckBox  .checkStateChanged.connect(self.UserCheckedUsbPower  )
 
 
 
@@ -220,7 +233,7 @@ class MasterControl(QMainWindow):
 
   def MotorPowerCheckboxUpdate(self, value: bool):
     # Don't self-stimulate - turn off signals before updating the checkbox
-    blocker = QSignalBlocker(self.ui.MotorPowerCheckBox)
+    _ = QSignalBlocker(self.ui.MotorPowerCheckBox)     
     self.ui.MotorPowerCheckBox.setChecked(value)
 
   #######################################################
@@ -228,9 +241,39 @@ class MasterControl(QMainWindow):
  
   def UsbPowerCheckboxUpdate(self, value: bool):
     # Don't self-stimulate - turn off signals before updating the checkbox
-    blocker = QSignalBlocker(self.ui.UsbPowerCheckBox)
+    _ = QSignalBlocker(self.ui.UsbPowerCheckBox) 
     self.ui.UsbPowerCheckBox.setChecked(value)
 
+
+  #######################################################
+  # UserCheckedMotorPower - Updates the checkbox based on signals from the class
+
+  def UserCheckedMotorPower(self, checkstate: Qt.CheckState):
+    bValue = (checkstate == Qt.Checked)
+    self.MotorPower.SetPowerState(bValue)
+    print('Turning Motor power', 'ON' if bValue else 'OFF')
+    try:
+      bSuccess = (self.MotorPower.GetPowerState() == bValue)
+    except TimeoutError:
+      bSuccess = False
+    if not bSuccess:
+      QMessageBox.critical(self, "Error", "Motor Power Relay did not respond", QMessageBox.Ok)
+
+
+  #######################################################
+  # UserCheckedUsbPower - Updates the checkbox based on signals from the class
+
+  def UserCheckedUsbPower(self, checkstate: Qt.CheckState):
+    bValue = (checkstate == Qt.Checked)
+    self.UsbHubPower.SetPowerState(bValue)
+    print('Turning USB power', 'ON' if bValue else 'OFF')
+    try:
+      bSuccess = (self.UsbHubPower.GetPowerState() == bValue)
+    except TimeoutError:
+      bSuccess = False
+    if not bSuccess:
+      QMessageBox.critical(self, "Error", "USB Power Relay did not respond", QMessageBox.Ok)
+   
 
   #######################################################
   # closeEvent - Fires when MainWin is closed by the user - our signal to tidy up and exit
@@ -256,21 +299,16 @@ class MasterControl(QMainWindow):
     # Stop the 1-second tick
     self.OneSecondTimer.stop()
 
+    # Shut down the NIP.  This calls into a method of the transitions library
+    # We can call directly because the NIP sequencer is in the master GUI thread
+    self.NipSequencer.Shutdown() 
+
     # Shut down all the collectors
     for Collector in self.Collectors:
-      Collector.RequestExit.emit()
-      Collector.TheThread.quit()        # Tell the thread's event loop to exit.  
-      Collector.TheThread.wait()
-      Collector.TheThread.deleteLater()
-      #SignalThenWaitFor(SignalToWaitFor = Collector.TheThread.finished, SignalToEmit = Collector.RequestExit)
-      #print("Collector cleaned up",flush=True)
+      Collector.RequestExit()
 
     # Tell the periodic logger thread to shut down, and wait for confirmation
-    self.PeriodicLogger.RequestExit.emit()
-    self.PeriodicLogger.TheThread.quit()        # Tell the thread's event loop to exit.  
-    self.PeriodicLogger.TheThread.wait()
-    self.PeriodicLogger.TheThread.deleteLater()
-    #SignalThenWaitFor(SignalToWaitFor = self.PeriodicLogger.TheThread.finished, SignalToEmit = self.PeriodicLogger.RequestExit)
+    self.PeriodicLogger.RequestExit()
 
     # Shut down the collector window
     self.CollectorControlWindow.ForceClose()

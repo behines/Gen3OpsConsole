@@ -79,9 +79,7 @@ class tCollectorPane(QWidget):
     # The threshold fields are things the user can enter.  We will update if we have new values,
     # but not every time.  This allow the user to type new values.
     # Threshold fields, initial values
-    self.WideIllumPercentEntry  = 0
-    self.NarrowSkyBgEntry       = 0
-    self.NarrowIllumThreshEntry = 0
+
     # And connect to signals that tell us the user has entered new values
     self.ui.WideIllumPercentLineEdit   .editingFinished.connect(self.NewUserWideIllumPercent)
     self.ui.NarrowSkyBackgroundLineEdit.editingFinished.connect(self.NewUserNarrowSkyBackground)
@@ -163,10 +161,10 @@ class tCollectorPane(QWidget):
     if new_value < 1 or new_value > 100:
       new_value = 0
 
-    self.WideIllumPercentEntry = new_value
     # If it's a valid new value, send it to the target
     if new_value != 0:
-      self.Collector.emit(self.WideIllumPercentEntry, self.NarrowSkyBgEntry, self.NarrowIllumThreshEntry)
+      self.Collector.SetWideIllumPercentThreshold(new_value)
+
 
   ###############################################
   # NewUserNarrowSkyBackground
@@ -180,10 +178,10 @@ class tCollectorPane(QWidget):
     if new_value < 1 or new_value > 100:
       new_value = 0
 
-    self.NarrowSkyBgEntry = new_value
     # If it's a valid new value, send it to the target
     if new_value != 0:
-      self.Collector.emit(self.WideIllumPercentEntry, self.NarrowSkyBgEntry, self.NarrowIllumThreshEntry)
+      self.Collector.SetNarrowSkyBackgroundPercentThreshold(new_value)
+
   
   ###############################################
   # NewUserNarrowIllumPercent
@@ -197,11 +195,9 @@ class tCollectorPane(QWidget):
     if new_value < 1 or new_value > 100:
       new_value = 0
 
-    self.NarrowIllumThreshEntry = new_value
     # If it's a valid new value, send it to the target
     if new_value != 0:
-      self.Collector.emit(self.WideIllumPercentEntry, self.NarrowSkyBgEntry, self.NarrowIllumThreshEntry)
-
+      self.Collector.SetNarrowIllumPercentThreshold(new_value)
 
 
 
@@ -273,16 +269,17 @@ class tCollectorPane(QWidget):
 
 
     # Tuple of thresholds - wide illum, narrow sky BG %, narrow illum %
+    # When receiving, poke the new values into the collecor
     if "R" in telemetry:
-      if telemetry["R"][0] != self.WideIllumPercentEntry:
-        self.WideIllumPercentEntry = telemetry["R"][0]
-        self.ui.WideIllumPercentLineEdit.setText(str(self.WideIllumPercentEntry))
-      if telemetry["R"][1] != self.NarrowSkyBgEntry:
-        self.NarrowSkyBgEntry = telemetry["R"][1]
-        self.ui.NarrowSkyBackgroundLineEdit.setText(str(self.NarrowSkyBgEntry))
-      if telemetry["R"][2] != self.NarrowIllumThreshEntry:
-        self.NarrowIllumThreshEntry = telemetry["R"][2]
-        self.ui.NarrowIllumPercentLineEdit.setText(str(self.NarrowIllumThreshEntry))
+      if telemetry["R"][0] != self.Collector.WideAngleIllumPercent:
+        self.Collector.WideAngleIllumPercent = telemetry["R"][0]
+        self.ui.WideIllumPercentLineEdit.setText(str(self.Collector.WideAngleIllumPercent))
+      if telemetry["R"][1] != self.Collector.NarrowSkyBackgroundPercent:
+        self.Collector.NarrowSkyBackgroundPercent = telemetry["R"][1]
+        self.ui.NarrowSkyBackgroundLineEdit.setText(str(self.Collector.NarrowSkyBackgroundPercent))
+      if telemetry["R"][2] != self.Collector.NarrowIlluminationPercent:
+        self.Collector.NarrowIlluminationPercent = telemetry["R"][2]
+        self.ui.NarrowIllumPercentLineEdit.setText(str(self.Collector.NarrowIlluminationPercent))
 
     # Servo error
     if "E" in telemetry:

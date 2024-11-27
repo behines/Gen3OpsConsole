@@ -13,18 +13,16 @@
 #
 
 from Agilent        import tAgilent
-from Utilities      import SignalThenWaitFor, SignalEmitter
-from PySide6.QtCore import Signal 
+from PySide6.QtCore import QObject, Signal 
 
 
-class tPowerControl:
+class tPowerControl(QObject):
 
   ###############################################
   # Constants 
   # 
 
-  NORMALLY_OPEN   = 1
-  NORMALLY_CLOSED = 2
+
 
   #################################################
   #
@@ -34,7 +32,6 @@ class tPowerControl:
   # Outbound
   PowerRelayStateUpdate = Signal(bool)
 
-
   ###############################################
   # Constructor 
   # 
@@ -42,9 +39,11 @@ class tPowerControl:
   #   agilent   - the Agilent unit with the 34903A Actuator card in it
   #   Name      - a name for display
   #   PowerRelayChannels - an Agilent-spec list of channels to switch, e.g. '201:202,205'
-  #   RelayType - NORMALLY_OPEN or NORMALLY_CLOSED 
+  #   RelayType - tAgilent.RELAY_NORMALLY_OPEN or tAgilent.RELAY_NORMALLY_CLOSED 
 
-  def __init__(self, Agilent: tAgilent, Name, PowerRelayChannels, RelayType):
+  def __init__(self, Agilent: tAgilent, Name, PowerRelayChannels, RelayType, parent=None):
+    super().__init__(parent)   
+
     self.agilent       = Agilent
     self.Name          = Name
     self.RelayType     = RelayType
@@ -57,11 +56,7 @@ class tPowerControl:
   
   def PowerOn(self):
     print('Powering on', self.Name)
-
-    NewRelayState = tAgilent.ON if self.RelayType == self.NORMALLY_OPEN else tAgilent.OFF
-    #with self.agilent as agilent:
-    #  agilent.SetRelayState(self.RelayChannels, NewRelayState)
-    self.agilent.DoSetRelayState.emit(self.RelayChannels, NewRelayState)
+    self.agilent.SetRelayState(self.RelayChannels, self.RelayType, True)
 
 
   ###############################################
@@ -70,12 +65,7 @@ class tPowerControl:
   
   def PowerOff(self):
     print('Powering off', self.Name)
-
-    NewRelayState = tAgilent.OFF if self.RelayType == self.NORMALLY_OPEN else tAgilent.ON
-    #with self.agilent as agilent:
-    #  agilent.SetRelayState(self.RelayChannels, NewRelayState)      
-    self.agilent.DoSetRelayState.emit(self.RelayChannels, NewRelayState)
-
+    self.agilent.SetRelayState(self.RelayChannels, self.RelayType, False)
 
 
   ###############################################
@@ -84,7 +74,6 @@ class tPowerControl:
   # bState - false to turn off, true to turn on
   
   def SetPowerState(self, bState):
-
     if bState:
       self.PowerOn()
     else:
@@ -101,17 +90,10 @@ class tPowerControl:
   # 
   # RETURNS:
   #   True if power is on
+  # RAISES:
+  #   TimeoutError if the operation times out
 
-  def GetPowerState(self):
-    #with self.agilent as agilent:
-    #  agilent.GetRelayState(self.RelayChannels)
-    RelayStateInfo = SignalThenWaitFor(self.agilent.RelayStateInfo, SignalEmitter(self.agilent.DoGetRelayState,self.RelayChannels))
-
-    # RelayStateInfo is dict.  Let's just return the value of the first entry in the dict and assume they're 
-    # all the same
-    FirstRelayValue = RelayStateInfo[next(iter(RelayStateInfo))]
-
-    bRelayIsClosed = (self.RelayType == self.NORMALLY_OPEN   and FirstRelayValue == tAgilent.ON or
-                      self.RelayType == self.NORMALLY_CLOSED and FirstRelayValue == tAgilent.OFF)
+  def GetPowerState(self) -> bool:
+    bRelayIsClosed = self.agilent.GetRelayState(self.RelayChannels, self.RelayType)
     return bRelayIsClosed
   
