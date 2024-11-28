@@ -68,8 +68,7 @@ class tCollectorPane(QWidget):
     collectorTitle = 'Collector ' + collectorName
     self.ui.CollectorGroup.setTitle(collectorTitle)
 
-    # Have the displays come up in a disconnected state, until we see a connection event
-    self.ConnectionEvent(False)
+
 
     # Create the Collector object that interfaces to the hardware
     self.Collector = tCollector(collectorName, portName, baud)
@@ -77,6 +76,9 @@ class tCollectorPane(QWidget):
 
     self.Collector.TextLineReceived.connect(self.AddToLog)   # a non-telemetry line, should just be sent to the console
     self.Collector.TelemetryUpdate.connect(self.UpdateTelemetry)
+
+    # Set the initial state of the display to match whether the port is open
+    self.ConnectionEvent(self.Collector.SerialPort.IsOpen())
 
     # The threshold fields are things the user can enter.  We will update if we have new values,
     # but not every time.  This allow the user to type new values.
@@ -119,6 +121,7 @@ class tCollectorPane(QWidget):
   #     
 
   def ConnectionEvent(self, bConnected):
+    print('Collector connection event: ', bConnected)
     # Show all the titles and buttons in an enabled or disabled state
     self.ui.OffPushButton.        setEnabled(bConnected)
     self.ui.HomePushButton.       setEnabled(bConnected)
@@ -297,7 +300,7 @@ class tCollectorPane(QWidget):
 
     # Total intensity on wide-angle detector
     if "I" in telemetry:
-      self.ui.WideIntensity.setText(f'{telemetry["I"][0]:4d}%  {telemetry["I"][1]:5d}')
+      self.ui.WideIntensity.setText(f'{telemetry["I"][1]:4d}%  {telemetry["I"][0]:5d}')
 
     # Narrow mode status
     if "IsNarrowMode" in telemetry:
