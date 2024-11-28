@@ -17,6 +17,8 @@ import sys
 # For implementing object locking and retry timer
 from PySide6.QtCore import QRecursiveMutex, QElapsedTimer, QObject, Signal
 from Utilities      import requires_device_open, with_lock
+from Collector      import tCollector
+from typing         import List              # For pylance
 from ConfigInfo     import *
 
 
@@ -48,7 +50,7 @@ class tMarquee(QObject):
   # INPUTS:
   #     
 
-  def __init__(self, portName, CollectorList, parent=None):
+  def __init__(self, portName, CollectorList: List[tCollector], parent=None):
     super().__init__(parent)
 
     # Mutex for controlling access to the device
@@ -90,7 +92,7 @@ class tMarquee(QObject):
     
   def OpenPort(self):
     try:
-      self.port = serial.Serial(self.portName, tMarquee.BAUD_RATE, timeout=1)
+      self.port = serial.Serial(self.portName, MARQUEE_BAUD_RATE, timeout=1)
     except:
       self.port = None
       self.RetryTimer.start()

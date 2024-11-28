@@ -14,6 +14,7 @@
 # module used to talk over serial with the esp32
 import serial
 from PySide6.QtCore import QObject
+from ConfigInfo     import *
 
 
 ##########################################################################################
@@ -83,14 +84,14 @@ class tTempHumSensor(QObject):
       return
 
     try:
-      self.port  = serial.Serial(self.portName, tTempHumSensor.BAUD_RATE, timeout=1)
+      self.port  = serial.Serial(self.portName, TEMP_HUM_BAUD_RATE, timeout=1)
     except:
       if not bReopenAttempt:
         print('tTempHumSensor: Could not open port ', self.portName)
         #sys.exit()
 
     try:
-      self.port.set_buffer_size(rx_size = tTempHumSensor.RX_BUFFER_SIZE)
+      self.port.set_buffer_size(rx_size = TEMP_HUM_RX_BUFFER_SIZE)
     except AttributeError as err:
       #print('PySerial::set_buffer_size not supported on this platform, continuing')
       pass
