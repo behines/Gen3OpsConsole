@@ -238,10 +238,9 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
   # Returns the system to a safe state
   #     
 
-  def SetPyranometerPowerState(self, bOn):
-    self.PyranometerPower.SetPowerState(bOn)
-    
+  def SetPyranometerPowerState(self, bOn): 
     if self.PyranometerPowerState != bOn:
+      self.PyranometerPower.SetPowerState(bOn)
       print('Pyranometer power switched ' + ('on' if bOn else 'off'))
       self.PyranometerPowerState = bOn
 
