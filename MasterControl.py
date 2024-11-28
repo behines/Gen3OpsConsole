@@ -118,8 +118,8 @@ class MasterControl(QMainWindow):
     screen          = QApplication.primaryScreen()
     screen_geometry = screen.availableGeometry()
 
-    # Calculate the desired mainwindow y coordinate as 20% of the screen height
-    y_coord = int(screen_geometry.height() * 0.2)
+    # Calculate the desired mainwindow y coordinate as 10% of the screen height
+    y_coord = int(screen_geometry.height() * 0.1)
     # Keep the current x position and set the new y position
     self.move(self.x(), y_coord)
 
@@ -127,8 +127,8 @@ class MasterControl(QMainWindow):
     main_geometry      = self                       .geometry()
     secondary_geometry = self.CollectorControlWindow.geometry()
 
-    # Compute aggregate width including a 100-pixel gap
-    total_width = main_geometry.width() + 100 + secondary_geometry.width()
+    # Compute aggregate width including a 50-pixel gap
+    total_width = main_geometry.width() + 50 + secondary_geometry.width()
 
     # Compute the horizontal starting point to center both windows
     center_x = (screen_geometry.width() - total_width) // 2

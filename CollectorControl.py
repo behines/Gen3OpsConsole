@@ -243,15 +243,15 @@ class tCollectorPane(QWidget):
 
     # Motor positions
     if "P" in telemetry:
-      azPos = str(telemetry["P"][0])
-      elPos = str(telemetry["P"][1])
+      azPos = f'P:{telemetry["P"][0]:>10,}'
+      elPos = f'P:{telemetry["P"][1]:>10,}'
       self.ui.AzPosLabel.setText(azPos)
       self.ui.ElPosLabel.setText(elPos)
 
     # Motor velocities
     if "V" in telemetry:
-      azVel = str(telemetry["V"][0])
-      elVel = str(telemetry["V"][1])
+      azVel = f'V:{telemetry["V"][0]:12d}'
+      elVel = f'V:{telemetry["V"][1]:12d}'
       self.ui.AzVelLabel.setText(azVel)
       self.ui.ElVelLabel.setText(elVel)
 
@@ -259,20 +259,20 @@ class tCollectorPane(QWidget):
     if "N" in telemetry:
       # Update narrow-angle readings
       # UL, UR, LL, LR
-      self.ui.NarrowRight.setText(str(telemetry["N"][0]))
-      self.ui.NarrowLeft .setText(str(telemetry["N"][1]))
-      self.ui.NarrowUp   .setText(str(telemetry["N"][2]))
-      self.ui.NarrowDown .setText(str(telemetry["N"][3]))
+      self.ui.NarrowRight.setText(f'{telemetry["N"][0]:5d}')
+      self.ui.NarrowLeft .setText(f'{telemetry["N"][1]:5d}')
+      self.ui.NarrowUp   .setText(f'{telemetry["N"][2]:5d}')
+      self.ui.NarrowDown .setText(f'{telemetry["N"][3]:5d}')
 
 
     # Wide-angle readings
     if "W" in telemetry:
       # Update wide-angle readings
       # UL, UR, LL, LR
-      self.ui.WideUL.setText(str(telemetry["W"][0]))
-      self.ui.WideUR.setText(str(telemetry["W"][1]))
-      self.ui.WideLL.setText(str(telemetry["W"][2]))
-      self.ui.WideLR.setText(str(telemetry["W"][3]))
+      self.ui.WideUL.setText(f'{telemetry["W"][0]:5d}')
+      self.ui.WideUR.setText(f'{telemetry["W"][1]:5d}')
+      self.ui.WideLL.setText(f'{telemetry["W"][2]:5d}')
+      self.ui.WideLR.setText(f'{telemetry["W"][3]:5d}')
 
 
     # Tuple of thresholds - wide illum, narrow sky BG %, narrow illum %
@@ -315,7 +315,7 @@ class tCollectorPane(QWidget):
 
     # Narrow angle threshold
     if "NarrowAngleThreshold" in telemetry:
-      msg = 'NarrowThresh:  {telemetry["NarrowAngleThreshold"]:5d}'
+      msg = f'NarrowThresh:  {telemetry["NarrowAngleThreshold"]:5d}'
       self.ui.NarrowThresholdLabel.setText(msg)
 
     # Limit states

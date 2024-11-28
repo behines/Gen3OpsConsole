@@ -205,6 +205,9 @@
      <property name="focusPolicy">
       <enum>Qt::FocusPolicy::NoFocus</enum>
      </property>
+     <property name="styleSheet">
+      <string notr="true">background: none;</string>
+     </property>
      <property name="text">
       <string>Low</string>
      </property>
@@ -236,6 +239,12 @@
      <property name="focusPolicy">
       <enum>Qt::FocusPolicy::NoFocus</enum>
      </property>
+     <property name="autoFillBackground">
+      <bool>false</bool>
+     </property>
+     <property name="styleSheet">
+      <string notr="true">background: none;</string>
+     </property>
      <property name="text">
       <string>High</string>
      </property>
@@ -249,7 +258,7 @@
     <widget class="QLabel" name="AzPosLabel">
      <property name="geometry">
       <rect>
-       <x>10</x>
+       <x>2</x>
        <y>20</y>
        <width>71</width>
        <height>16</height>
@@ -274,7 +283,7 @@
     <widget class="QLabel" name="AzVelLabel">
      <property name="geometry">
       <rect>
-       <x>10</x>
+       <x>2</x>
        <y>38</y>
        <width>71</width>
        <height>16</height>
@@ -339,6 +348,9 @@
      <property name="focusPolicy">
       <enum>Qt::FocusPolicy::NoFocus</enum>
      </property>
+     <property name="styleSheet">
+      <string notr="true">background: none;</string>
+     </property>
      <property name="text">
       <string>Low</string>
      </property>
@@ -370,6 +382,9 @@
      <property name="focusPolicy">
       <enum>Qt::FocusPolicy::NoFocus</enum>
      </property>
+     <property name="styleSheet">
+      <string notr="true">background: none;</string>
+     </property>
      <property name="text">
       <string>High</string>
      </property>
@@ -383,7 +398,7 @@
     <widget class="QLabel" name="ElPosLabel">
      <property name="geometry">
       <rect>
-       <x>10</x>
+       <x>2</x>
        <y>20</y>
        <width>71</width>
        <height>16</height>
@@ -408,7 +423,7 @@
     <widget class="QLabel" name="ElVelLabel">
      <property name="geometry">
       <rect>
-       <x>10</x>
+       <x>2</x>
        <y>38</y>
        <width>71</width>
        <height>16</height>
