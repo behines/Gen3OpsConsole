@@ -113,7 +113,36 @@ class MasterControl(QMainWindow):
     # Create Collector Control Window
     self.CollectorControlWindow = tCollectorControlWindow()
     self.CollectorControlWindow.show()
-    getattr(self.CollectorControlWindow, "raise")()
+
+    # Adjust the positions of the windows
+    screen          = QApplication.primaryScreen()
+    screen_geometry = screen.availableGeometry()
+
+    # Calculate the desired mainwindow y coordinate as 20% of the screen height
+    y_coord = int(screen_geometry.height() * 0.2)
+    # Keep the current x position and set the new y position
+    self.move(self.x(), y_coord)
+
+    # Get the main window and secondary window sizes
+    main_geometry      = self                       .geometry()
+    secondary_geometry = self.CollectorControlWindow.geometry()
+
+    # Compute aggregate width including a 100-pixel gap
+    total_width = main_geometry.width() + 100 + secondary_geometry.width()
+
+    # Compute the horizontal starting point to center both windows
+    center_x = (screen_geometry.width() - total_width) // 2
+
+    # Compute the vertical alignment (align vertical centerlines)
+    main_center_y     = main_geometry.y() + (main_geometry.height()      // 2)
+    secondary_start_y = main_center_y     - (secondary_geometry.height() // 2)
+
+    # Set the new positions
+    self.move(center_x, main_geometry.y())
+    self.CollectorControlWindow.move(center_x + main_geometry.width() + 100,
+                                     secondary_start_y)
+
+    self.CollectorControlWindow.raise_()
     self.CollectorControlWindow.activateWindow()
 
 
@@ -445,7 +474,7 @@ if __name__ == "__main__":
 
   MainWin = MasterControl()
   MainWin.show()
-  getattr(MainWin, "raise")()
+  MainWin.raise_()
   MainWin.activateWindow()
 
   #app.aboutToQuit.connect(lambda: print("aboutToQuit signal emitted"))
