@@ -236,7 +236,19 @@ class tAutoOpenSerialWholeLine(tAutoOpenSerial):
         break  # No more data available to read
 
       # Convert QByteArray to string and append to the buffer
-      self._lineBuffer += str(data.data(), "utf-8")
+      #self._lineBuffer += str(data.data(), "utf-8")
+
+      # Print the raw data in hex format
+      #print(f"Raw data: {data.toHex().data().decode('ascii')}")
+
+      #try:
+      # Convert QByteArray to string and append to the buffer. 
+      # The reason for the ignore flag is to skip all tha cruft that appears when you
+      # first connect.  Without the flag, it barfs on those characters.
+      self._lineBuffer += str(data.data(), "utf-8", errors="ignore")
+      #except UnicodeDecodeError as e:
+      #  print(f"Decoding error on port {self.portName()}: {e}. Raw bytes: {data}")
+      #  break
 
       # Check for complete lines.  This handles the case where there is more than a full line in the buffer
       while "\n" in self._lineBuffer:
