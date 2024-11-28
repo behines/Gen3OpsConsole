@@ -254,6 +254,7 @@ class tCollector(tActiveObject):
 
     # Remove "TEL:" and parse the telemetry line
     try:
+      #self.TextLineReceived.emit(Line)
       Line = Line[4:]  # Remove "TEL:"
       fields = Line.strip().split(":")  # Split into segments FieldTagged by single-character field names
 
