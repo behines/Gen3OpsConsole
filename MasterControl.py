@@ -34,15 +34,11 @@ from datetime import datetime, timedelta
 from collections import namedtuple
 
 # module used to control delays
-import os
 import sys
+import os
 
 from PySide6.QtWidgets import QApplication, QMainWindow, QCheckBox, QLabel, QWidget, QGridLayout, QScrollArea, QVBoxLayout, QMessageBox
-from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore    import Qt, QFile, QThread, QDateTime, QTimeZone, QTimer, QSignalBlocker
-
-# Globals, used for communicating between threads
-# import globals 
 
 # Import configuration of the system
 from Gen2OpsConsole_ui import Ui_MasterControl
@@ -54,9 +50,7 @@ from PeriodicLogger    import tPeriodicLogger
 from PowerControl      import tPowerControl
 from Sun               import tSun
 from NipSequencer      import tNipSequencer
-from Utilities         import SignalThenWaitFor
-
-
+from LogFile           import tLogFile
 
 
 
@@ -158,23 +152,50 @@ class MasterControl(QMainWindow):
       print('USB power relay not responding')
 
 
+    ##### Prepare the log file
+    # Write comma-separated headers  
+    # Header line 1 will capture the version info and raw configuration of the Agilent units
+    # Header line 2 is  field/channel names
+    DailyFolder   = os.path.join(os.path.expanduser("~"), "Documents", DAILY_FOLDER)
+    ArchiveFolder = os.path.join(os.path.expanduser("~"), ARCHIVE_FOLDER)
+    Header1 = HEADER1 + ',' + ','.join([f'"{element}"' if element is not None else '""' for sublist in AGILENTS for element in sublist])
+    Header2 = '"Date","Time",' + ','.join(str(num) for num in CompleteChannelList) + ',"Outside T","Outside H","Dome T","Dome H","Elec T","Elec H"'
+
+    self.LogFile = tLogFile(DailyFolder, ArchiveFolder, Header1, Header2, SITE_TIMEZONE)
+
     # The parent of the object has to be None or it can't be moved to a thread.  The Logger needs to be passed the
     # collector list just so that it can pass it on to the Marquee object, which it creates.
     self.Collectors = self.CollectorControlWindow.CollectorList()
     self.PeriodicLogger = tPeriodicLogger(self.Agilents, GhiChannelIndex, DniChannelIndex, BoxMeasurementIndex, 
                                           SandTopMeasurementIndex, SandMidMeasurementIndex, SandBotMeasurementIndex,
                                           self.DomeTempSensor, self.OutsideTempSensor, self.ElectronicsTempSensor,
-                                          self.Collectors) #, parent=None)
+                                          self.Collectors, self.LogFile) #, parent=None)
 
     # Now that everything is going, we can start the collector monitoring threads.  At this point, the 
     # Collectors are still in this thread that created them, but they will now move to their own threads
     for Collector in self.Collectors:
       Collector.Start()
 
+    # Start the NIP sequencer
+    # The third Agilent is the one with the Actuator card in it for sequencing
+    self.Sun          = tSun(SITE_LATITUDE, SITE_LONGITUDE, SITE_ELEVATION, SITE_TIMEZONE)
+    self.NipSequencer = tNipSequencer(self.Agilents[AGILENT_WITH_POWER_RELAYS], NIP_POWER_CHANNELS, 
+                                      NIP_ON_OFF_BUTTON_CHANNEL, PYRANOMETER_POWER_CHANNEL,
+                                      self.Sun, self.PeriodicLogger, self)
+      
+
+
     # Connect to signals
     self.ConnectToSignals()
 
-    # Set up a 1-second timer
+    # Since the NIP sequencer won't run for a full minute, go ahead and run it once right now.
+    # One might want to do this inside the NipSequencer constructor instead.  But that first 
+    # run emits Sunrise and Sunset signals that we'd like to catch, so we want to wait until 
+    # after we've connected to the signals
+    self.NipSequencer.RunStateMachine()
+
+
+    # Set up a 1-second timer to tick the on-screen clock
     self.OneSecondTimer = QTimer(self)
     self.OneSecondTimer.setSingleShot(False)
     self.OneSecondTimer.timeout.connect(self.OneSecondTick)
@@ -187,13 +208,9 @@ class MasterControl(QMainWindow):
 
     self.OneSecondTimer.start(1000)
 
-    # Start the NIP sequencer
-    # The third Agilent is the one with the Actuator card in it for sequencing
-    self.Sun          = tSun(SITE_LATITUDE, SITE_LONGITUDE, SITE_ELEVATION, SITE_TIMEZONE)
-    self.NipSequencer = tNipSequencer(self.Agilents[AGILENT_WITH_POWER_RELAYS], NIP_POWER_CHANNELS, 
-                                NIP_ON_OFF_BUTTON_CHANNEL, PYRANOMETER_POWER_CHANNEL,
-                                self.Sun, self.PeriodicLogger, self)
-    self.NipSequencer.start()
+
+
+
 
 
   #######################################################
@@ -217,6 +234,9 @@ class MasterControl(QMainWindow):
     # These are for when the user actually checks the box
     self.ui.MotorPowerCheckBox.checkStateChanged.connect(self.UserCheckedMotorPower)
     self.ui.UsbPowerCheckBox  .checkStateChanged.connect(self.UserCheckedUsbPower  )
+
+    self.NipSequencer.NipStateUpdate     .connect(self.UpdateNipStateMessage)
+    self.NipSequencer.SunriseSunsetUpdate.connect(self.UpdateSunriseSunset)
 
 
 
@@ -276,6 +296,23 @@ class MasterControl(QMainWindow):
    
 
   #######################################################
+  # UpdateNipStateMessage
+
+  def UpdateNipStateMessage(self, NipStateString: str):
+    NipStateString = NipStateString[0].upper() + NipStateString[1:]
+    self.ui.NipStateLabel.setText(NipStateString)
+
+  #######################################################
+  # UpdateNipStateMessage
+
+  def UpdateSunriseSunset(self, Sunrise: QDateTime, Sunset: QDateTime):
+    SunriseString = Sunrise.toString("HH:mm:ss")
+    SunsetString  = Sunset .toString("HH:mm:ss")
+    self.ui.SunriseLabel.setText(SunriseString)
+    self.ui.SunsetLabel .setText(SunsetString )
+
+
+  #######################################################
   # closeEvent - Fires when MainWin is closed by the user - our signal to tidy up and exit
   #
   # We do this rather than connect to app.aboutToQuit, because there is a chicken-and-egg problem.
@@ -299,9 +336,9 @@ class MasterControl(QMainWindow):
     # Stop the 1-second tick
     self.OneSecondTimer.stop()
 
-    # Shut down the NIP.  This calls into a method of the transitions library
+    # Shut down the NIP.  
     # We can call directly because the NIP sequencer is in the master GUI thread
-    self.NipSequencer.Shutdown() 
+    self.NipSequencer.DoShutdown() 
 
     # Shut down all the collectors
     for Collector in self.Collectors:

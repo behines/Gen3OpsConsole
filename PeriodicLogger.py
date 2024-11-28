@@ -14,6 +14,7 @@ from Utilities     import tActiveObject
 from Agilent       import tAgilent
 from TempHumSensor import tTempHumSensor
 from Marquee       import tMarquee
+from LogFile       import tLogFile
 
 
 ##########################################################################################
@@ -51,7 +52,7 @@ class tPeriodicLogger(tActiveObject):
 
   def __init__(self, Agilents, GhiChannelIndex, DniChannelIndex, BoxMeasurementIndex,
                SandTopMeasurementIndex, SandMidMeasurementIndex, SandBotMeasurementIndex,
-               DomeTempSensor, OutsideTempSensor, ElectronicsTempSensor, Collectors, parent=None):
+               DomeTempSensor, OutsideTempSensor, ElectronicsTempSensor, Collectors, LogFile: tLogFile, parent=None):
     super().__init__(parent)   # tPeriodicThread constructor
 
     self.Agilents = Agilents
@@ -69,6 +70,7 @@ class tPeriodicLogger(tActiveObject):
     self.ElectronicsTempSensor = ElectronicsTempSensor
 
     self.Collectors            = Collectors
+    self.LogFile               = LogFile
 
     # Marquee display
     self.Marquee               = tMarquee(MARQUEE_COM_PORT, Collectors, self)
@@ -200,9 +202,9 @@ class tPeriodicLogger(tActiveObject):
     #
 
     # Pass the timestamp into the logger
-    #if LogFile.LogRecord(self.ScheduledTime, OutputLine):
-      # If True, we've just crossed midnight - tell the sequencer
-    #  pass #Sequencer.StartNewDay()
+    if self.LogFile.LogRecord(self.ScheduledTime, OutputLine):
+    # If True, we've just crossed midnight - tell the sequencer
+      pass #Sequencer.StartNewDay()
 
     # Send data to the marquee display
     with self.Marquee as marquee:    

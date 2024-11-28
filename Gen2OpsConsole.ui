@@ -157,7 +157,7 @@
                     </font>
                    </property>
                    <property name="text">
-                    <string>Off</string>
+                    <string>Off             </string>
                    </property>
                   </widget>
                  </item>

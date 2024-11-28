@@ -202,7 +202,7 @@ COLLECTOR_LOG_MAXLINES = 200
 
 #########
 # Logging - daily folder is not in Nextcloud, to avoid constant thrashing
-LOG_INTERVAL_SECONDS = 5
+LOG_INTERVAL_SECONDS = 60
 DAILY_FOLDER   = 'WindsorDailyLog'    # Will be placed under "My Documents"
 ARCHIVE_FOLDER = 'Nextcloud/Engineering/Calseed Prototype/Data/DailyLogs'  # Logs get copied to here at midnight
 

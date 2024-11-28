@@ -26,7 +26,7 @@
 #
 #
 # Also, a bit of info on the transitions library terminology.  It offers a pair of
-# features that seem the same at first before/after callbacks, and on_enter/on_exit
+# features that seem the same at first - before/after callbacks, and on_enter/on_exit
 # callbacks.  The subtlety is that one is associated with *states*, while the other
 # is associated with transitions.  What's the difference?  
 #
@@ -57,6 +57,7 @@ from datetime       import datetime
 import time
 
 from Agilent        import tAgilent
+from PowerControl   import tPowerControl
 from PeriodicLogger import tPeriodicLogger
 from Sun            import tSun
 from transitions    import Machine
@@ -66,12 +67,10 @@ from transitions.extensions.states import add_state_features, Timeout
 from datetime import datetime, timedelta
 import pytz
 
-from PySide6.QtCore import QObject
+from PySide6.QtCore import QObject, QTimer, Signal, QDateTime, QTimeZone
 
 # Configuration forthe sequencer
 from ConfigInfo import *
-
-
 
 
 ##########################################################################################
@@ -95,8 +94,10 @@ class StateMachineWithTimeouts(Machine):
 #
 
 class tNipSequencer(QObject):   # Classes that Define or Emit Signals must derive from QObject
-  # Call base class constructor
-  QObject.__init__(self)
+
+  NipStateUpdate      = Signal(str)
+  SunriseSunsetUpdate = Signal(QDateTime,QDateTime)
+  ClearSkyGhiUpdate   = Signal(float)
 
   states = [
     { 'name': 'off',     'on_enter': ['PowerDown'] },
@@ -146,6 +147,15 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
   ]
 
 
+  # Class methoed that are dynamically by the transitions library.  This eliminates Pylance warnings.
+  # Duplicative of .pyi file, because there's no way to include a .pyi file.
+  def sun_is_out      (self) -> bool: ...
+  def sun_is_not_out  (self) -> bool: ...
+  def acquire_complete(self) -> bool: ...
+  def NoDNI           (self) -> bool: ...
+  def YesDNI          (self) -> bool: ...
+  def Shutdown        (self) -> bool: ...
+
 
   ###############################################
   # Constructor 
@@ -158,10 +168,10 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
                PyranometerPowerChannel, Sun: tSun, PeriodicLogger: tPeriodicLogger, parent):
     super().__init__(parent)
 
+    # Class member that is added dynamically by the transitions library.  This eliminates the Pylance warning further below.
+    self.state: str
+
     self.agilent                 = Agilent
-    self.NipPowerChannels        = NipPowerChannels
-    self.NipOnOffButtonChannel   = NipOnOffButtonChannel
-    self.PyranometerPowerChannel = PyranometerPowerChannel
     self.sun                     = Sun
     self.SystemState             =   SystemState = {
                                        'GHI'         : 0,
@@ -170,6 +180,16 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
                                        'sunrise'     : datetime.now(pytz.timezone(SITE_TIMEZONE)) + timedelta(days=1),
                                        'sunset'      : datetime.now(pytz.timezone(SITE_TIMEZONE)) - timedelta(days=1)
                                      }
+
+    # Create the power control objects that allow us to turn the NIP and pyranometer on and off,
+    # and to press the OnOff button on the NIP
+    self.NipPower         = tPowerControl(Agilent, 'NIP',          NipPowerChannels,         tAgilent.RELAY_NORMALLY_OPEN, self)
+    self.PyranometerPower = tPowerControl(Agilent, 'Pyranometer',  PyranometerPowerChannel,  tAgilent.RELAY_NORMALLY_OPEN, self)
+    self.NipOnOffButton   = tPowerControl(Agilent, 'NIP OnOff  ',  NipOnOffButtonChannel,    tAgilent.RELAY_NORMALLY_OPEN, self)
+
+    # This is a little timer we use when sequencing the powering on of the NIP.  We preallocate it here
+    self.NipPowerOnTimer  = QTimer(self)
+    self.NipPowerOnTimer.setSingleShot(True)
 
     # Initialize the state machine.  We ignore invalid triggers, since our approach with
     # this machine is to simply inform the machine of stimuli and have it decide whether
@@ -186,14 +206,20 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
     # the state of the physical hardware, we power down so as to match the Machine's 
     # state.
     self.PowerDown()
-
     self.PyranometerPowerState = None
 
     # Connect to GHI and DNI updates from the logger
     PeriodicLogger.DniUpdate.connect(self.DniUpdate)
     PeriodicLogger.DniUpdate.connect(self.GhiUpdate)
 
-    return
+    # Create a timer to run the state machine periodically
+    self.StateMachineTimer = QTimer(self)
+    self.StateMachineTimer.setSingleShot(False)
+    self.StateMachineTimer.timeout.connect(self.RunStateMachine)
+    print("NIP Sequencer starting up...")
+    self.StateMachineTimer.start(1000 * NIP_STATE_MACHINE_PERIOD)
+
+
   
 
   ###############################################
@@ -203,8 +229,8 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
   #     
 
   def __del__(self):
-    self.PowerDown()
-
+    # self.PowerDown()    # This is now done in the CleanUp method of MasterControl, which calls DoShutdown
+    pass
 
   ###############################################
   # SetPyranometerPowerState 
@@ -213,8 +239,7 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
   #     
 
   def SetPyranometerPowerState(self, bOn):
-    with self.agilent as agilent:
-      agilent.SetRelayState(self.PyranometerPowerChannel, tAgilent.ON if bOn else tAgilent.OFF)
+    self.PyranometerPower.SetPowerState(bOn)
     
     if self.PyranometerPowerState != bOn:
       print('Pyranometer power switched ' + ('on' if bOn else 'off'))
@@ -231,30 +256,39 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
     # Open the 12V power to the device
     # Open the soft power button
     print('NIP Tracker powering down')
-    with self.agilent as agilent:
-      agilent.SetRelayState(self.NipPowerChannels,      tAgilent.OFF)
-      agilent.SetRelayState(self.NipOnOffButtonChannel, tAgilent.OFF)
+    self.NipPower      .SetPowerState(False)
+    self.NipOnOffButton.SetPowerState(False)
 
 
   ###############################################
   # PowerUp 
   # 
-  # Apply the sequence to power up the NIP 
+  # Apply the sequence to power up the NIP.  In order to keep the GUI responsive,
+  # we do this in three parts.
+  #   Turn on the 12V power to the device
+  #   Wait a couple of seconds
+  #   Short the soft power button for two seconds
   #     
 
   def PowerUp(self):
-    # Turn on the 12V power to the device
-    # Wait a couple of seconds
-    # Short the soft power button for two seconds
+    # Turn on power to the NIP
     print('NIP Tracker powering up')
-    with self.agilent as agilent:
-      agilent.SetRelayState(self.NipPowerChannels, tAgilent.ON)
-      QThread.sleep(NIP_TRACKER_POWER_ON_DELAY)
+    self.NipPower      .SetPowerState(True)
+    # Now set a timer to call PowerUp_part2 after a delay to let the NIP complete its power-up
+    self.NipPowerOnTimer.connect(self._PowerUp_part2)
+    self.NipPowerOnTimer.start(1000 * NIP_TRACKER_POWER_ON_DELAY)
 
-      # Press the soft power button, then release it
-      agilent.SetRelayState(self.NipOnOffButtonChannel, tAgilent.ON)
-      QThread.sleep(NIP_TRACKER_POWER_BUTTON_PRESS_TIME)
-      agilent.SetRelayState(self.NipOnOffButtonChannel, tAgilent.OFF)
+  def PowerUp_part2(self):
+    # Press the soft power button, then pause...
+    print('Pressing soft power button')
+    self.NipOnOffButton.SetPowerState(True)
+    self.NipPowerOnTimer.connect(self._PowerUp_part3)
+    self.NipPowerOnTimer.start(1000 * NIP_TRACKER_POWER_BUTTON_PRESS_TIME)
+
+  def PowerUp_part3(self):
+    # And now release the soft power button
+    print('Releasing soft power button')
+    self.NipOnOffButton.SetPowerState(False)
 
 
   ###############################################
@@ -278,7 +312,7 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
 
 
   ###############################################
-  # GhiUpdate - called when a DGHINI update signal is received from the PeriodicLogger
+  # GhiUpdate - called when a GHI update signal is received from the PeriodicLogger
   # 
 
   def GhiUpdate(self, GHI):
@@ -286,68 +320,80 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
 
 
   ###############################################
-  # run - main sequencer thread 
+  # DoShutdown - Shuts down the NIP sequencer
   # 
-  # The job of this thread is to awaken periodically and look at the world and emit triggers
-  # as appropriate.
+
+  def DoShutdown(self):
+    print("NIP Sequencer exiting")
+    # Callt he Shutdown method from the transitions library to enter the Shutdown state
+    self.Shutdown()
+    
+
+  ###############################################
+  # RunStateMachine - Execute one iteration of the state machine
+  # 
+  # Look at the state of the world and emit triggers as appropriate.
   #     
 
-  def run(self):
-    print("NIP Sequencer starting up...")
+  def RunStateMachine(self):
+    sunrise: datetime
+    sunset : datetime
 
-    while not globals.ShutdownFlag:  # Check the global Shutdown flag that gets set by the main thread
+    # A state transition may have occurred while we were asleep, as a result of a timeout
+    if self.LastState != self.state:
+      print('NIP timeout transition: ' + self.LastState + ' -> ' + self.state)
+      self.LastState = self.state
 
-      # A state transition may have occurred while we were asleep, as a result of a timeout
-      if self.LastState != self.state:
-        print('NIP timeout transition: ' + self.LastState + ' -> ' + self.state)
-        self.LastState = self.state
+    sunrise, sunset, GHI_clear_sky = self.sun.GetValues()
+    now                            = datetime.now(self.sun.timezone)
 
-      sunrise, sunset, GHI_clear_sky = self.sun.GetValues()
-      now                            = datetime.now(self.sun.timezone)
-
-      self.SystemState['sunrise']     = sunrise
-      self.SystemState['sunset']      = sunset
-      self.SystemState['ClearSkyGHI'] = GHI_clear_sky
-
-      bDaytime = (now > sunrise) and (now < sunset)
-      if not bDaytime:
-        # Zero the DNI and GHI, to avoid any stale values or nonsensical values
-        self.SystemState['GHI'] = 0
-        self.SystemState['DNI'] = 0
-        bHaveGHI = False
-        bHaveDNI = False
-      else:
-        bHaveGHI = self.IsSunOut()
-        bHaveDNI = self.SystemState['DNI'] > NIP_DNI_THRESHOLD
-
-      self.SetPyranometerPowerState(bDaytime)
-
-      if not bDaytime:
-        self.Shutdown()
-
-      ################
-      # Things we do if it's daytime
-      else:
-        # Ensure that the pyranometer is on
-        # Turn on 
-        if bHaveGHI:
-          self.sun_is_out()
-        else:
-          self.sun_is_not_out()
-
-        if bHaveDNI:
-          self.YesDNI()
-        else:
-          self.NoDNI()
+    # Send signals if warranted
+    self.ClearSkyGhiUpdate.emit(GHI_clear_sky)
+    if (self.SystemState['sunrise'] != sunrise or
+        self.SystemState['sunset']  != sunset):
+      # Convert the sunrise and sunset to QDateTime
+      QSunrise = QDateTime.fromSecsSinceEpoch(int(sunrise.timestamp()), QTimeZone(SITE_TIMEZONE.encode('utf-8')))
+      QSunset  = QDateTime.fromSecsSinceEpoch(int(sunset .timestamp()), QTimeZone(SITE_TIMEZONE.encode('utf-8')))
+      self.SunriseSunsetUpdate.emit(QSunrise, QSunset)
       
-      if self.LastState != self.state:
-        print('NIP state transition: ' + self.LastState + ' -> ' + self.state)
-        self.LastState = self.state
-        
-      # This is a way of going to sleep for the specified period, but in a way that we can be awakened
-      with globals.ShutdownCondition:
-        globals.ShutdownCondition.wait(timeout=NIP_STATE_MACHINE_PERIOD)
+    # Update our own internal values
+    self.SystemState['sunrise']     = sunrise
+    self.SystemState['sunset']      = sunset
+    self.SystemState['ClearSkyGHI'] = GHI_clear_sky
 
-    # Emit the Shutdown trigger, to go to 'off', then exit
-    self.Shutdown()
-    print("NIP Sequencer thread exiting")
+    bDaytime = (now > sunrise) and (now < sunset)
+    if not bDaytime:
+      # Zero the DNI and GHI, to avoid any stale values or nonsensical values
+      self.SystemState['GHI'] = 0
+      self.SystemState['DNI'] = 0
+      bHaveGHI = False
+      bHaveDNI = False
+    else:
+      bHaveGHI = self.IsSunOut()
+      bHaveDNI = self.SystemState['DNI'] > NIP_DNI_THRESHOLD
+
+    self.SetPyranometerPowerState(bDaytime)
+
+    if not bDaytime:
+      self.Shutdown()
+
+    ################
+    # Things we do if it's daytime
+    else:
+      # Ensure that the pyranometer is on
+      # Turn on 
+      if bHaveGHI:
+        self.sun_is_out()
+      else:
+        self.sun_is_not_out()
+
+      if bHaveDNI:
+        self.YesDNI()
+      else:
+        self.NoDNI()
+    
+    if self.LastState != self.state:
+      print('NIP state transition: ' + self.LastState + ' -> ' + self.state)
+      self.LastState = self.state
+      
+    self.NipStateUpdate.emit(self.state)
