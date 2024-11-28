@@ -13,6 +13,10 @@
 #   tzlocal (installed along with pytz, I believe)
 #   serial
 #
+# Thus, do
+#
+# python -m pip install pyside6 pyvisa pyvisa-py zeroconf psutil transitions astral pytz tzlocal serial
+#
 # HARDWARE ASSUMPTIONS
 # Requires:
 #   ESP32 for the marquee display
