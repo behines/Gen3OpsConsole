@@ -529,7 +529,7 @@ class tAgilent(QObject):
     # Remove CrLf:
     response = response.strip()  #[:-2]
       
-    PythonChannelList = self.AgilentChannelListToPythonList(ChannelList)
+    PythonChannelList = tAgilent.AgilentChannelListToPythonList(ChannelList)
     RelayStateList    = list(map(int,response.split(',')))
 
     # Create a dictionary from the two lists
