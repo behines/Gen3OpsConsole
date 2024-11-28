@@ -23,7 +23,7 @@ import os
 import sys
 
 # For implementing object locking and retry timer
-from PySide6.QtCore import QRecursiveMutex, QElapsedTimer, QObject, QThread, Signal 
+from PySide6.QtCore import QRecursiveMutex, QElapsedTimer, QObject, QThread, Signal, QMutex, QWaitCondition, QMutexLocker
 from Utilities      import requires_device_open, with_lock, SignalThenWaitFor, SignalEmitter
 
 
@@ -89,10 +89,10 @@ class tAgilent(QObject):
 
   # Incoming
   DoSetRelayState   = Signal(str,int)     # ChannelList e.g. '218:220', and 0 or 1 (tAgilent.ON or OFF)
-  DoGetRelayState   = Signal(str)         # ChannelList
+  DoGetRelayState   = Signal(str, list, QMutex, QWaitCondition)         # ChannelList, ResultList, mutex, and wait condition
 
   # Outbound
-  RelayStateInfo    = Signal(dict)         # Dictionary of channel, value
+  # RelayStateInfo    = Signal(dict)         # Dictionary of channel, value
 
 
   #################################################
@@ -507,14 +507,15 @@ class tAgilent(QObject):
   # _GetRelayState - Returns the state of the specified relays
   #
   # INPUTS:
-  #   channel list - channel list string of relays to read
+  #   channel list - channel list (string) of relays to read
+  #   RelayList    - should be an empty list.  It will be modified by this function
+  #   mutex, condition - condition variable and mutex to guard and block on the result
   # RETURNS:
-  #   A list of relay readings, as 0's and 1's  
-  #   Emits a RelayStateInfo signal, a dictionary of Channel Num/relay readings, as 0's and 1's
-
+  #   RelayStateList - will be modified to be a list of relay readings, as 0's and 1's
+  
   @requires_device_open()
   @with_lock    
-  def _GetRelayState(self, ChannelList):
+  def _GetRelayState(self, ChannelList, RelayStateList: list, mutex: QMutex, condition: QWaitCondition):
     Command = 'ROUTE:CLOS? '
     
     scanlist = '(@' + ChannelList + ')'
@@ -529,17 +530,18 @@ class tAgilent(QObject):
     # Remove CrLf:
     response = response.strip()  #[:-2]
       
-    PythonChannelList = tAgilent.AgilentChannelListToPythonList(ChannelList)
-    RelayStateList    = list(map(int,response.split(',')))
+    # PythonChannelList = tAgilent.AgilentChannelListToPythonList(ChannelList)
+    # RelayStateList    = list(map(int,response.split(',')))
 
     # Create a dictionary from the two lists
-    RelayStateDict = {channel: value for channel, value in zip(PythonChannelList, RelayStateList)}
+    # RelayStateDict = {channel: value for channel, value in zip(PythonChannelList, RelayStateList)}
 
     # Emit the signal
-    self.RelayStateInfo.emit(RelayStateDict)
+    # self.RelayStateInfo.emit(RelayStateDict)
 
-    return RelayStateList
-  
+    with QMutexLocker(mutex):
+      RelayStateList.append(list(map(int,response.split(','))))  # Post the result
+      condition.wakeAll()  # Notify the waiting thread
 
 
 
@@ -576,14 +578,27 @@ class tAgilent(QObject):
   #   TimeoutError if the operation times out
 
   def GetRelayState(self, RelayChannels, RelayType) -> bool:
-    print('Calling signalthenwait')
-    RelayStateInfo = SignalThenWaitFor(self.RelayStateInfo, SignalEmitter(self.DoGetRelayState, RelayChannels), TimeoutInMs=500)
-    print('signalthenwait returned')
+    #print('Calling signalthenwait')
+    #RelayStateInfo = SignalThenWaitFor(self.RelayStateInfo, SignalEmitter(self.DoGetRelayState, RelayChannels), TimeoutInMs=500)
+    #print('signalthenwait returned')
+    mutex     = QMutex()
+    condition = QWaitCondition()
+
+    RelayStates = []  # Container for the result (mutable)
+
+    with QMutexLocker(mutex):
+      # Emit signal to worker thread
+      self.DoGetRelayState.emit(RelayChannels, RelayStates, mutex, condition)
+      # Wait for the worker to complete
+      if not condition.wait(mutex, 500):  # 0.5-second timeout
+        raise TimeoutError("Timed out waiting for relay state")
 
     # RelayStateInfo is dict.  Let's just return the value of the first entry in the dict and assume they're 
     # all the same
-    FirstRelayValue = RelayStateInfo[next(iter(RelayStateInfo))]
+    #FirstRelayValue = RelayStateInfo[next(iter(RelayStateInfo))]
+    FirstRelayValue = RelayStates[0]
 
     bRelayIsClosed  = (RelayType == self.RELAY_NORMALLY_OPEN   and FirstRelayValue == tAgilent.ON or
                        RelayType == self.RELAY_NORMALLY_CLOSED and FirstRelayValue == tAgilent.OFF)
     return bRelayIsClosed
+  
