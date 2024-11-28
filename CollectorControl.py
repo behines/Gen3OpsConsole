@@ -9,8 +9,9 @@
 
 from collections import namedtuple
 
+from PySide6.QtGui     import QTextCursor
 from PySide6.QtWidgets import QWidget, QGridLayout, QScrollArea, QVBoxLayout, QMessageBox
-from PySide6.QtCore    import Qt, QFile
+from PySide6.QtCore    import Qt
 
 # Import configuration of the system
 from CollectorPane_ui  import Ui_Form
@@ -218,8 +219,8 @@ class tCollectorPane(QWidget):
     # Limit the log to the last N lines (example)
     while self.ui.CollectorLog.document().blockCount() > COLLECTOR_LOG_MAXLINES:
       cursor = self.ui.CollectorLog.textCursor()
-      cursor.movePosition(cursor.Start)  # Move to the start
-      cursor.select(cursor.BlockUnderCursor)  # Select the first block (line)
+      cursor.movePosition(QTextCursor.MoveOperation.Start)  # Move to the start
+      cursor.select(QTextCursor.SelectionType.BlockUnderCursor)  # Select the first block (line)
       cursor.removeSelectedText()  # Remove the selected text
       cursor.deleteChar()  # Remove any leftover line break
 
