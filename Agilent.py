@@ -576,7 +576,9 @@ class tAgilent(QObject):
   #   TimeoutError if the operation times out
 
   def GetRelayState(self, RelayChannels, RelayType) -> bool:
+    print('Calling signalthenwait')
     RelayStateInfo = SignalThenWaitFor(self.RelayStateInfo, SignalEmitter(self.DoGetRelayState, RelayChannels), TimeoutInMs=500)
+    print('signalthenwait returned')
 
     # RelayStateInfo is dict.  Let's just return the value of the first entry in the dict and assume they're 
     # all the same

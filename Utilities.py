@@ -103,6 +103,7 @@ def SignalThenWaitFor(SignalToWaitFor:Signal, StimulusFuncToCall=None, TimeoutIn
   # To store the payload of SignalToWaitFor
   payload = []
   def capture_payload(*signal_args):
+    print('SignalThenWaitFor: Signal Received, capturing payload')
     payload.extend(signal_args)     # Nonlocal not required since this is not an assignment so it has to look outside
     loop.quit()    
 
@@ -125,15 +126,20 @@ def SignalThenWaitFor(SignalToWaitFor:Signal, StimulusFuncToCall=None, TimeoutIn
     #print('SignalThenWaitFor timer start')
     Timer.start(TimeoutInMs)
 
+  print('SignalThenWaitFor: Calling StimFunc')
   if not StimulusFuncToCall is None:
     StimulusFuncToCall()
+  print('SignalThenWaitFor: Starting event loop')
 
   #print('Exit request emitted',flush=True)
   # Block until the signal is emitted
   loop.exec()
   #print('Event loop exited',flush=True)
   if bTimedOut:
+    print('SignalThenWaitFor: Event loop timeout')
     raise TimeoutError
+
+  print('SignalThenWaitFor: Complete')
 
   return payload
 
@@ -142,6 +148,7 @@ def SignalThenWaitFor(SignalToWaitFor:Signal, StimulusFuncToCall=None, TimeoutIn
 # SignalEmitter helper function
 def SignalEmitter(TheSignal, *args, **kwargs):
   def emitter():
+      print('SignalEmitter emitting ', TheSignal)
       TheSignal.emit(*args, **kwargs)
   return emitter
 

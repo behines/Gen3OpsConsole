@@ -300,7 +300,7 @@ class tCollectorPane(QWidget):
 
     # Total intensity on wide-angle detector
     if "I" in telemetry:
-      self.ui.WideIntensity.setText(f'{telemetry["I"][1]:3d}% {telemetry["I"][0]:5d}')
+      self.ui.WideIntensity.setText(f'{telemetry["I"][1]:3d}%  {telemetry["I"][0]:5d}')
 
     # Narrow mode status
     if "IsNarrowMode" in telemetry:

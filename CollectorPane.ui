@@ -259,7 +259,7 @@
      <property name="geometry">
       <rect>
        <x>2</x>
-       <y>24</y>
+       <y>23</y>
        <width>91</width>
        <height>16</height>
       </rect>
@@ -285,7 +285,7 @@
      <property name="geometry">
       <rect>
        <x>2</x>
-       <y>40</y>
+       <y>39</y>
        <width>101</width>
        <height>16</height>
       </rect>
@@ -431,7 +431,7 @@
      <property name="geometry">
       <rect>
        <x>2</x>
-       <y>41</y>
+       <y>40</y>
        <width>91</width>
        <height>16</height>
       </rect>
@@ -475,7 +475,7 @@
     <widget class="QLabel" name="WideUL">
      <property name="geometry">
       <rect>
-       <x>4</x>
+       <x>3</x>
        <y>20</y>
        <width>41</width>
        <height>16</height>
@@ -501,7 +501,7 @@
     <widget class="QLabel" name="WideLR">
      <property name="geometry">
       <rect>
-       <x>43</x>
+       <x>42</x>
        <y>41</y>
        <width>41</width>
        <height>16</height>
@@ -527,7 +527,7 @@
     <widget class="QLabel" name="WideLL">
      <property name="geometry">
       <rect>
-       <x>4</x>
+       <x>3</x>
        <y>41</y>
        <width>41</width>
        <height>16</height>
@@ -553,7 +553,7 @@
     <widget class="QLabel" name="WideUR">
      <property name="geometry">
       <rect>
-       <x>43</x>
+       <x>42</x>
        <y>20</y>
        <width>41</width>
        <height>16</height>
@@ -650,7 +650,7 @@
     <widget class="QLabel" name="NarrowLeft">
      <property name="geometry">
       <rect>
-       <x>2</x>
+       <x>1</x>
        <y>35</y>
        <width>41</width>
        <height>16</height>
@@ -702,7 +702,7 @@
     <widget class="QLabel" name="NarrowRight">
      <property name="geometry">
       <rect>
-       <x>44</x>
+       <x>43</x>
        <y>33</y>
        <width>41</width>
        <height>20</height>
