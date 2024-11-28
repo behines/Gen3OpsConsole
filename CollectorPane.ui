@@ -1018,9 +1018,9 @@
    <widget class="QLabel" name="XPos">
     <property name="geometry">
      <rect>
-      <x>175</x>
+      <x>160</x>
       <y>134</y>
-      <width>51</width>
+      <width>71</width>
       <height>20</height>
      </rect>
     </property>
@@ -1032,6 +1032,7 @@
     </property>
     <property name="font">
      <font>
+      <family>Courier New</family>
       <pointsize>10</pointsize>
       <bold>false</bold>
      </font>
@@ -1043,9 +1044,9 @@
    <widget class="QLabel" name="YPos">
     <property name="geometry">
      <rect>
-      <x>242</x>
+      <x>247</x>
       <y>134</y>
-      <width>51</width>
+      <width>71</width>
       <height>20</height>
      </rect>
     </property>
@@ -1057,6 +1058,7 @@
     </property>
     <property name="font">
      <font>
+      <family>Courier New</family>
       <pointsize>10</pointsize>
       <bold>false</bold>
      </font>

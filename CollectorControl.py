@@ -243,15 +243,15 @@ class tCollectorPane(QWidget):
 
     # Motor positions
     if "P" in telemetry:
-      azPos = f'P:{telemetry["P"][0]:>10,}'
-      elPos = f'P:{telemetry["P"][1]:>10,}'
+      azPos = f'P:{telemetry["P"][0]:>11,}'
+      elPos = f'P:{telemetry["P"][1]:>11,}'
       self.ui.AzPosLabel.setText(azPos)
       self.ui.ElPosLabel.setText(elPos)
 
     # Motor velocities
     if "V" in telemetry:
-      azVel = f'V:{telemetry["V"][0]:12d}'
-      elVel = f'V:{telemetry["V"][1]:12d}'
+      azVel = f'V:{telemetry["V"][0]:11d}'
+      elVel = f'V:{telemetry["V"][1]:11d}'
       self.ui.AzVelLabel.setText(azVel)
       self.ui.ElVelLabel.setText(elVel)
 
@@ -300,7 +300,7 @@ class tCollectorPane(QWidget):
 
     # Total intensity on wide-angle detector
     if "I" in telemetry:
-      self.ui.WideIntensity.setText(f'{telemetry["I"][1]:4d}%  {telemetry["I"][0]:5d}')
+      self.ui.WideIntensity.setText(f'{telemetry["I"][1]:3d}% {telemetry["I"][0]:5d}')
 
     # Narrow mode status
     if "IsNarrowMode" in telemetry:
