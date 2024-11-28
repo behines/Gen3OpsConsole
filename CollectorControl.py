@@ -213,11 +213,11 @@ class tCollectorPane(QWidget):
 
   def AddToLog(self, Line: str):
     # Append the new line
-    self.CollectorLog.append(Line)
+    self.ui.CollectorLog.append(Line)
     
     # Limit the log to the last N lines (example)
-    while self.CollectorLog.document().blockCount() > COLLECTOR_LOG_MAXLINES:
-      cursor = self.CollectorLog.textCursor()
+    while self.ui.CollectorLog.document().blockCount() > COLLECTOR_LOG_MAXLINES:
+      cursor = self.ui.CollectorLog.textCursor()
       cursor.movePosition(cursor.Start)  # Move to the start
       cursor.select(cursor.BlockUnderCursor)  # Select the first block (line)
       cursor.removeSelectedText()  # Remove the selected text

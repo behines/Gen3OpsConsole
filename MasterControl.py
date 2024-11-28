@@ -11,6 +11,7 @@
 #   astral   # used by Sun.py, pulls in tzdata
 #   pytz     # Used by Sun.py, needed even though we are using QTimeZone in most places
 #   tzlocal (installed along with pytz, I believe)
+#   serial
 #
 # HARDWARE ASSUMPTIONS
 # Requires:
