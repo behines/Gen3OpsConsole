@@ -184,9 +184,9 @@
     <widget class="QRadioButton" name="AzLimLowButton">
      <property name="geometry">
       <rect>
-       <x>80</x>
+       <x>100</x>
        <y>38</y>
-       <width>51</width>
+       <width>41</width>
        <height>16</height>
       </rect>
      </property>
@@ -209,7 +209,7 @@
       <string notr="true">background: none;</string>
      </property>
      <property name="text">
-      <string>Low</string>
+      <string>Lo</string>
      </property>
      <property name="autoExclusive">
       <bool>false</bool>
@@ -218,9 +218,9 @@
     <widget class="QRadioButton" name="AzLimHighButton">
      <property name="geometry">
       <rect>
-       <x>80</x>
+       <x>100</x>
        <y>18</y>
-       <width>51</width>
+       <width>41</width>
        <height>22</height>
       </rect>
      </property>
@@ -246,7 +246,7 @@
       <string notr="true">background: none;</string>
      </property>
      <property name="text">
-      <string>High</string>
+      <string>Hi</string>
      </property>
      <property name="checkable">
       <bool>true</bool>
@@ -259,8 +259,8 @@
      <property name="geometry">
       <rect>
        <x>2</x>
-       <y>20</y>
-       <width>71</width>
+       <y>24</y>
+       <width>91</width>
        <height>16</height>
       </rect>
      </property>
@@ -272,20 +272,21 @@
      </property>
      <property name="font">
       <font>
-       <pointsize>10</pointsize>
-       <bold>false</bold>
+       <family>Courier New</family>
+       <pointsize>9</pointsize>
+       <bold>true</bold>
       </font>
      </property>
      <property name="text">
-      <string>P: 000000</string>
+      <string>P:+00,000,000</string>
      </property>
     </widget>
     <widget class="QLabel" name="AzVelLabel">
      <property name="geometry">
       <rect>
        <x>2</x>
-       <y>38</y>
-       <width>71</width>
+       <y>40</y>
+       <width>101</width>
        <height>16</height>
       </rect>
      </property>
@@ -297,14 +298,19 @@
      </property>
      <property name="font">
       <font>
-       <pointsize>10</pointsize>
-       <bold>false</bold>
+       <family>Courier New</family>
+       <pointsize>9</pointsize>
+       <bold>true</bold>
       </font>
      </property>
      <property name="text">
-      <string>V:  00000</string>
+      <string>V:     +00000</string>
      </property>
     </widget>
+    <zorder>AzLimHighButton</zorder>
+    <zorder>AzLimLowButton</zorder>
+    <zorder>AzVelLabel</zorder>
+    <zorder>AzPosLabel</zorder>
    </widget>
    <widget class="QGroupBox" name="ElGroup">
     <property name="geometry">
@@ -327,9 +333,9 @@
     <widget class="QRadioButton" name="ElLimLowButton">
      <property name="geometry">
       <rect>
-       <x>80</x>
+       <x>100</x>
        <y>36</y>
-       <width>51</width>
+       <width>41</width>
        <height>22</height>
       </rect>
      </property>
@@ -352,7 +358,7 @@
       <string notr="true">background: none;</string>
      </property>
      <property name="text">
-      <string>Low</string>
+      <string>Lo</string>
      </property>
      <property name="autoExclusive">
       <bool>false</bool>
@@ -361,9 +367,9 @@
     <widget class="QRadioButton" name="ElLimHighButton">
      <property name="geometry">
       <rect>
-       <x>80</x>
+       <x>100</x>
        <y>18</y>
-       <width>51</width>
+       <width>41</width>
        <height>22</height>
       </rect>
      </property>
@@ -386,7 +392,7 @@
       <string notr="true">background: none;</string>
      </property>
      <property name="text">
-      <string>High</string>
+      <string>Hi</string>
      </property>
      <property name="checkable">
       <bool>true</bool>
@@ -399,8 +405,8 @@
      <property name="geometry">
       <rect>
        <x>2</x>
-       <y>20</y>
-       <width>71</width>
+       <y>23</y>
+       <width>91</width>
        <height>16</height>
       </rect>
      </property>
@@ -412,20 +418,21 @@
      </property>
      <property name="font">
       <font>
-       <pointsize>10</pointsize>
-       <bold>false</bold>
+       <family>Courier New</family>
+       <pointsize>9</pointsize>
+       <bold>true</bold>
       </font>
      </property>
      <property name="text">
-      <string>P: 000000</string>
+      <string>P:+00,000,000</string>
      </property>
     </widget>
     <widget class="QLabel" name="ElVelLabel">
      <property name="geometry">
       <rect>
        <x>2</x>
-       <y>38</y>
-       <width>71</width>
+       <y>41</y>
+       <width>91</width>
        <height>16</height>
       </rect>
      </property>
@@ -437,12 +444,13 @@
      </property>
      <property name="font">
       <font>
-       <pointsize>10</pointsize>
-       <bold>false</bold>
+       <family>Courier New</family>
+       <pointsize>9</pointsize>
+       <bold>true</bold>
       </font>
      </property>
      <property name="text">
-      <string>V:  00000</string>
+      <string>V:     +00000</string>
      </property>
     </widget>
    </widget>
@@ -481,7 +489,8 @@
      </property>
      <property name="font">
       <font>
-       <pointsize>10</pointsize>
+       <family>Courier New</family>
+       <pointsize>9</pointsize>
        <bold>false</bold>
       </font>
      </property>
@@ -506,7 +515,8 @@
      </property>
      <property name="font">
       <font>
-       <pointsize>10</pointsize>
+       <family>Courier New</family>
+       <pointsize>9</pointsize>
        <bold>false</bold>
       </font>
      </property>
@@ -531,7 +541,8 @@
      </property>
      <property name="font">
       <font>
-       <pointsize>10</pointsize>
+       <family>Courier New</family>
+       <pointsize>9</pointsize>
        <bold>false</bold>
       </font>
      </property>
@@ -556,7 +567,8 @@
      </property>
      <property name="font">
       <font>
-       <pointsize>10</pointsize>
+       <family>Courier New</family>
+       <pointsize>9</pointsize>
        <bold>false</bold>
       </font>
      </property>
@@ -581,12 +593,13 @@
      </property>
      <property name="font">
       <font>
-       <pointsize>10</pointsize>
+       <family>Courier New</family>
+       <pointsize>9</pointsize>
        <bold>false</bold>
       </font>
      </property>
      <property name="text">
-      <string>  00%  00000</string>
+      <string> 00%  00000</string>
      </property>
     </widget>
    </widget>
@@ -625,7 +638,8 @@
      </property>
      <property name="font">
       <font>
-       <pointsize>10</pointsize>
+       <family>Courier New</family>
+       <pointsize>9</pointsize>
        <bold>false</bold>
       </font>
      </property>
@@ -636,7 +650,7 @@
     <widget class="QLabel" name="NarrowLeft">
      <property name="geometry">
       <rect>
-       <x>4</x>
+       <x>2</x>
        <y>35</y>
        <width>41</width>
        <height>16</height>
@@ -650,7 +664,8 @@
      </property>
      <property name="font">
       <font>
-       <pointsize>10</pointsize>
+       <family>Courier New</family>
+       <pointsize>9</pointsize>
        <bold>false</bold>
       </font>
      </property>
@@ -675,7 +690,8 @@
      </property>
      <property name="font">
       <font>
-       <pointsize>10</pointsize>
+       <family>Courier New</family>
+       <pointsize>9</pointsize>
        <bold>false</bold>
       </font>
      </property>
@@ -686,10 +702,10 @@
     <widget class="QLabel" name="NarrowRight">
      <property name="geometry">
       <rect>
-       <x>43</x>
-       <y>35</y>
+       <x>44</x>
+       <y>33</y>
        <width>41</width>
-       <height>16</height>
+       <height>20</height>
       </rect>
      </property>
      <property name="sizePolicy">
@@ -700,7 +716,8 @@
      </property>
      <property name="font">
       <font>
-       <pointsize>10</pointsize>
+       <family>Courier New</family>
+       <pointsize>9</pointsize>
        <bold>false</bold>
       </font>
      </property>
@@ -711,7 +728,7 @@
     <widget class="QLabel" name="NarrowIntensity">
      <property name="geometry">
       <rect>
-       <x>0</x>
+       <x>-1</x>
        <y>60</y>
        <width>81</width>
        <height>30</height>
@@ -725,12 +742,13 @@
      </property>
      <property name="font">
       <font>
-       <pointsize>10</pointsize>
+       <family>Courier New</family>
+       <pointsize>9</pointsize>
        <bold>false</bold>
       </font>
      </property>
      <property name="text">
-      <string>  00% 00000</string>
+      <string> 00%  00000</string>
      </property>
     </widget>
    </widget>
