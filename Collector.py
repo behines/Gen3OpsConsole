@@ -39,7 +39,7 @@ from ConfigInfo        import *
 #   R                  Tuple of thresholds - wide illum, narrow sky BG %, narrow illum %
 #   E                  Servo error, either velocity or position error depending on servo mode
 #   G                  Narrow sky background in counts
-#   I                  Tuple of Total intensity on detector in counts, and as a percentage
+#   I                  Tuple of Total intensity on wide-angle detector in counts, and as a percentage
 # IsNarrowMode         True if in narrow-angle mode, else wide
 # NarrowAngleThreshold Threshold for switching to narrow angle
 # LimitStates          boolean[5] - az low, az high, el low, el high, home
@@ -56,7 +56,7 @@ class tCollector(tActiveObject):
 
   # Telemetry signals
   TextLineReceived           = Signal(str)       # a non-telemetry line, should just be sent to the console
-  CollectorStateUpdate       = Signal(str, int)  # New collector state as an int.  First arg is the collector name ('1A', '1B', etc.)
+  CollectorStateUpdate       = Signal(str, CollectorNativeStates)  # New collector state as an int.  First arg is the collector name ('1A', '1B', etc.)
   # Signal to emit parsed telemetry data as a dictionary
   TelemetryUpdate            = Signal(dict)
 
@@ -266,11 +266,11 @@ class tCollector(tActiveObject):
         FieldValue = field[1:]  # Remaining is the value(s)
         
         # Parse fields based on content
-        if FieldTag in "PVNWRE":
+        if FieldTag in "PVNWREI":
           # Multiple signed numbers separated by commas.  "map" here simply applies the "int" function to each of the split strings
           parsed_data[FieldTag] = tuple(map(int, FieldValue.split(",")))
 
-        elif FieldTag in "GI":
+        elif FieldTag in "G":
           # Single number fields (integer)
           parsed_data[FieldTag] = int(FieldValue)
 
@@ -302,6 +302,10 @@ class tCollector(tActiveObject):
           ModeString = FieldValue[3:]  # Skip the comma at index 2
           parsed_data["ModeNum"   ] = ModeNum
           parsed_data["ModeString"] = ModeString
+
+          if ModeNum != self.CollectorState.value:   # CollectorState is an enum
+            self.CollectorState = CollectorNativeStates(ModeNum)
+            self.CollectorStateUpdate.emit(self.CollectorName, self.CollectorState)
 
         elif FieldTag == "T":
           # Parse Thhmmss and format as "hh:mm:ss"

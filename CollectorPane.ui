@@ -571,7 +571,7 @@
       </font>
      </property>
      <property name="text">
-      <string>  00% 00000</string>
+      <string>  00%  00000</string>
      </property>
     </widget>
    </widget>
@@ -741,7 +741,7 @@
      </font>
     </property>
     <property name="text">
-     <string>CurrentState</string>
+     <string>State: UNKNOWN</string>
     </property>
    </widget>
    <widget class="QGroupBox" name="ThresholdGroup">
@@ -862,10 +862,10 @@
       </font>
      </property>
      <property name="text">
-      <string>Implied Sky BG:</string>
+      <string>Implied Sky BG: 00000</string>
      </property>
     </widget>
-    <widget class="QLabel" name="label_5">
+    <widget class="QLabel" name="NarrowThresholdLabel">
      <property name="geometry">
       <rect>
        <x>3</x>
@@ -887,7 +887,7 @@
       </font>
      </property>
      <property name="text">
-      <string>NarrowThresh:</string>
+      <string>NarrowThresh:  00000</string>
      </property>
     </widget>
     <widget class="QLineEdit" name="WideIllumPercentLineEdit">

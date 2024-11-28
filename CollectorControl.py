@@ -39,10 +39,11 @@ class tCollectorPane(QWidget):
   def __init__(self, collectorName, portName, baud, parent=None):
     super().__init__(parent)   # QWidget constructor
       
-    self.bInit    = False
+    self.bInit       = False
     self.bResponded  = False
-    self.name     = 'Foo' #collectorName
-    self.port     = None
+    self.name        = 'Foo' #collectorName
+    self.port        = None
+    self.bConnected  = False
 
     # Load CollectorPane UI dynamically
     #loader = QUiLoader()
@@ -127,7 +128,7 @@ class tCollectorPane(QWidget):
     self.ui.UnstickPushButton.    setEnabled(bConnected)
     self.ui.RebootPushButton.     setEnabled(bConnected)
 
-    # Set the box lables and state label to gray if not connected    
+    # Set the box labels and state label to gray if not connected    
     GroupBoxStyleString = "" if bConnected else "QGroupBox { color: gray; }"
 
     self.ui.CollectorGroup.setStyleSheet(GroupBoxStyleString)
@@ -139,6 +140,8 @@ class tCollectorPane(QWidget):
 
     LabelStyleString = "" if bConnected else "QLabel { color: gray; }"
     self.ui.State.         setStyleSheet(LabelStyleString)
+
+    self.bConnected  = bConnected
 
 
   ###############################################
@@ -252,10 +255,10 @@ class tCollectorPane(QWidget):
     if "N" in telemetry:
       # Update narrow-angle readings
       # UL, UR, LL, LR
-      self.ui.NarrowUL.setText(str(telemetry["N"][0]))
-      self.ui.NarrowUR.setText(str(telemetry["N"][1]))
-      self.ui.NarrowLL.setText(str(telemetry["N"][2]))
-      self.ui.NarrowLR.setText(str(telemetry["N"][3]))
+      self.ui.NarrowRight.setText(str(telemetry["N"][0]))
+      self.ui.NarrowLeft .setText(str(telemetry["N"][1]))
+      self.ui.NarrowUp   .setText(str(telemetry["N"][2]))
+      self.ui.NarrowDown .setText(str(telemetry["N"][3]))
 
 
     # Wide-angle readings
@@ -289,48 +292,64 @@ class tCollectorPane(QWidget):
     # Narrow sky background
     if "G" in telemetry:
       # Update narrow sky background in counts
-      pass
+      self.ui.ImpliedSkyBGLabel.setText(f'Implied Sky BG: {telemetry["G"]:5d}')
 
-    # Total intensity on detector
+    # Total intensity on wide-angle detector
     if "I" in telemetry:
-      # Update total intensity on detector in counts and as a percentage
-      pass
+      self.ui.WideIntensity.setText(f'{telemetry["I"][0]:4d}%  {telemetry["I"][1]:5d}')
 
     # Narrow mode status
     if "IsNarrowMode" in telemetry:
-      # Update narrow-angle mode status
-      pass
+      GroupBoxStyleStringGray = "QGroupBox { color: gray; }"
+      GroupBoxStyleStringBold = ""
+      if telemetry["IsNarrowMode"]:
+        self.ui.NarrowGroup.setStyleSheet(GroupBoxStyleStringBold)
+        self.ui.WideGroup.  setStyleSheet(GroupBoxStyleStringGray)
+      else:
+        self.ui.NarrowGroup.setStyleSheet(GroupBoxStyleStringGray)
+        self.ui.WideGroup.  setStyleSheet(GroupBoxStyleStringBold)
 
     # Narrow angle threshold
     if "NarrowAngleThreshold" in telemetry:
-      # Update narrow-angle threshold
-      pass
+      msg = 'NarrowThresh:  {telemetry["NarrowAngleThreshold"]:5d}'
+      self.ui.NarrowThresholdLabel.setText(msg)
 
     # Limit states
     if "LimitStates" in telemetry:
-      # Update limit states (boolean array)
-      pass
+      self.ui.AzLimLowButton .setChecked(telemetry["LimitStates"][0])
+      self.ui.AzLimHighButton.setChecked(telemetry["LimitStates"][1])
+      self.ui.ElLimLowButton .setChecked(telemetry["LimitStates"][2])
+      self.ui.ElLimHighButton.setChecked(telemetry["LimitStates"][3])
+      # Home is element 4, not shown on GUI
 
     # Servo mode
     if "PositionMode" in telemetry:
-      # Update servo mode (true = position, false = velocity)
-      pass
+      if telemetry["PositionMode"][0] == "V":
+        self.ui.AzGroup.setTitle('Az - VelMode')
+      else:
+        self.ui.AzGroup.setTitle('Az - PosMode')
+
+      if telemetry["PositionMode"][1] == "V":
+        self.ui.ElGroup.setTitle('El - VelMode')
+      else:
+        self.ui.ElGroup.setTitle('El - PosMode')
+
 
     # Spot coordinates
     if "C" in telemetry:
-      # Update spot coordinates (x, y)
-      pass
+      self.ui.XPos.setText(f'{telemetry["C"][0]:+.2f}')
+      self.ui.YPos.setText(f'{telemetry["C"][1]:+.2f}')
 
     # Collector mode number
     if "ModeNum" in telemetry:
-      # Update current mode of the collector (integer)
+      # This one we don't display. It gets passed to the marquee as a signal by tCollector
+      #if self.CollectorState != telemetry["ModeNum"]:
+      #  self.CollectorState = telemetry["ModeNum"]:
       pass
 
     # Collector mode string
     if "ModeString" in telemetry:
-      # Update current mode of the collector (string)
-      pass
-
+      self.ui.State.setText('State: ' + telemetry["ModeString"])
 
 
 
