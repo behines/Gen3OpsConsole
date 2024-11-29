@@ -12,10 +12,11 @@
 #   pytz     # Used by Sun.py, needed even though we are using QTimeZone in most places
 #   tzlocal (installed along with pytz, I believe)
 #   pyserial
+#   debugpy
 #
 # Thus, do
 #   python -m pip install --upgrade pip
-#   python -m pip install pyside6 pyvisa pyvisa-py zeroconf psutil transitions astral pytz tzlocal pyserial
+#   python -m pip install pyside6 pyvisa pyvisa-py zeroconf psutil transitions astral pytz tzlocal pyserial debugpy
 #
 # PRO TIP!!  IMPORTANT
 #   Be sure to install 'pyserial' not 'serial'.  'serial' is for serializing JSON objects, 'pyserial' is

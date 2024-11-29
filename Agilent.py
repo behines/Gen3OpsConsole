@@ -13,6 +13,8 @@
 from datetime import datetime
 # module used to talk with the agilent devices
 import pyvisa  
+import logging
+
 # module used to talk over serial with the esp32
 import serial
 # module used to write to csv file
@@ -55,7 +57,8 @@ class tAgilent(QObject):
   FLOW_CONTROL = pyvisa.constants.ControlFlow.rts_cts
 
   TIMEOUT_SECS = 2           # How long to give the instrument to respond before raising a timeout error
-
+  DO_AGILENT_DEBUG = False
+  
   #################################################
   #
   # Static members
@@ -129,6 +132,17 @@ class tAgilent(QObject):
       tAgilent.PyVisaResourceManager = pyvisa.ResourceManager()
       print('Created pyvisa resource manager, found:')
       print(tAgilent.PyVisaResourceManager.list_resources())
+
+      if (tAgilent.DO_AGILENT_DEBUG):
+        # Set PyVISA log level to DEBUG
+        pyvisa_logger = logging.getLogger("pyvisa")
+        pyvisa_logger.setLevel(logging.DEBUG)
+
+        # Optionally, set up a console handler for log output
+        console_handler = logging.StreamHandler()
+        console_handler.setLevel(logging.DEBUG)
+        pyvisa_logger.addHandler(console_handler)
+
 
     # Mutex for controlling access to the device
     self._lock          = QRecursiveMutex()
