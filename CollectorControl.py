@@ -74,6 +74,7 @@ class tCollectorPane(QWidget):
     self.Collector = tCollector(collectorName, portName, baud)
     self.Collector.SerialPort.PortOpenStateChange.connect(self.ConnectionEvent)
 
+    self.Collector.ReleaseStringReceived.connect(self.UpdateReleaseString)
     self.Collector.TextLineReceived.connect(self.AddToLog)   # a non-telemetry line, should just be sent to the console
     self.Collector.TelemetryUpdate.connect(self.UpdateTelemetry)
 
@@ -217,6 +218,16 @@ class tCollectorPane(QWidget):
       self.Collector.SetNarrowIllumPercentThreshold(new_value)
 
 
+  ###############################################
+  # UpdateReleaseString - TUpate the s/w version info in the upper right corner
+  # 
+  # INPUTS:
+  #   ReleaseString - the string from the collector
+  #     
+
+  def UpdateReleaseString(self, ReleaseString: str):
+    self.ui.ReleaseStringLabel.setText(ReleaseString)
+    
 
   ###############################################
   # AddToLog - Text messages from the collector that aren't telemetry strings
@@ -227,6 +238,7 @@ class tCollectorPane(QWidget):
 
   def AddToLog(self, Line: str):
     # Append the new line
+    Line = Line.replace('\r\n', '\n').replace('\r', '\n')  # Normalize newlines
     self.ui.CollectorLog.append(Line)
     
     # Limit the log to the last N lines (example)

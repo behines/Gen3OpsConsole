@@ -55,6 +55,7 @@ class tCollector(tActiveObject):
   # CollectorOnlineStateUpdate = Signal(bool)
 
   # Telemetry signals
+  ReleaseStringReceived      = Signal(str)
   TextLineReceived           = Signal(str)       # a non-telemetry line, should just be sent to the console
   CollectorStateUpdate       = Signal(str, CollectorNativeStates)  # New collector state as an int.  First arg is the collector name ('1A', '1B', etc.)
   # Signal to emit parsed telemetry data as a dictionary
@@ -248,6 +249,13 @@ class tCollector(tActiveObject):
   #     
 
   def ProcessLineOfOutput(self, Line: str):
+    if Line.startswith("***COLLECTOR ONLINE***"):
+      self.InitializeConnection()
+      return
+    if Line.startswith("TRACKER4 RELEASE "):
+      self.ReleaseString = Line[17:]
+      self.ReleaseStringReceived.emit(self.ReleaseString)
+
     if not Line.startswith("TEL:"):
       # Emit signal for non-TEL line
       self.TextLineReceived.emit(Line)
