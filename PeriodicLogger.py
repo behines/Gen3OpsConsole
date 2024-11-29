@@ -132,12 +132,14 @@ class tPeriodicLogger(tActiveObject):
     for agilent in self.Agilents:
       with agilent:  # Acquire the lock
         OutputLine = OutputLine + agilent.Read(True) + ','
-
-
+    # Remove the final extra comma
+    OutputLine = OutputLine.rstrip(',')  # Remove trailing comma
+    
     try:
       OutputLineParsed = list(map(float,OutputLine.split(',')))
       # Get the "box" reading to send to the marquee display
       BoxTemp     = OutputLineParsed[self.BoxMeasurementIndex]
+      print('BMI=',self.BoxMeasurementIndex,'  Temp=',BoxTemp)
       if BoxTemp<-1E37:   # bad thermocouple
         BoxTemp = 0
       SandTopTemp = OutputLineParsed[self.SandTopMeasurementIndex]
