@@ -543,11 +543,12 @@ class tAgilent(QObject):
     print('_GetRelayState: ', response)
     # If no mutexes or whatnot, it's a simple function call
     if (mutex is None) or (condition is None):
-      RelayStateList.append(map(int,response.split(',')))
+      RelayStateList.extend(map(int,response.split(',')))
       print('_GetRelayState: ', RelayStateList)
     else:
       with QMutexLocker(mutex):
-        RelayStateList.append(map(int,response.split(',')))  # Post the result
+        RelayStateList.extend(map(int,response.split(',')))  # Post the result
+        print('_GetRelayState: Sending wakeup: ', RelayStateList)
         condition.wakeAll()  # Notify the waiting thread
 
 
@@ -608,6 +609,8 @@ class tAgilent(QObject):
         # Wait for the worker to complete
         if not condition.wait(mutex, 500):  # 0.5-second timeout
           raise TimeoutError("Timed out waiting for relay state")
+        else:
+          print('wait succeeded, RelayStates = ',RelayStates)
 
     # RelayStateInfo is dict.  Let's just return the value of the first entry in the dict and assume they're 
     # all the same
