@@ -593,7 +593,7 @@ class tAgilent(QObject):
     # If in the same thread, it's a simple function call.  If in a different thread we use a condition
     # variable
     if QThread.currentThread() == self.thread():
-        self._GetRelayState(self, RelayChannels, RelayStates)
+        self._GetRelayState(RelayChannels, RelayStates)
         if RelayStates.isempty():
           raise TimeoutError("Timed out waiting for relay state")
 
