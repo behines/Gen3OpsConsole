@@ -56,9 +56,9 @@ class tAgilent(QObject):
   STOP_BITS    = pyvisa.constants.StopBits.one
   FLOW_CONTROL = pyvisa.constants.ControlFlow.rts_cts
 
-  TIMEOUT_SECS = 2           # How long to give the instrument to respond before raising a timeout error
+  TIMEOUT_SECS = 5           # How long to give the instrument to respond before raising a timeout error
   DO_AGILENT_DEBUG = False
-  
+
   #################################################
   #
   # Static members
