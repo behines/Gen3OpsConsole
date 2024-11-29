@@ -460,7 +460,7 @@ class tCollector(tActiveObject):
     
     # Format to HHMMSS.s (with 0.1 second resolution)
     SetTimeCmd = '/K' + current_time.toString('hhmmss') + f"{int(current_time.time().msec() / 100)}"
-    print('Set time (',self.CollectorName,'): ', SetTimeCmd)
+    # print('Set time (',self.CollectorName,'): ', SetTimeCmd)
 
     result = self.SerialPort.write(SetTimeCmd)
 

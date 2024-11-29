@@ -132,7 +132,7 @@ class tCollectorPane(QWidget):
   #     
 
   def ConnectionEvent(self, bConnected):
-    print('Collector connection event: ', bConnected)
+    # print('Collector connection event: ', bConnected)
     # Show all the titles and buttons in an enabled or disabled state
     self.ui.OffPushButton.        setEnabled(bConnected)
     self.ui.HomePushButton.       setEnabled(bConnected)
