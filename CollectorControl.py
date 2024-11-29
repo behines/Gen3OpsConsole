@@ -238,7 +238,7 @@ class tCollectorPane(QWidget):
 
   def AddToLog(self, Line: str):
     # Append the new line
-    Line = Line.replace('\r\n', '\n').replace('\r', '\n')  # Normalize newlines
+    Line = Line.rstrip('\r\n')  # Eliminate newlines, since append adds them
     self.ui.CollectorLog.append(Line)
     
     # Limit the log to the last N lines (example)
