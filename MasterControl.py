@@ -276,12 +276,6 @@ class MasterControl(QMainWindow):
     self.NipSequencer.SunriseSunsetUpdate.connect(self.UpdateSunriseSunset)
 
     # Connect command buttons
-    #self.ui.OffPushButton        .clicked.connect(self.DoOff    )
-    #self.ui.HomePushButton       .clicked.connect(self.DoHome   )
-    #self.ui.SetTimePushButton    .clicked.connect(self.DoSetTime)
-    #self.ui.StowPushButton       .clicked.connect(self.DoStow   )
-    #self.ui.TrackPushButton      .clicked.connect(self.DoTrack  )
-
     self.ui.OffPushButton        .clicked.connect(lambda: [Collector.DoOff    .emit() for Collector in self.Collectors])
     self.ui.HomePushButton       .clicked.connect(lambda: [Collector.DoHome   .emit() for Collector in self.Collectors])
     self.ui.SetTimePushButton    .clicked.connect(lambda: [Collector.DoSetTime.emit() for Collector in self.Collectors])

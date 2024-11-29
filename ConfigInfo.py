@@ -122,8 +122,7 @@ COLLECTOR_RX_BUFFER_SIZE =  2000
 COLLECTOR_TX_BUFFER_SIZE =  2000
 
 COLLECTOR_PORTS = [
-  ['1A', 'COM87']]
-''',
+  ['1A', 'COM87'],
   ['1B', 'COM98'],
   ['1C', 'COM95'],
   ['2A', 'COM97'],
@@ -138,7 +137,7 @@ COLLECTOR_PORTS = [
   ['5A', 'COM68'],
   ['5B', 'COM60'],
   ['5C', 'COM62'],
-]'''
+]
 
 class CollectorNativeStates(IntEnum): 
   UNKNOWN              = -1

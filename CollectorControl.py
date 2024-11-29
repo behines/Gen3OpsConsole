@@ -227,7 +227,7 @@ class tCollectorPane(QWidget):
 
   def UpdateReleaseString(self, ReleaseString: str):
     self.ui.ReleaseStringLabel.setText(ReleaseString)
-    
+
 
   ###############################################
   # AddToLog - Text messages from the collector that aren't telemetry strings
@@ -420,10 +420,10 @@ class tCollectorControlWindow(QWidget):
     # create and own the collecor objects
     self.CollectorPanes = [ tCollectorPane(*port_info, COLLECTOR_BAUD_RATE, self) for port_info in COLLECTOR_PORTS ]
     Collector_iterator = (CollectorPane for CollectorPane in self.CollectorPanes)  # Compact generator for use in loop below
-    #for row in range(5):
-    #  for col in range(3):
-    #    layout.addWidget(next(Collector_iterator), row, col)
-    layout.addWidget(next(Collector_iterator), 0,0)
+    for row in range(5):
+      for col in range(3):
+        layout.addWidget(next(Collector_iterator), row, col)
+    #layout.addWidget(next(Collector_iterator), 0,0)
         
     # Wrap the central widget with a QScrollArea
     scroll_area = QScrollArea()
