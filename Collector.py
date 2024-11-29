@@ -414,6 +414,7 @@ class tCollector(tActiveObject):
 
   @with_lock
   def Off(self):
+    print('Sending Off command')
     result = self.SerialPort.write('/o')
 
     if result == 2:
