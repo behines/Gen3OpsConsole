@@ -594,7 +594,7 @@ class tAgilent(QObject):
     # variable
     if QThread.currentThread() == self.thread():
         self._GetRelayState(RelayChannels, RelayStates)
-        if RelayStates.isempty():
+        if not RelayStates:
           raise TimeoutError("Timed out waiting for relay state")
 
     else:
