@@ -540,12 +540,14 @@ class tAgilent(QObject):
     # Emit the signal
     # self.RelayStateInfo.emit(RelayStateDict)
 
+    print('_GetRelayState: ', response)
     # If no mutexes or whatnot, it's a simple function call
     if (mutex is None) or (condition is None):
-      RelayStateList.append(list(map(int,response.split(','))))
+      RelayStateList.append(map(int,response.split(',')))
+      print('_GetRelayState: ', RelayStateList)
     else:
       with QMutexLocker(mutex):
-        RelayStateList.append(list(map(int,response.split(','))))  # Post the result
+        RelayStateList.append(map(int,response.split(',')))  # Post the result
         condition.wakeAll()  # Notify the waiting thread
 
 
