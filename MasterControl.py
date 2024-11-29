@@ -250,8 +250,6 @@ class MasterControl(QMainWindow):
 
 
 
-
-
   #######################################################
   # ConnectToSignals - Sign up for all the signals that MasterControl wants to receive
   #
@@ -277,6 +275,18 @@ class MasterControl(QMainWindow):
     self.NipSequencer.NipStateUpdate     .connect(self.UpdateNipStateMessage)
     self.NipSequencer.SunriseSunsetUpdate.connect(self.UpdateSunriseSunset)
 
+    # Connect command buttons
+    #self.ui.OffPushButton        .clicked.connect(self.DoOff    )
+    #self.ui.HomePushButton       .clicked.connect(self.DoHome   )
+    #self.ui.SetTimePushButton    .clicked.connect(self.DoSetTime)
+    #self.ui.StowPushButton       .clicked.connect(self.DoStow   )
+    #self.ui.TrackPushButton      .clicked.connect(self.DoTrack  )
+
+    self.ui.OffPushButton        .clicked.connect(lambda: [Collector.DoOff    .emit() for Collector in self.Collectors])
+    self.ui.HomePushButton       .clicked.connect(lambda: [Collector.DoHome   .emit() for Collector in self.Collectors])
+    self.ui.SetTimePushButton    .clicked.connect(lambda: [Collector.DoSetTime.emit() for Collector in self.Collectors])
+    self.ui.StowPushButton       .clicked.connect(lambda: [Collector.DoStow   .emit() for Collector in self.Collectors])
+    self.ui.TrackPushButton      .clicked.connect(lambda: [Collector.DoTrack  .emit() for Collector in self.Collectors])
 
 
   #######################################################
@@ -349,6 +359,15 @@ class MasterControl(QMainWindow):
     SunsetString  = Sunset .toString("HH:mm:ss")
     self.ui.SunriseLabel.setText(SunriseString)
     self.ui.SunsetLabel .setText(SunsetString )
+
+
+  #######################################################
+  # DoOff 
+
+  def DoOff(self):
+    for Collector in self.Collectors:
+      Collector.DoOff.emit()
+
 
 
   #######################################################
