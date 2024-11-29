@@ -252,10 +252,12 @@ class tCollector(tActiveObject):
     if Line.startswith("***COLLECTOR ONLINE***"):
       self.InitializeConnection()
       return
+    
     if Line.startswith("TRACKER4 RELEASE "):
       self.ReleaseString = Line[17:]
       self.ReleaseStringReceived.emit(self.ReleaseString)
-
+      return
+    
     if not Line.startswith("TEL:"):
       # Emit signal for non-TEL line
       self.TextLineReceived.emit(Line)
