@@ -160,6 +160,6 @@ class tTempHumSensor(QObject):
       except ValueError:
         print('Invalid data received on temp/humidity sensor on port ', self.portName)
         return None
-    
+    print('TH:',line)
     return [ TempInC, Humidity ]   
  
