@@ -137,11 +137,13 @@ class MasterControl(QMainWindow):
     # Compute the vertical alignment (align vertical centerlines)
     main_center_y     = main_geometry.y() + (main_geometry.height()      // 2)
     secondary_start_y = main_center_y     - (secondary_geometry.height() // 2)
+    if secondary_start_y < 30:
+      secondary_start_y = 30
 
     # Set the new positions
-    self.move(center_x, main_geometry.y())
-    self.CollectorControlWindow.move(center_x + main_geometry.width() + 100,
-                                     secondary_start_y)
+    self.move(center_x, 30) #main_geometry.y())
+    self.CollectorControlWindow.move(center_x + main_geometry.width() + 100, 30)
+                                     #secondary_start_y)
 
     self.CollectorControlWindow.raise_()
     self.CollectorControlWindow.activateWindow()
