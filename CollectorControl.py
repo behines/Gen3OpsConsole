@@ -424,7 +424,12 @@ class tCollectorControlWindow(QWidget):
       for col in range(3):
         layout.addWidget(next(Collector_iterator), row, col)
     #layout.addWidget(next(Collector_iterator), 0,0)
-        
+
+    PaneGeometry    = self.CollectorPanes[0].geometry()
+    CurrentGeometry = self.geometry()
+
+    self.resize(50+3*PaneGeometry.width(), 50+3.2*PaneGeometry.height())
+
     # Wrap the central widget with a QScrollArea
     scroll_area = QScrollArea()
     scroll_area.setWidgetResizable(True)
