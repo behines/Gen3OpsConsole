@@ -130,7 +130,7 @@ class tTempHumSensor(QObject):
     if self.port is None:
       self.OpenPort(True)
     
-    if self.port is None:
+    if self.port is None or self.port.in_waiting == 0:
       return None
     
     
@@ -160,6 +160,6 @@ class tTempHumSensor(QObject):
       except ValueError:
         print('Invalid data received on temp/humidity sensor on port ', self.portName)
         return None
-    print('TH:',line)
+
     return [ TempInC, Humidity ]   
  
