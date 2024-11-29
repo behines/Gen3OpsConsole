@@ -515,7 +515,7 @@ class tAgilent(QObject):
   
   @requires_device_open()
   @with_lock    
-  def _GetRelayState(self, ChannelList, RelayStateList: list, mutex: QMutex, condition: QWaitCondition):
+  def _GetRelayState(self, ChannelList, RelayStateList: list, mutex:QMutex = None, condition:QWaitCondition = None):
     Command = 'ROUTE:CLOS? '
     
     scanlist = '(@' + ChannelList + ')'
@@ -523,12 +523,13 @@ class tAgilent(QObject):
 
     try:
       response = self.device.read()
+      response = response.strip()  #[:-2]
     except pyvisa.errors.VisaIOError:
       #print('Agilent timeout reading relay state, Retrying...')
       return []
 
     # Remove CrLf:
-    response = response.strip()  #[:-2]
+
       
     # PythonChannelList = tAgilent.AgilentChannelListToPythonList(ChannelList)
     # RelayStateList    = list(map(int,response.split(',')))
@@ -539,10 +540,13 @@ class tAgilent(QObject):
     # Emit the signal
     # self.RelayStateInfo.emit(RelayStateDict)
 
-    with QMutexLocker(mutex):
-      RelayStateList.append(list(map(int,response.split(','))))  # Post the result
-      condition.wakeAll()  # Notify the waiting thread
-
+    # If no mutexes or whatnot, it's a simple function call
+    if (mutex is None) or (condition is None):
+      RelayStateList.append(list(map(int,response.split(','))))
+    else:
+      with QMutexLocker(mutex):
+        RelayStateList.append(list(map(int,response.split(','))))  # Post the result
+        condition.wakeAll()  # Notify the waiting thread
 
 
   ###############################################
@@ -581,17 +585,27 @@ class tAgilent(QObject):
     #print('Calling signalthenwait')
     #RelayStateInfo = SignalThenWaitFor(self.RelayStateInfo, SignalEmitter(self.DoGetRelayState, RelayChannels), TimeoutInMs=500)
     #print('signalthenwait returned')
-    mutex     = QMutex()
-    condition = QWaitCondition()
 
     RelayStates = []  # Container for the result (mutable)
 
-    with QMutexLocker(mutex):
-      # Emit signal to worker thread
-      self.DoGetRelayState.emit(RelayChannels, RelayStates, mutex, condition)
-      # Wait for the worker to complete
-      if not condition.wait(mutex, 500):  # 0.5-second timeout
-        raise TimeoutError("Timed out waiting for relay state")
+    ####
+    # We do two different approaches based on whether we are in the same thread as the Agilent object
+    # If in the same thread, it's a simple function call.  If in a different thread we use a condition
+    # variable
+    if QThread.currentThread() == self.thread():
+        self._GetRelayState(self, RelayChannels, RelayStates)
+        if RelayStates.isempty():
+          raise TimeoutError("Timed out waiting for relay state")
+
+    else:
+      mutex     = QMutex()
+      condition = QWaitCondition()
+      with QMutexLocker(mutex):
+        # Emit signal to worker thread
+        self.DoGetRelayState.emit(RelayChannels, RelayStates, mutex, condition)
+        # Wait for the worker to complete
+        if not condition.wait(mutex, 500):  # 0.5-second timeout
+          raise TimeoutError("Timed out waiting for relay state")
 
     # RelayStateInfo is dict.  Let's just return the value of the first entry in the dict and assume they're 
     # all the same
