@@ -89,11 +89,21 @@ class tCollectorPane(QWidget):
     self.ui.NarrowSkyBackgroundLineEdit.editingFinished.connect(self.NewUserNarrowSkyBackground)
     self.ui.NarrowIllumPercentLineEdit .editingFinished.connect(self.NewUserNarrowIllumPercent)
 
+    # Command buttons connect directly to signals of the tCollector class
+    self.ui.OffPushButton.        connect(self.Collector.DoOff      )
+    self.ui.HomePushButton.       connect(self.Collector.DoHome     )
+    self.ui.TrackPushButton.      connect(self.Collector.DoTrack    )
+    self.ui.StowPushButton.       connect(self.Collector.DoStow     )
+    self.ui.SetTimePushButton.    connect(self.Collector.DoSetTime  )
+    self.ui.MotorStatusPushButton.connect(self.Collector.DoMotStatus)
+    self.ui.UnstickPushButton.    connect(self.Collector.DoUnstick  )
+    self.ui.RebootPushButton.     connect(self.Collector.DoReboot   )
+
+
 
   ###############################################
   # closeEvent - Shut down collector thread
   # 
-
 
   def closeEvent(self, event):
     print("CollectorPane is closing",flush=True)

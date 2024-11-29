@@ -170,11 +170,12 @@ class tCollector(tActiveObject):
   def InitializeConnection(self):
     if not self.SerialPort.IsOpen():
       print('tCollector: ERROR: Collector', self.CollectorName, 'offline in InitializeConnection', flush=True)
-    
-    self.CollectorState = CollectorNativeStates.UNKNOWN
-    self.FlushCommandInput()
-    self.SetTimeToNow()
-    self.SetTelemetryOnOff(True)
+    else:
+      print('tCollector: ERROR: Collector', self.CollectorName, 'back online')
+      self.CollectorState = CollectorNativeStates.UNKNOWN
+      self.FlushCommandInput()
+      self.SetTimeToNow()
+      self.SetTelemetryOnOff(True)
 
 
   ###############################################
@@ -527,7 +528,7 @@ class tCollector(tActiveObject):
 
   @with_lock
   def SetTelemetryOnOff(self, bTelemetryOn : bool):
-    cmd = '/L' if bTelemetryOn else 'l'
+    cmd = '/L' if bTelemetryOn else '/l'
 
     result = self.SerialPort.write(cmd)
 

@@ -533,13 +533,13 @@ class tAgilent(QObject):
       pass
 
 
-    print('_GetRelayState: ', response)
+    # print('_GetRelayState: ', response)
     # If no mutexes or whatnot, it's a simple function call
     if bUseThreadInterlocks:
       with QMutexLocker(self.GetRelayState_Mutex):
         self.GetRelayState_Result = RelayStateList  # Set the access-controlled variable
         # Post the result
-        print('_GetRelayState: Sending wakeup: ', RelayStateList)
+        # print('_GetRelayState: Sending wakeup: ', RelayStateList)
         self.GetRelayState_Condition.wakeAll()  # Notify the waiting thread
 
     return RelayStateList
@@ -585,7 +585,7 @@ class tAgilent(QObject):
 
   def GetRelayState(self, RelayChannels, RelayType) -> bool:
     ####
-    # We do two different approaches based on whether we are in the same thread as the Agilent object
+    # We take different approaches based on whether we are in the same thread as the Agilent object
     # If in the same thread, it's a simple function call.  If in a different thread we use a condition
     # variable
     if QThread.currentThread() == self.thread():
@@ -602,11 +602,8 @@ class tAgilent(QObject):
           raise TimeoutError("Timed out waiting for relay state")
         else:
           RelayStateList = self.GetRelayState_Result
-          print('wait succeeded, RelayStates = ',RelayStateList)
+          # print('wait succeeded, RelayStates = ',RelayStateList)
 
-    # RelayStateInfo is dict.  Let's just return the value of the first entry in the dict and assume they're 
-    # all the same
-    #FirstRelayValue = RelayStateInfo[next(iter(RelayStateInfo))]
     FirstRelayValue = RelayStateList[0]
 
     bRelayIsClosed  = (RelayType == self.RELAY_NORMALLY_OPEN   and FirstRelayValue == tAgilent.ON or
