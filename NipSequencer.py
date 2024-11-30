@@ -146,7 +146,7 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
 
   ]
 
-'''
+  '''
   # Class methods that are dynamically created by the transitions library.  This eliminates Pylance warnings.
   # Duplicative of .pyi file, because there's no way to include a .pyi file.
   def sun_is_out      (self) -> bool: ...
@@ -155,7 +155,7 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
   def NoDNI           (self) -> bool: ...
   def YesDNI          (self) -> bool: ...
   def Shutdown        (self) -> bool: ...
-'''
+  '''
 
   ###############################################
   # Constructor 
