@@ -52,7 +52,7 @@ AGILENT_WITH_POWER_RELAYS = 2     # The third Agilent (counting starts at zero)
 NIP_POWER_CHANNELS        = '202:203'
 NIP_ON_OFF_BUTTON_CHANNEL = '201'
 PYRANOMETER_POWER_CHANNEL = '204'
-MOTOR_POWER_CHANNELS      = '218:220'
+MOTOR_POWER_CHANNELS      = '210,218:219'    # WAS '218:220' BUT 220 WENT BAD.  MOVED TO 210
 USB_HUB_POWER_CHANNEL     = '216'
 
 
@@ -66,7 +66,7 @@ SHUTTERS = [
   ShutterMapping('1B', '207'),
   ShutterMapping('2A', '208'),
   ShutterMapping('2B', '209'),
-  ShutterMapping('3A', '210'),
+  ShutterMapping('3A', '220'),   # SWAPPED TO BAD CHANNEL WHERE 12V MOTOR POWER #3 WAS
   ShutterMapping('3B', '211'),
   ShutterMapping('4A', '212'),
   ShutterMapping('4B', '213'),
