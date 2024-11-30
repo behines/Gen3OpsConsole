@@ -338,7 +338,6 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
     sunrise: datetime
     sunset : datetime
 
-    print('State machine')
     # A state transition may have occurred while we were asleep, as a result of a timeout
     if self.LastState != self.state:
       print('NIP timeout transition: ' + self.LastState + ' -> ' + self.state)
