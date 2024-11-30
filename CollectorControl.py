@@ -91,15 +91,15 @@ class tCollectorPane(QWidget):
     self.ui.NarrowIllumPercentLineEdit .editingFinished.connect(self.NewUserNarrowIllumPercent)
 
     # Command buttons connect directly to signals of the tCollector class
-    self.ui.OffPushButton.        clicked.connect(self.Collector.DoOff      )
-    self.ui.HomePushButton.       clicked.connect(self.Collector.DoHome     )
-    self.ui.TrackPushButton.      clicked.connect(self.Collector.DoTrack    )
-    self.ui.StowPushButton.       clicked.connect(self.Collector.DoStow     )
-    self.ui.SetTimePushButton.    clicked.connect(self.Collector.DoSetTime  )
-    self.ui.MotorStatusPushButton.clicked.connect(self.Collector.DoMotStatus)
-    self.ui.UnstickPushButton.    clicked.connect(self.Collector.DoUnstick  )
-    self.ui.RebootPushButton.     clicked.connect(self.Collector.DoReboot   )
-
+    self.ui.OffPushButton.        clicked.connect(self.Collector.DoOff            )
+    self.ui.HomePushButton.       clicked.connect(self.Collector.DoHome           )
+    self.ui.TrackPushButton.      clicked.connect(self.Collector.DoTrack          )
+    self.ui.StowPushButton.       clicked.connect(self.Collector.DoStow           )
+    self.ui.SetTimePushButton.    clicked.connect(self.Collector.DoSetTime        )
+    self.ui.MotorStatusPushButton.clicked.connect(self.Collector.DoMotStatus      )
+    self.ui.UnstickPushButton.    clicked.connect(self.Collector.DoUnstick        )
+    self.ui.RebootPushButton.     clicked.connect(self.Collector.DoReboot         )
+    self.ui.TimeButton.           clicked.connect(self.Collector.DoEnableTelemetry)
 
 
   ###############################################
@@ -261,7 +261,7 @@ class tCollectorPane(QWidget):
     try:
       # Current time
       if "TimeString" in telemetry:
-        self.ui.TimeLabel.setText(telemetry["TimeString"])
+        self.ui.TimeButton.setText(telemetry["TimeString"])
 
       # Motor positions
       if "P" in telemetry:
@@ -280,12 +280,19 @@ class tCollectorPane(QWidget):
       # Narrow-angle readings
       if "N" in telemetry:
         # Update narrow-angle readings
-        # UL, UR, LL, LR
-        self.ui.NarrowRight.setText(f'{telemetry["N"][0]:5d}')
-        self.ui.NarrowLeft .setText(f'{telemetry["N"][1]:5d}')
-        self.ui.NarrowUp   .setText(f'{telemetry["N"][2]:5d}')
-        self.ui.NarrowDown .setText(f'{telemetry["N"][3]:5d}')
+        # R, L, U, D
+        right = telemetry["N"][0]
+        left  = telemetry["N"][1]
+        up    = telemetry["N"][2]
+        down  = telemetry["N"][3]
+        self.ui.NarrowRight.setText(f'{right:5d}')
+        self.ui.NarrowLeft .setText(f'{left:5d}')
+        self.ui.NarrowUp   .setText(f'{up:5d}')
+        self.ui.NarrowDown .setText(f'{down:5d}')
 
+        total   = right + left + up + down
+        percent = int(100*total/65532)
+        self.ui.NarrowIntensity.setText(f'{percent:3d}%  {total:5d}')
 
       # Wide-angle readings
       if "W" in telemetry:
