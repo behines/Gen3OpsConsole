@@ -277,14 +277,14 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
     self.NipPowerOnTimer.connect(self._PowerUp_part2)
     self.NipPowerOnTimer.start(1000 * NIP_TRACKER_POWER_ON_DELAY)
 
-  def PowerUp_part2(self):
+  def _PowerUp_part2(self):
     # Press the soft power button, then pause...
     print('Pressing soft power button')
     self.NipOnOffButton.SetPowerState(True)
     self.NipPowerOnTimer.connect(self._PowerUp_part3)
     self.NipPowerOnTimer.start(1000 * NIP_TRACKER_POWER_BUTTON_PRESS_TIME)
 
-  def PowerUp_part3(self):
+  def _PowerUp_part3(self):
     # And now release the soft power button
     print('Releasing soft power button')
     self.NipOnOffButton.SetPowerState(False)
