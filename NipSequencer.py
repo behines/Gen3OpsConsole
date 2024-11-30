@@ -147,7 +147,7 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
   ]
 
 
-  # Class methoed that are dynamically by the transitions library.  This eliminates Pylance warnings.
+  # Class methods that are dynamically created by the transitions library.  This eliminates Pylance warnings.
   # Duplicative of .pyi file, because there's no way to include a .pyi file.
   def sun_is_out      (self) -> bool: ...
   def sun_is_not_out  (self) -> bool: ...
@@ -210,7 +210,7 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
 
     # Connect to GHI and DNI updates from the logger
     PeriodicLogger.DniUpdate.connect(self.DniUpdate)
-    PeriodicLogger.DniUpdate.connect(self.GhiUpdate)
+    PeriodicLogger.GhiUpdate.connect(self.GhiUpdate)
 
     # Create a timer to run the state machine periodically
     self.StateMachineTimer = QTimer(self)
@@ -338,6 +338,7 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
     sunrise: datetime
     sunset : datetime
 
+    print('State machine')
     # A state transition may have occurred while we were asleep, as a result of a timeout
     if self.LastState != self.state:
       print('NIP timeout transition: ' + self.LastState + ' -> ' + self.state)
