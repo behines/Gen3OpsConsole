@@ -258,124 +258,128 @@ class tCollectorPane(QWidget):
   #     
 
   def UpdateTelemetry(self, telemetry: dict):
+    try:
+      # Current time
+      if "TimeString" in telemetry:
+        self.ui.TimeLabel.setText(telemetry["TimeString"])
 
-    # Current time
-    if "TimeString" in telemetry:
-      self.ui.TimeLabel.setText(telemetry["TimeString"])
+      # Motor positions
+      if "P" in telemetry:
+        azPos = f'P:{telemetry["P"][0]:>11,}'
+        elPos = f'P:{telemetry["P"][1]:>11,}'
+        self.ui.AzPosLabel.setText(azPos)
+        self.ui.ElPosLabel.setText(elPos)
 
-    # Motor positions
-    if "P" in telemetry:
-      azPos = f'P:{telemetry["P"][0]:>11,}'
-      elPos = f'P:{telemetry["P"][1]:>11,}'
-      self.ui.AzPosLabel.setText(azPos)
-      self.ui.ElPosLabel.setText(elPos)
+      # Motor velocities
+      if "V" in telemetry:
+        azVel = f'V:{telemetry["V"][0]:11d}'
+        elVel = f'V:{telemetry["V"][1]:11d}'
+        self.ui.AzVelLabel.setText(azVel)
+        self.ui.ElVelLabel.setText(elVel)
 
-    # Motor velocities
-    if "V" in telemetry:
-      azVel = f'V:{telemetry["V"][0]:11d}'
-      elVel = f'V:{telemetry["V"][1]:11d}'
-      self.ui.AzVelLabel.setText(azVel)
-      self.ui.ElVelLabel.setText(elVel)
-
-    # Narrow-angle readings
-    if "N" in telemetry:
-      # Update narrow-angle readings
-      # UL, UR, LL, LR
-      self.ui.NarrowRight.setText(f'{telemetry["N"][0]:5d}')
-      self.ui.NarrowLeft .setText(f'{telemetry["N"][1]:5d}')
-      self.ui.NarrowUp   .setText(f'{telemetry["N"][2]:5d}')
-      self.ui.NarrowDown .setText(f'{telemetry["N"][3]:5d}')
-
-
-    # Wide-angle readings
-    if "W" in telemetry:
-      # Update wide-angle readings
-      # UL, UR, LL, LR
-      self.ui.WideUL.setText(f'{telemetry["W"][0]:5d}')
-      self.ui.WideUR.setText(f'{telemetry["W"][1]:5d}')
-      self.ui.WideLL.setText(f'{telemetry["W"][2]:5d}')
-      self.ui.WideLR.setText(f'{telemetry["W"][3]:5d}')
+      # Narrow-angle readings
+      if "N" in telemetry:
+        # Update narrow-angle readings
+        # UL, UR, LL, LR
+        self.ui.NarrowRight.setText(f'{telemetry["N"][0]:5d}')
+        self.ui.NarrowLeft .setText(f'{telemetry["N"][1]:5d}')
+        self.ui.NarrowUp   .setText(f'{telemetry["N"][2]:5d}')
+        self.ui.NarrowDown .setText(f'{telemetry["N"][3]:5d}')
 
 
-    # Tuple of thresholds - wide illum, narrow sky BG %, narrow illum %
-    # When receiving, poke the new values into the collecor
-    if "R" in telemetry:
-      if telemetry["R"][0] != self.Collector.WideAngleIllumPercent:
-        self.Collector.WideAngleIllumPercent = telemetry["R"][0]
-        self.ui.WideIllumPercentLineEdit.setText(str(self.Collector.WideAngleIllumPercent))
-      if telemetry["R"][1] != self.Collector.NarrowSkyBackgroundPercent:
-        self.Collector.NarrowSkyBackgroundPercent = telemetry["R"][1]
-        self.ui.NarrowSkyBackgroundLineEdit.setText(str(self.Collector.NarrowSkyBackgroundPercent))
-      if telemetry["R"][2] != self.Collector.NarrowIlluminationPercent:
-        self.Collector.NarrowIlluminationPercent = telemetry["R"][2]
-        self.ui.NarrowIllumPercentLineEdit.setText(str(self.Collector.NarrowIlluminationPercent))
-
-    # Servo error
-    if "E" in telemetry:
-      # Update servo error
-      pass
-
-    # Narrow sky background
-    if "G" in telemetry:
-      # Update narrow sky background in counts
-      self.ui.ImpliedSkyBGLabel.setText(f'Implied Sky BG: {telemetry["G"]:5d}')
-
-    # Total intensity on wide-angle detector
-    if "I" in telemetry:
-      self.ui.WideIntensity.setText(f'{telemetry["I"][1]:3d}%  {telemetry["I"][0]:5d}')
-
-    # Narrow mode status
-    if "IsNarrowMode" in telemetry:
-      GroupBoxStyleStringGray = "QGroupBox { color: gray; }"
-      GroupBoxStyleStringBold = ""
-      if telemetry["IsNarrowMode"]:
-        self.ui.NarrowGroup.setStyleSheet(GroupBoxStyleStringBold)
-        self.ui.WideGroup.  setStyleSheet(GroupBoxStyleStringGray)
-      else:
-        self.ui.NarrowGroup.setStyleSheet(GroupBoxStyleStringGray)
-        self.ui.WideGroup.  setStyleSheet(GroupBoxStyleStringBold)
-
-    # Narrow angle threshold
-    if "NarrowAngleThreshold" in telemetry:
-      msg = f'NarrowThresh:  {telemetry["NarrowAngleThreshold"]:5d}'
-      self.ui.NarrowThresholdLabel.setText(msg)
-
-    # Limit states
-    if "LimitStates" in telemetry:
-      self.ui.AzLimLowButton .setChecked(telemetry["LimitStates"][0])
-      self.ui.AzLimHighButton.setChecked(telemetry["LimitStates"][1])
-      self.ui.ElLimLowButton .setChecked(telemetry["LimitStates"][2])
-      self.ui.ElLimHighButton.setChecked(telemetry["LimitStates"][3])
-      # Home is element 4, not shown on GUI
-
-    # Servo mode
-    if "PositionMode" in telemetry:
-      if telemetry["PositionMode"][0] == "V":
-        self.ui.AzGroup.setTitle('Az - VelMode')
-      else:
-        self.ui.AzGroup.setTitle('Az - PosMode')
-
-      if telemetry["PositionMode"][1] == "V":
-        self.ui.ElGroup.setTitle('El - VelMode')
-      else:
-        self.ui.ElGroup.setTitle('El - PosMode')
+      # Wide-angle readings
+      if "W" in telemetry:
+        # Update wide-angle readings
+        # UL, UR, LL, LR
+        self.ui.WideUL.setText(f'{telemetry["W"][0]:5d}')
+        self.ui.WideUR.setText(f'{telemetry["W"][1]:5d}')
+        self.ui.WideLL.setText(f'{telemetry["W"][2]:5d}')
+        self.ui.WideLR.setText(f'{telemetry["W"][3]:5d}')
 
 
-    # Spot coordinates
-    if "C" in telemetry:
-      self.ui.XPos.setText(f'{telemetry["C"][0]:+.2f}')
-      self.ui.YPos.setText(f'{telemetry["C"][1]:+.2f}')
+      # Tuple of thresholds - wide illum, narrow sky BG %, narrow illum %
+      # When receiving, poke the new values into the collecor
+      if "R" in telemetry:
+        if telemetry["R"][0] != self.Collector.WideAngleIllumPercent:
+          self.Collector.WideAngleIllumPercent = telemetry["R"][0]
+          self.ui.WideIllumPercentLineEdit.setText(str(self.Collector.WideAngleIllumPercent))
+        if telemetry["R"][1] != self.Collector.NarrowSkyBackgroundPercent:
+          self.Collector.NarrowSkyBackgroundPercent = telemetry["R"][1]
+          self.ui.NarrowSkyBackgroundLineEdit.setText(str(self.Collector.NarrowSkyBackgroundPercent))
+        if telemetry["R"][2] != self.Collector.NarrowIlluminationPercent:
+          self.Collector.NarrowIlluminationPercent = telemetry["R"][2]
+          self.ui.NarrowIllumPercentLineEdit.setText(str(self.Collector.NarrowIlluminationPercent))
 
-    # Collector mode number
-    if "ModeNum" in telemetry:
-      # This one we don't display. It gets passed to the marquee as a signal by tCollector
-      #if self.CollectorState != telemetry["ModeNum"]:
-      #  self.CollectorState = telemetry["ModeNum"]:
-      pass
+      # Servo error
+      if "E" in telemetry:
+        # Update servo error
+        pass
 
-    # Collector mode string
-    if "ModeString" in telemetry:
-      self.ui.State.setText('State: ' + telemetry["ModeString"])
+      # Narrow sky background
+      if "G" in telemetry:
+        # Update narrow sky background in counts
+        self.ui.ImpliedSkyBGLabel.setText(f'Implied Sky BG: {telemetry["G"]:5d}')
+
+      # Total intensity on wide-angle detector
+      if "I" in telemetry:
+        self.ui.WideIntensity.setText(f'{telemetry["I"][1]:3d}%  {telemetry["I"][0]:5d}')
+
+      # Narrow mode status
+      if "IsNarrowMode" in telemetry:
+        GroupBoxStyleStringGray = "QGroupBox { color: gray; }"
+        GroupBoxStyleStringBold = ""
+        if telemetry["IsNarrowMode"]:
+          self.ui.NarrowGroup.setStyleSheet(GroupBoxStyleStringBold)
+          self.ui.WideGroup.  setStyleSheet(GroupBoxStyleStringGray)
+        else:
+          self.ui.NarrowGroup.setStyleSheet(GroupBoxStyleStringGray)
+          self.ui.WideGroup.  setStyleSheet(GroupBoxStyleStringBold)
+
+      # Narrow angle threshold
+      if "NarrowAngleThreshold" in telemetry:
+        msg = f'NarrowThresh:  {telemetry["NarrowAngleThreshold"]:5d}'
+        self.ui.NarrowThresholdLabel.setText(msg)
+
+      # Limit states
+      if "LimitStates" in telemetry:
+        self.ui.AzLimLowButton .setChecked(telemetry["LimitStates"][0])
+        self.ui.AzLimHighButton.setChecked(telemetry["LimitStates"][1])
+        self.ui.ElLimLowButton .setChecked(telemetry["LimitStates"][2])
+        self.ui.ElLimHighButton.setChecked(telemetry["LimitStates"][3])
+        # Home is element 4, not shown on GUI
+
+      # Servo mode
+      if "PositionMode" in telemetry:
+        if telemetry["PositionMode"][0] == "V":
+          self.ui.AzGroup.setTitle('Az - VelMode')
+        else:
+          self.ui.AzGroup.setTitle('Az - PosMode')
+
+        if telemetry["PositionMode"][1] == "V":
+          self.ui.ElGroup.setTitle('El - VelMode')
+        else:
+          self.ui.ElGroup.setTitle('El - PosMode')
+
+
+      # Spot coordinates
+      if "C" in telemetry:
+        self.ui.XPos.setText(f'{telemetry["C"][0]:+.2f}')
+        self.ui.YPos.setText(f'{telemetry["C"][1]:+.2f}')
+
+      # Collector mode number
+      if "ModeNum" in telemetry:
+        # This one we don't display. It gets passed to the marquee as a signal by tCollector
+        #if self.CollectorState != telemetry["ModeNum"]:
+        #  self.CollectorState = telemetry["ModeNum"]:
+        pass
+
+      # Collector mode string
+      if "ModeString" in telemetry:
+        self.ui.State.setText('State: ' + telemetry["ModeString"])
+
+    except Exception as e:
+      # Handle unexpected errors
+      print(f"Collectorpane::UpdateTelemetry: Error processing telemetry dict: {e}:")
 
 
 
