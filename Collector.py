@@ -140,6 +140,10 @@ class tCollector(tActiveObject):
       self.SerialPort.close()
 
 
+  ###############################################
+  # HandleSerialPortError 
+  # 
+  # 
 
   def HandleSerialPortError(self, error):
     if error != QSerialPort.NoError:
