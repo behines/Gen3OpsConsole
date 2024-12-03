@@ -113,6 +113,8 @@ class tCollector(tActiveObject):
     # And for text strings
     self.SerialPort.readyLine.connect(self.ProcessLineOfOutput)
 
+    self.SerialPort.errorOccurred.connect(self.HandleSerialPortError)
+
     # Connect signals to methods
     self.DoOff            .connect(self.Off      )
     self.DoHome           .connect(self.Home     )
@@ -138,6 +140,11 @@ class tCollector(tActiveObject):
       self.SerialPort.close()
 
 
+
+  def HandleSerialPortError(self, error):
+    if error != QSerialPort.NoError:
+      print(f"Serial port error: {error}")
+      # Handle error (e.g., reconnect, notify user, etc.)
 
   ###############################################
   # Start 
