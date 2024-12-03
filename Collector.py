@@ -145,7 +145,7 @@ class tCollector(tActiveObject):
   # Call this after construction to start the collector's active objects running.
   #     
   
-  @with_lock
+  #@with_lock
   def Start(self):
     if self.SerialPort.IsOpen():
       self.InitializeConnection()
@@ -169,7 +169,7 @@ class tCollector(tActiveObject):
   # This method simply sends the "Telemetry on" command
   #
 
-  @with_lock
+  #@with_lock
   def InitializeConnection(self):
     if not self.SerialPort.IsOpen():
       print('tCollector: ERROR: Collector', self.CollectorName, 'offline in InitializeConnection', flush=True)
@@ -220,7 +220,7 @@ class tCollector(tActiveObject):
   # This method just attempts to periodically reopen the port if it's not open
   #
 
-  @with_lock
+  #@with_lock
   def PeriodicMethod(self):
     #print('Collector reopen attempt',flush=True)
     self.SerialPort.AttemptOpenIfNeeded()  # Will be a no-op if the port is open
@@ -359,7 +359,7 @@ class tCollector(tActiveObject):
   # The longest command is 10 characters, so send 11 blanks.
   #     
 
-  @with_lock
+  #@with_lock
   def FlushCommandInput(self):
     nToSend = 11
     # Write extras characters just to flush any pending "/" command and get back in sync
@@ -379,7 +379,7 @@ class tCollector(tActiveObject):
   # Comamnds the collector to Stow
   #     
 
-  @with_lock
+  #@with_lock
   def Stow(self):
     result = self.SerialPort.write('/Q')
 
@@ -398,7 +398,7 @@ class tCollector(tActiveObject):
   # Comamnds the collector to Track
   #     
 
-  @with_lock
+  #@with_lock
   def Track(self):
     result = self.SerialPort.write('/t')
 
@@ -417,7 +417,7 @@ class tCollector(tActiveObject):
   # Comamnds the collector to Home
   #     
 
-  @with_lock
+  #@with_lock
   def Home(self):
     # Write extras characters just to flush any pending "/" command and get back in sync
     # The longest command is 10 characters, so send ten blanks.
@@ -438,7 +438,7 @@ class tCollector(tActiveObject):
   # Comamnds the collector to turn off
   #     
 
-  @with_lock
+  #@with_lock
   def Off(self):
     print('Sending Off command')
     result = self.SerialPort.write('/o')
@@ -468,7 +468,7 @@ class tCollector(tActiveObject):
   #  Sets the time on the collector
   #     
 
-  @with_lock
+  #@with_lock
   def SetTimeToNow(self):
     timezone = QTimeZone(SITE_TIMEZONE.encode('utf-8'))
     #if not isinstance(timezone, QTimeZone):
@@ -495,7 +495,7 @@ class tCollector(tActiveObject):
   # 
   #     
 
-  @with_lock
+  #@with_lock
   def MotStatus(self):
     result = self.SerialPort.write('/s')
 
@@ -517,7 +517,7 @@ class tCollector(tActiveObject):
   # 
   #     
 
-  @with_lock
+  #@with_lock
   def Unstick(self):
     result = self.SerialPort.write('/G')
 
@@ -533,7 +533,7 @@ class tCollector(tActiveObject):
   # 
   #     
 
-  @with_lock
+  #@with_lock
   def Reboot(self):
     result = self.SerialPort.write('/IREBOOT')
 
@@ -553,7 +553,7 @@ class tCollector(tActiveObject):
   #   bTelemetryOn - desired state
   #     
 
-  @with_lock
+  #@with_lock
   def SetTelemetryOnOff(self, bTelemetryOn : bool):
     cmd = '/L' if bTelemetryOn else '/l'
 
@@ -574,7 +574,7 @@ class tCollector(tActiveObject):
   # Sends a message Jnnnmmmppp with the three percentages
   #     
 
-  @with_lock
+  #@with_lock
   def SendThresholdPercentages(self):
     SetThresholdsCmd = '/J' + f"{self.WideAngleIllumPercent:03d}{self.NarrowSkyBackgroundPercent:03d}{self.NarrowIlluminationPercent:03d}"
 
