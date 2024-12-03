@@ -70,7 +70,7 @@ class tCollector(tActiveObject):
   DoMotStatus                = Signal()
   DoUnstick                  = Signal()
   DoReboot                   = Signal()
-  DoReconnect          = Signal()
+  DoReconnect                = Signal()
 
   UpdateThresholds           = Signal()
   
@@ -122,7 +122,7 @@ class tCollector(tActiveObject):
     self.DoMotStatus.connect(self.MotStatus)
     self.DoUnstick  .connect(self.Unstick  )
     self.DoReboot   .connect(self.Reboot   )
-    self.DoReconnect.connect(lambda: self.SetTelemetryOnOff(True))
+    self.DoReconnect.connect(self.Reconnect)
 
     self.UpdateThresholds.connect(self.SendThresholdPercentages)
 
@@ -187,7 +187,7 @@ class tCollector(tActiveObject):
   # 
   #
 
-  @with_lock
+  #@with_lock
   def Reconnect(self):
     if self.SerialPort.IsOpen():
       self.SerialPort.close()
