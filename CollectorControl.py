@@ -91,15 +91,15 @@ class tCollectorPane(QWidget):
     self.ui.NarrowIllumPercentLineEdit .editingFinished.connect(self.NewUserNarrowIllumPercent)
 
     # Command buttons connect directly to signals of the tCollector class
-    self.ui.OffPushButton.        clicked.connect(self.Collector.DoOff            )
-    self.ui.HomePushButton.       clicked.connect(self.Collector.DoHome           )
-    self.ui.TrackPushButton.      clicked.connect(self.Collector.DoTrack          )
-    self.ui.StowPushButton.       clicked.connect(self.Collector.DoStow           )
-    self.ui.SetTimePushButton.    clicked.connect(self.Collector.DoSetTime        )
-    self.ui.MotorStatusPushButton.clicked.connect(self.Collector.DoMotStatus      )
-    self.ui.UnstickPushButton.    clicked.connect(self.Collector.DoUnstick        )
-    self.ui.RebootPushButton.     clicked.connect(self.Collector.DoReboot         )
-    self.ui.TimeButton.           clicked.connect(self.Collector.DoEnableTelemetry)
+    self.ui.OffPushButton.        clicked.connect(self.Collector.DoOff      )
+    self.ui.HomePushButton.       clicked.connect(self.Collector.DoHome     )
+    self.ui.TrackPushButton.      clicked.connect(self.Collector.DoTrack    )
+    self.ui.StowPushButton.       clicked.connect(self.Collector.DoStow     )
+    self.ui.SetTimePushButton.    clicked.connect(self.Collector.DoSetTime  )
+    self.ui.MotorStatusPushButton.clicked.connect(self.Collector.DoMotStatus)
+    self.ui.UnstickPushButton.    clicked.connect(self.Collector.DoUnstick  )
+    self.ui.RebootPushButton.     clicked.connect(self.Collector.DoReboot   )
+    self.ui.TimeButton.           clicked.connect(self.Collector.DoReconnect)
 
 
   ###############################################

@@ -70,7 +70,7 @@ class tCollector(tActiveObject):
   DoMotStatus                = Signal()
   DoUnstick                  = Signal()
   DoReboot                   = Signal()
-  DoEnableTelemetry          = Signal()
+  DoReconnect                = Signal()
 
   UpdateThresholds           = Signal()
   
@@ -116,15 +116,15 @@ class tCollector(tActiveObject):
     self.SerialPort.errorOccurred.connect(self.HandleSerialPortError)
 
     # Connect signals to methods
-    self.DoOff            .connect(self.Off      )
-    self.DoHome           .connect(self.Home     )
-    self.DoTrack          .connect(self.Track    )
-    self.DoStow           .connect(self.Stow     )
-    self.DoSetTime        .connect(self.SetTimeToNow)
-    self.DoMotStatus      .connect(self.MotStatus)
-    self.DoUnstick        .connect(self.Unstick  )
-    self.DoReboot         .connect(self.Reboot   )
-    self.DoEnableTelemetry.connect(lambda: self.SetTelemetryOnOff(True))
+    self.DoOff      .connect(self.Off      )
+    self.DoHome     .connect(self.Home     )
+    self.DoTrack    .connect(self.Track    )
+    self.DoStow     .connect(self.Stow     )
+    self.DoSetTime  .connect(self.SetTimeToNow)
+    self.DoMotStatus.connect(self.MotStatus)
+    self.DoUnstick  .connect(self.Unstick  )
+    self.DoReboot   .connect(self.Reboot   )
+    self.DoReconnect.connect(self.Reconnect)
 
     self.UpdateThresholds.connect(self.SendThresholdPercentages)
 
@@ -186,6 +186,20 @@ class tCollector(tActiveObject):
       self.FlushCommandInput()
       self.SetTimeToNow()
       self.SetTelemetryOnOff(True)
+
+
+  ###############################################
+  # Reconnect - Closes and reopens/reinits a port
+  # 
+  # 
+  #
+
+  #@with_lock
+  def Reconnect(self):
+    if self.SerialPort.IsOpen():
+      self.SerialPort.close()
+    self.bInit = False
+    self.InitializeConnection()
 
 
   ###############################################
