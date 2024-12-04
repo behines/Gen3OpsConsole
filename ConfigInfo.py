@@ -95,6 +95,8 @@ SERIAL_PORT_RETRY_TIMEOUT_SECS = 60
 AGILENT_RETRY_TIMEOUT_SECS   = 1 * 60    # If the Agilent cannot be opened, how long to wait before retrying
 MARQUEE_RETRY_TIMEOUT_SECS   = 1 * 60
 COLLECTOR_RETRY_TIMEOUT_SECS = 8
+# How many times we are willing to miss telemetry before trying to reopen the port
+COLLECTOR_MISSING_TELEM_REOPEN_THRESHOLD = 2
 
 ##########
 # COM ports for temperature sensors and Marquee display

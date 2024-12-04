@@ -178,6 +178,8 @@ class tCollector(tActiveObject):
     self.SerialPort.readyLine          .connect(self.ProcessLineOfOutput)
     self.SerialPort.errorOccurred      .connect(self.HandleSerialPortError)
 
+    self.MissingTelemetryCount = 0
+
     self.SerialPort.bPrintDiag = False # (self.CollectorName == "4B")
    
     # Manually call OnlineStatusUpdate the first time, to intiialize the port and inform CollectorPane, if it is open
@@ -248,22 +250,27 @@ class tCollector(tActiveObject):
 
   #@with_lock
   def PeriodicMethod(self):
-    if self.SerialPort.bPrintDiag: 
-      #print(f"Periodic task Current thread: {QThread.currentThread()}", f"Collector thread: {self.thread()}")
-      nBytesAvailable = self.SerialPort.bytesAvailable()
-      if nBytesAvailable > 0:
-        print(f'Periodic taks ***FOUND {nBytesAvailable} bytes***')
-        self.SerialPort.readyRead.emit()
-      else:
-        print('Periodic task')
+    #if self.SerialPort.bPrintDiag: 
+    #  #print(f"Periodic task Current thread: {QThread.currentThread()}", f"Collector thread: {self.thread()}")
+    #  nBytesAvailable = self.SerialPort.bytesAvailable()
+    #  if nBytesAvailable > 0:
+    #    print(f'Periodic taks ***FOUND {nBytesAvailable} bytes***')
+    #    self.SerialPort.readyRead.emit()
+    #  else:
+    #    print('Periodic task')
 
-    #print('Collector reopen attempt',flush=True)
-    self.SerialPort.AttemptOpenIfNeeded()  # Will be a no-op if the port is open
+    # If the port appears open but we aren't getting telemetry, re-open
+    if self.SerialPort.IsOpen() and self.MissingTelemetryCount > COLLECTOR_MISSING_TELEM_REOPEN_THRESHOLD:
+      print(f'Forcing reopen attempt for collector {self.collectorName}',flush=True)
+      self.SerialPort.Reopen()
+    else:
+      self.SerialPort.AttemptOpenIfNeeded()  # Will be a no-op if the port is open
     if not self.SerialPort.IsOpen():
       #print('tCollector: Collector ' + self.CollectorName + ' on port ' + self.PortName + ' offline', flush=True)
       pass
 
-
+    # Clear the flag that says 
+    self.MissingTelemetryCount = self.MissingTelemetryCount + 1
   
   
   ###############################################
@@ -300,6 +307,8 @@ class tCollector(tActiveObject):
   #     
 
   def ProcessLineOfOutput(self, Line: str):
+    self.MissingTelemetryCount = 0
+
     if Line.startswith("***COLLECTOR ONLINE***"):
       self.InitializeConnection()
       return
