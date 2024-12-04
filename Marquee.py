@@ -262,5 +262,5 @@ class tMarquee(QObject):
     # Encode the CollectorNum and the state as ASCII characters, starting from 64
     # So the encoding ia @=0, A=1, etc.
     msg = 'C' + chr(ord('@') + CollectorNum) + chr(ord('@') + MarqueeStateNum)
-    print(f'Sending marquee msg {msg}')
+    # print(f'Sending marquee msg {msg}')
     self.SendMessage(msg + '\n')

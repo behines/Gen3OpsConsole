@@ -400,8 +400,9 @@ class tCollector(tActiveObject):
 
     except Exception as e:
       # Handle unexpected errors
-      print(f"Error parsing TEL line: {e}:")
-      print(Line)
+      #print(f"Error parsing TEL line: {e}:")
+      #print(Line)
+      pass
 
 
   ###############################################
