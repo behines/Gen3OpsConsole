@@ -237,6 +237,8 @@ class tCollector(tActiveObject):
 
   #@with_lock
   def PeriodicMethod(self):
+    if self.SerialPort.bPrintDiag: 
+      print('Periodic task')
     #print('Collector reopen attempt',flush=True)
     self.SerialPort.AttemptOpenIfNeeded()  # Will be a no-op if the port is open
     if not self.SerialPort.IsOpen():
