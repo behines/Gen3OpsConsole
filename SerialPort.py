@@ -38,9 +38,7 @@ class tAutoOpenSerial(QSerialPort):
   #######################################################
   # Constructor 
   #
-  # AutoReopenTimeoutSecs - will try to re-open a closed port periodically if non-zero
-  # 
-
+  
   def __init__(self, portName, baudrate=9600, readBufSize=0, parent=None):
     super().__init__(parent)
 
@@ -100,15 +98,6 @@ class tAutoOpenSerial(QSerialPort):
       else:
         self.close()
         self.bIsOpen = False
-
-
-  #######################################################
-  # _ArmReopenTimerIfNotRunning - 
-  # 
- 
-  #def _ArmReopenTimerIfNotRunning(self):
-  #  if self._AutoReopenTimeoutSecs > 0 and not self._ReopenTimer.isActive():
-  #    self._ReopenTimer.start(self._AutoReopenTimeoutSecs * 1000)
 
 
   #######################################################
@@ -221,7 +210,7 @@ class tAutoOpenSerialWholeLine(tAutoOpenSerial):
 
     # Connect the readyRead signal to the line assembly method
     self.readyRead   .connect(self._AssembleLine, Qt.QueuedConnection)
-    self.ReaderWakeUp.connect(self.WakeUp)
+    self.ReaderWakeUp.connect(self.WakeUp, Qt.QueuedConnection)
 
 
   #######################################################
@@ -232,6 +221,7 @@ class tAutoOpenSerialWholeLine(tAutoOpenSerial):
 
   def WakeUp(self):
     self.bWakingUp = True
+    #print('wakeup attempt')
     self._AssembleLine()
     
 
@@ -251,7 +241,7 @@ class tAutoOpenSerialWholeLine(tAutoOpenSerial):
     
     while self.bytesAvailable() > 0:
       if self.bWakingUp:
-        print('Waking up worked')
+        print('*****Waking up worked*****')
       self.bWakingUp = False
       data = self.read()  # Read available bytes as a QByteArray
 
