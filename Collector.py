@@ -12,7 +12,7 @@
 #
 
 # module used to talk over serial with the esp32
-from PySide6.QtCore       import QRecursiveMutex, Signal, QDateTime, QTimeZone
+from PySide6.QtCore       import QRecursiveMutex, Signal, QDateTime, QTimeZone, QThread
 from PySide6.QtSerialPort import QSerialPort
 
 from SerialPort        import tAutoOpenSerialWholeLine
@@ -54,6 +54,7 @@ from ConfigInfo        import *
 class tCollector(tActiveObject):
   
   # CollectorOnlineStateUpdate = Signal(bool)
+  PortOpenStateChange        = Signal(bool)
 
   # Telemetry signals
   ReleaseStringReceived      = Signal(str)
@@ -91,6 +92,7 @@ class tCollector(tActiveObject):
 
     self.CollectorName  = collectorName
     self.PortName       = portName
+    self.baud           = baud
     self.bInit          = False
     self.CollectorState = CollectorNativeStates.UNKNOWN
 
@@ -100,24 +102,6 @@ class tCollector(tActiveObject):
     self.NarrowIlluminationPercent  = 0
 
     #try:
-    # Mutex for controlling access to the device
-    self._lock = QRecursiveMutex()
-
-    # We set rtscts and dsrdtr even though this is a virtual COM Port.  This provides a way for 
-    # the virtual port driver to inform when it isn't yet initialized or otherwise ready for
-    # data, which can happen.
-    self.SerialPort  = tAutoOpenSerialWholeLine(portName, baudrate=baud, readBufSize=COLLECTOR_RX_BUFFER_SIZE,
-                                                AutoReopenTimeoutSecs=COLLECTOR_RETRY_TIMEOUT_SECS, parent=self)
-    # Monitor the port for open/close state changes
-    self.SerialPort.PortOpenStateChange.connect(self.OnlineStatusUpdate)
-
-    self.SerialPort.bPrintDiag = (self.CollectorName == "4B")
-      
-   
-    # And for text strings
-    self.SerialPort.readyLine.connect(self.ProcessLineOfOutput)
-
-    self.SerialPort.errorOccurred.connect(self.HandleSerialPortError)
 
     # Connect signals to methods
     self.DoOff      .connect(self.Off      )
@@ -158,24 +142,36 @@ class tCollector(tActiveObject):
   # Start 
   # 
   # Call this after construction to start the collector's active objects running.
+  # This includes opening the serial port.
   #     
   
   #@with_lock
   def Start(self):
-    if self.SerialPort.IsOpen():
-      self.InitializeConnection()
-      self.bInit = True
-    else:
-      print('tCollector: Could not open collector',self.CollectorName,'on port', self.PortName, flush=True)
 
+    # Mutex for controlling access to the device
+    self._lock = QRecursiveMutex()
+
+    # We set rtscts and dsrdtr even though this is a virtual COM Port.  This provides a way for 
+    # the virtual port driver to inform when it isn't yet initialized or otherwise ready for
+    # data, which can happen.
+    self.SerialPort  = tAutoOpenSerialWholeLine(self.PortName, baudrate=self.baud, readBufSize=COLLECTOR_RX_BUFFER_SIZE,
+                                                AutoReopenTimeoutSecs=COLLECTOR_RETRY_TIMEOUT_SECS, parent=self)
     # Monitor the port for open/close state changes
     self.SerialPort.PortOpenStateChange.connect(self.OnlineStatusUpdate)
 
+    # And for text strings
+    self.SerialPort.readyLine          .connect(self.ProcessLineOfOutput)
+    self.SerialPort.errorOccurred      .connect(self.HandleSerialPortError)
+
+    self.SerialPort.bPrintDiag = False # (self.CollectorName == "4B")
+   
+    # Manually call OnlineStatusUpdate the first time, to intiialize the port and inform CollectorPane, if it is open
+    self.OnlineStatusUpdate(self.SerialPort.IsOpen())
+    if not self.bInit:
+      print('tCollector: Could not open collector',self.CollectorName,'on port', self.PortName, flush=True)
+
     # Start our event loop going, also with a timer that will try to reconnect if not connected
     self.StartThread(COLLECTOR_RETRY_TIMEOUT_SECS * 1000, self.CollectorName)
-    # Start our event loop going.  We do NOT need a reconnect timer because this is handled by the AutoOpenSerial class if a timeout is specified
-    # self.StartThread()
-
 
 
   ###############################################
@@ -217,7 +213,7 @@ class tCollector(tActiveObject):
   #
 
   def OnlineStatusUpdate(self, bState):
-    bOldState = self.bInit
+    bOldState  = self.bInit
     self.bInit = self.SerialPort.IsOpen()
 
     # If the connection is offline, mark the status as unknown
@@ -227,6 +223,9 @@ class tCollector(tActiveObject):
     # If the connection has just come online, initialize it
     if self.bInit and not bOldState:
       self.InitializeConnection()
+
+    # Inform the CollectorPane
+    self.PortOpenStateChange.emit(self.bInit)
 
 
   ###############################################
@@ -238,7 +237,7 @@ class tCollector(tActiveObject):
   #@with_lock
   def PeriodicMethod(self):
     if self.SerialPort.bPrintDiag: 
-      print('Periodic task')
+      print(f"Periodic task Current thread: {QThread.currentThread()}", f"Collector thread: {self.thread()}")
     #print('Collector reopen attempt',flush=True)
     self.SerialPort.AttemptOpenIfNeeded()  # Will be a no-op if the port is open
     if not self.SerialPort.IsOpen():

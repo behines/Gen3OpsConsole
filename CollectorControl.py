@@ -72,14 +72,14 @@ class tCollectorPane(QWidget):
 
     # Create the Collector object that interfaces to the hardware
     self.Collector = tCollector(collectorName, portName, baud)
-    self.Collector.SerialPort.PortOpenStateChange.connect(self.ConnectionEvent)
+    self.Collector.PortOpenStateChange.connect(self.ConnectionEvent)
 
     self.Collector.ReleaseStringReceived.connect(self.UpdateReleaseString)
     self.Collector.TextLineReceived.connect(self.AddToLog)   # a non-telemetry line, should just be sent to the console
     self.Collector.TelemetryUpdate.connect(self.UpdateTelemetry)
 
     # Set the initial state of the display to match whether the port is open
-    self.ConnectionEvent(self.Collector.SerialPort.IsOpen())
+    self.ConnectionEvent(False)
 
     # The threshold fields are things the user can enter.  We will update if we have new values,
     # but not every time.  This allow the user to type new values.
