@@ -225,11 +225,11 @@ class tAutoOpenSerialWholeLine(tAutoOpenSerial):
   # 
 
   def _AssembleLine(self):
-    while True:
+    while self.bytesAvailable() > 0:
       data = self.read()  # Read available bytes as a QByteArray
 
       if self.error() != QSerialPort.NoError:
-        print(f"Serial port error on port {self.portName}: {error}, closing")
+        print(f"Serial port error on port {self.portName}: {self.error()}, closing")
         self.close()
         return
 
