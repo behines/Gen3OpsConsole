@@ -119,7 +119,7 @@ ELECTRONICS_TEMP_SENSOR_PORT = 'COM100'   # Temp of electronics box
 # Collector COM ports and serial port config info
 #
 
-COLLECTOR_BAUD_RATE      = 38400
+COLLECTOR_BAUD_RATE      =  9600
 COLLECTOR_RX_BUFFER_SIZE =  2000
 COLLECTOR_TX_BUFFER_SIZE =  2000
 
