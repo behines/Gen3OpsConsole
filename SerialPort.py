@@ -96,7 +96,6 @@ class tAutoOpenSerial(QSerialPort):
       # ReadWrite is actually a member of QIODevice base class, but this works
       if self.open(QSerialPort.ReadWrite) and self.error() == QSerialPort.NoError:
         self.bIsOpen = True
-        self.setReadTimeout(1000)  # Set to 1 second
         self.PortOpenStateChange.emit(self.bIsOpen)
       else:
         self.close()
