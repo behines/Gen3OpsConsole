@@ -96,6 +96,7 @@ class tAutoOpenSerial(QSerialPort):
       # ReadWrite is actually a member of QIODevice base class, but this works
       if self.open(QSerialPort.ReadWrite) and self.error() == QSerialPort.NoError:
         self.bIsOpen = True
+        self.setReadTimeout(1000)  # Set to 1 second
         self.PortOpenStateChange.emit(self.bIsOpen)
       else:
         self.close()
@@ -230,15 +231,22 @@ class tAutoOpenSerialWholeLine(tAutoOpenSerial):
   # 
 
   def _AssembleLine(self):
+    if self.bytesAvailable() == 0:
+      # This can happen routinely since we're using QueuedConnection - our while loop can pick up bytes before the
+      # second signal arrives.
+      #print(f"No data available on port {self.portName()}")
+      return
+    
     while self.bytesAvailable() > 0:
       data = self.read()  # Read available bytes as a QByteArray
 
       if self.error() != QSerialPort.NoError:
-        print(f"Serial port error on port {self.portName}: {self.error()}, closing")
+        print(f"Serial port error on port {self.portName()}: {self.error()}, closing")
         self.close()
         return
 
       if data.isEmpty():
+        print(f"Empty data read on port {self.portName()}")
         break  # No more data available to read
 
       # Convert QByteArray to string and append to the buffer
