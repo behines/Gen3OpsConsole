@@ -297,11 +297,18 @@ class tCollectorPane(QWidget):
       # Wide-angle readings
       if "W" in telemetry:
         # Update wide-angle readings
-        # UL, UR, LL, LR
-        self.ui.WideUL.setText(f'{telemetry["W"][0]:5d}')
-        self.ui.WideUR.setText(f'{telemetry["W"][1]:5d}')
-        self.ui.WideLL.setText(f'{telemetry["W"][2]:5d}')
-        self.ui.WideLR.setText(f'{telemetry["W"][3]:5d}')
+        if QUAD_CELL_HANDEDNESS > 0:
+          # UL, UR, LL, LR
+          self.ui.WideUL.setText(f'{telemetry["W"][0]:5d}')
+          self.ui.WideUR.setText(f'{telemetry["W"][1]:5d}')
+          self.ui.WideLL.setText(f'{telemetry["W"][2]:5d}')
+          self.ui.WideLR.setText(f'{telemetry["W"][3]:5d}')
+        else:
+          # UL, UR, LL, LR
+          self.ui.WideUR.setText(f'{telemetry["W"][0]:5d}')
+          self.ui.WideUL.setText(f'{telemetry["W"][1]:5d}')
+          self.ui.WideLR.setText(f'{telemetry["W"][2]:5d}')
+          self.ui.WideLL.setText(f'{telemetry["W"][3]:5d}')
 
 
       # Tuple of thresholds - wide illum, narrow sky BG %, narrow illum %
