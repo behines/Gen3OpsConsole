@@ -216,6 +216,8 @@ SITE_LONGITUDE = -118.168791
 SITE_ELEVATION =  331   # meters
 SITE_TIMEZONE  = 'America/Los_Angeles'
 
+# Must match value on realtime side for proper display
+QUAD_CELL_HANDEDNESS = -1
 
 ###########
 # NIP Sequencer
