@@ -240,6 +240,8 @@ class tAutoOpenSerialWholeLine(tAutoOpenSerial):
 
       # Print the raw data in hex format
       #print(f"Raw data: {data.toHex().data().decode('ascii')}")
+      if self.bPrintDiag:
+        print(str(data.data(), "utf-8", errors="ignore"), end="")
 
       #try:
       # Convert QByteArray to string and append to the buffer. 

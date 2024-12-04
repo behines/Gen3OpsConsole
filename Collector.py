@@ -110,6 +110,9 @@ class tCollector(tActiveObject):
     # Monitor the port for open/close state changes
     self.SerialPort.PortOpenStateChange.connect(self.OnlineStatusUpdate)
 
+    self.SerialPort.bPrintDiag = (self.CollectorName == "4B")
+      
+   
     # And for text strings
     self.SerialPort.readyLine.connect(self.ProcessLineOfOutput)
 
@@ -281,7 +284,9 @@ class tCollector(tActiveObject):
 
     # Remove "TEL:" and parse the telemetry line
     try:
-      #self.TextLineReceived.emit(Line)
+      #if self.CollectorName == "4B": 
+        #self.TextLineReceived.emit(Line)
+      #  print(Line)
       Line = Line[4:]  # Remove "TEL:"
       fields = Line.strip().split(":")  # Split into segments FieldTagged by single-character field names
 
