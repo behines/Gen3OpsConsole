@@ -195,9 +195,9 @@ class tCollector(tActiveObject):
   #@with_lock
   def InitializeConnection(self):
     if not self.SerialPort.IsOpen():
-      print('tCollector: ERROR: Collector', self.CollectorName, 'offline in InitializeConnection', flush=True)
+      print(f'tCollector: ERROR: Collector {self.CollectorName} offline in InitializeConnection', flush=True)
     else:
-      print('tCollector: INFO: Collector', self.CollectorName, 'back online')
+      print(f'tCollector: INFO: Collector {self.CollectorName} back online', flush=True)
       self.CollectorState = CollectorNativeStates.UNKNOWN
       self.FlushCommandInput()
       self.SetTimeToNow()
