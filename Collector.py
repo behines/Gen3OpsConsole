@@ -12,7 +12,8 @@
 #
 
 # module used to talk over serial with the esp32
-from PySide6.QtCore    import QFile, Qt, QRecursiveMutex, Signal, QDateTime, QTimeZone, QTime
+from PySide6.QtCore       import QRecursiveMutex, Signal, QDateTime, QTimeZone
+from PySide6.QtSerialPort import QSerialPort
 
 from SerialPort        import tAutoOpenSerialWholeLine
 from Utilities         import tActiveObject, with_lock

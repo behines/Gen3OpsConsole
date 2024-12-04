@@ -52,6 +52,11 @@ class tAutoOpenSerial(QSerialPort):
     if readBufSize != 0:
       self.setReadBufferSize(readBufSize)
 
+    self.setDataBits(QSerialPort.Data8)
+    self.setParity(QSerialPort.NoParity)
+    self.setStopBits(QSerialPort.OneStop)
+    self.setFlowControl(QSerialPort.NoFlowControl)
+
     # Setup timer for auto-reopen
     #self._ReopenTimer = QTimer()
     #self._ReopenTimer.timeout.connect(self.AttemptOpenIfNeeded)
