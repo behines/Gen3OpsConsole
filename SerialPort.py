@@ -229,6 +229,7 @@ class tAutoOpenSerialWholeLine(tAutoOpenSerial):
       data = self.read()  # Read available bytes as a QByteArray
 
       if self.error() != QSerialPort.NoError:
+        print(f"Serial port error on port {self.portName}: {error}, closing")
         self.close()
         return
 
