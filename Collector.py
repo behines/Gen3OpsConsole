@@ -90,6 +90,9 @@ class tCollector(tActiveObject):
   def __init__(self, collectorName, portName, baud, parent=None):
     super().__init__(parent)   # tActiveObject constructor
 
+    # Mutex for controlling access to the device
+    self._lock = QRecursiveMutex()
+
     self.CollectorName  = collectorName
     self.PortName       = portName
     self.baud           = baud
@@ -147,10 +150,19 @@ class tCollector(tActiveObject):
   
   #@with_lock
   def Start(self):
+    # Start our event loop going, also with a timer that will try to reconnect if not connected
+    self.StartThread(COLLECTOR_RETRY_TIMEOUT_SECS * 1000, self.CollectorName)
 
-    # Mutex for controlling access to the device
-    self._lock = QRecursiveMutex()
 
+  ###############################################
+  # InitMethod - Init code that must run within the new thread's context
+  # 
+  # Called as part of the ActiveObject base class startup.  Is called from the newly created thread, 
+  # allowing you to initialize objects that need to be created within the new thread.
+  #     
+  
+  #@with_lock
+  def InitMethod(self):
     # We set rtscts and dsrdtr even though this is a virtual COM Port.  This provides a way for 
     # the virtual port driver to inform when it isn't yet initialized or otherwise ready for
     # data, which can happen.
@@ -169,9 +181,6 @@ class tCollector(tActiveObject):
     self.OnlineStatusUpdate(self.SerialPort.IsOpen())
     if not self.bInit:
       print('tCollector: Could not open collector',self.CollectorName,'on port', self.PortName, flush=True)
-
-    # Start our event loop going, also with a timer that will try to reconnect if not connected
-    self.StartThread(COLLECTOR_RETRY_TIMEOUT_SECS * 1000, self.CollectorName)
 
 
   ###############################################

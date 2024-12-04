@@ -179,6 +179,7 @@ class tActiveThread(QThread):
   def __del__(self):
     pass
 
+
   ###############################################
   # run - Starts the active object's event loop
   #  
@@ -189,6 +190,8 @@ class tActiveThread(QThread):
     debugpy.debug_this_thread()
     
     #print('ActiveObject thread started')
+
+    self.ActiveObject.InitMethod()
 
     # Set up timer if requested
     if self.ActiveObject.TimerPeriodInMs != 0:
@@ -327,6 +330,19 @@ class tActiveObject(QObject):
     #print('ActiveObject exited')
     pass
 
+
+
+  ###############################################
+  # InitMethod - Called when the thread first starts.  It is intended that you
+  #              override this with your own method
+  #
+  # This provides a place where you can perform initialization code that needs to run within
+  # the context of the new thread
+  # 
+
+  def InitMethod(self):
+    pass
+  
 
   ###############################################
   # PeriodicMethod - Called whenever the timer fires.  It is intended that you
