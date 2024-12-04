@@ -260,17 +260,21 @@ class tCollector(tActiveObject):
     #  else:
     #    print('Periodic task')
 
-    # If the port appears open but we aren't getting telemetry, re-open
-    if self.SerialPort.IsOpen() and self.MissingTelemetryCount > COLLECTOR_MISSING_TELEM_REOPEN_THRESHOLD:
+    # If the port appears open but has become unresponsive for too long, re-open
+    if self.SerialPort.IsOpen() and self.MissingTelemetryCount >= COLLECTOR_MISSING_TELEM_REOPEN_THRESHOLD:
       print(f'Forcing reopen attempt for collector {self.CollectorName}',flush=True)
       self.SerialPort.Reopen()
+      self.MissingTelemetryCount = 0  # Just so we don't introduce a reopen loop
+    # If it's been unresponsive at all, try to goose the receiver thread with a signal
+    elif self.SerialPort.IsOpen() and self.MissingTelemetryCount > 0:
+      self.SerialPort.ReaderWakeUp.emit()
     else:
       self.SerialPort.AttemptOpenIfNeeded()  # Will be a no-op if the port is open
     if not self.SerialPort.IsOpen():
       #print('tCollector: Collector ' + self.CollectorName + ' on port ' + self.PortName + ' offline', flush=True)
       pass
 
-    # Clear the flag that says 
+    # Increment the missing telemetry counter.  ProcessOutputLine will re-zero it 
     self.MissingTelemetryCount = self.MissingTelemetryCount + 1
   
   

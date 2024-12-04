@@ -32,6 +32,7 @@ from PySide6.QtCore import Signal, QTimer, QByteArray, QThread, Qt
 
 class tAutoOpenSerial(QSerialPort):
   PortOpenStateChange = Signal(bool)  # Emitted when the port is successfully opened or closed
+  ReaderWakeUp        = Signal()
 
 
   #######################################################
@@ -40,12 +41,10 @@ class tAutoOpenSerial(QSerialPort):
   # AutoReopenTimeoutSecs - will try to re-open a closed port periodically if non-zero
   # 
 
-  def __init__(self, portName, baudrate=9600, readBufSize=0, AutoReopenTimeoutSecs=0, parent=None):
+  def __init__(self, portName, baudrate=9600, readBufSize=0, parent=None):
     super().__init__(parent)
 
     self.bIsOpen = False
-    self._buffer = ""
-    self._AutoReopenTimeoutSecs = AutoReopenTimeoutSecs
 
     self.setPortName(portName)
     self.setBaudRate(baudrate)
@@ -95,8 +94,8 @@ class tAutoOpenSerial(QSerialPort):
     if not self.bIsOpen:
       # ReadWrite is actually a member of QIODevice base class, but this works
       if self.open(QSerialPort.ReadWrite) and self.error() == QSerialPort.NoError:
-        self.bIsOpen = True
-        self.setReadTimeout(1000)  # Set to 1 second
+        self.bIsOpen   = True
+        self.bWakingUp = False
         self.PortOpenStateChange.emit(self.bIsOpen)
       else:
         self.close()
@@ -221,8 +220,20 @@ class tAutoOpenSerialWholeLine(tAutoOpenSerial):
     self._lineBuffer = ""  # Buffer for assembling lines
 
     # Connect the readyRead signal to the line assembly method
-    self.readyRead.connect(self._AssembleLine, Qt.QueuedConnection)
+    self.readyRead   .connect(self._AssembleLine, Qt.QueuedConnection)
+    self.ReaderWakeUp.connect(self.WakeUp)
 
+
+  #######################################################
+  # WakeUp - called whenever characters arrive on the port
+  #
+  # Emits the readyLine signal whenever a full line has arrived on the port
+  # 
+
+  def WakeUp(self):
+    self.bWakingUp = True
+    self._AssembleLine()
+    
 
   #######################################################
   # _AssembleLine - called whenever characters arrive on the port
@@ -235,9 +246,13 @@ class tAutoOpenSerialWholeLine(tAutoOpenSerial):
       # This can happen routinely since we're using QueuedConnection - our while loop can pick up bytes before the
       # second signal arrives.
       #print(f"No data available on port {self.portName()}")
+      self.bWakingUp = False
       return
     
     while self.bytesAvailable() > 0:
+      if self.bWakingUp:
+        print('Waking up worked')
+      self.bWakingUp = False
       data = self.read()  # Read available bytes as a QByteArray
 
       if self.error() != QSerialPort.NoError:
