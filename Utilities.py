@@ -10,7 +10,7 @@
 # Modules used
 #
 
-from PySide6.QtCore import QObject, QThread, Signal, QDateTime, QTimeZone, QTimer, QEventLoop, QMutexLocker
+from PySide6.QtCore import QObject, QThread, Signal, QDateTime, QTimeZone, QTimer, QEventLoop, QMutexLocker, Qt
 import debugpy
 import threading
 
@@ -152,6 +152,13 @@ def SignalEmitter(TheSignal, *args, **kwargs):
       TheSignal.emit(*args, **kwargs)
   return emitter
 
+############
+# Diagnostic monitot that can be installed on an event loop using QThread.currentThread().eventDispatcher().installEventFilter(AnEventMonitor)
+class EventMonitor(QObject):
+  def eventFilter(self, obj, event):
+    print(f"Event: {event.type()} processed for {obj}")
+    return super().eventFilter(obj, event)  # Pass the event on
+
 
 
 ##########################################################################################
@@ -197,7 +204,7 @@ class tActiveThread(QThread):
     if self.ActiveObject.TimerPeriodInMs != 0:
       self.ActiveObject.Timer = QTimer(self)
       self.ActiveObject.Timer.setSingleShot(True)
-      self.ActiveObject.Timer.timeout.connect(self.ActiveObject.OnTimerTimeout)
+      self.ActiveObject.Timer.timeout.connect(self.ActiveObject.OnTimerTimeout, Qt.QueuedConnection)
 
       # Get the current time in the specified timezone
       current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
@@ -209,6 +216,15 @@ class tActiveThread(QThread):
       #print(f"Timer creation thread: {QThread.currentThread()}")
 
       self.ActiveObject.Timer.start(milliseconds_until_next_interval)
+
+    #else:
+      # Example usage in your thread
+    #  self.monitor = EventMonitor()
+      # Assuming 'thread' is the QThread where your QSerialPort is running
+    #  self.event_loop = QThread.currentThread().eventDispatcher()
+    #  if self.event_loop:
+    #    self.event_loop.installEventFilter(self.monitor)
+     #   print('Event filter installed')
 
     # Start the thread's event loop by calling the base class run().  The default
     # implementation simply calls exec()

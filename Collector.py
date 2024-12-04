@@ -151,6 +151,9 @@ class tCollector(tActiveObject):
   #@with_lock
   def Start(self):
     # Start our event loop going, also with a timer that will try to reconnect if not connected
+    #if self.CollectorName == "4B":
+    #  self.StartThread(0, self.CollectorName)
+    #else:
     self.StartThread(COLLECTOR_RETRY_TIMEOUT_SECS * 1000, self.CollectorName)
 
 
@@ -246,7 +249,14 @@ class tCollector(tActiveObject):
   #@with_lock
   def PeriodicMethod(self):
     if self.SerialPort.bPrintDiag: 
-      print(f"Periodic task Current thread: {QThread.currentThread()}", f"Collector thread: {self.thread()}")
+      #print(f"Periodic task Current thread: {QThread.currentThread()}", f"Collector thread: {self.thread()}")
+      nBytesAvailable = self.SerialPort.bytesAvailable()
+      if nBytesAvailable > 0:
+        print(f'Periodic taks ***FOUND {nBytesAvailable} bytes***')
+        self.SerialPort.readyRead.emit()
+      else:
+        print('Periodic task')
+
     #print('Collector reopen attempt',flush=True)
     self.SerialPort.AttemptOpenIfNeeded()  # Will be a no-op if the port is open
     if not self.SerialPort.IsOpen():

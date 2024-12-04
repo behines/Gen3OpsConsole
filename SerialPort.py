@@ -19,7 +19,7 @@
 #
 
 from PySide6.QtSerialPort import QSerialPort
-from PySide6.QtCore import Signal, QTimer, QByteArray, QThread
+from PySide6.QtCore import Signal, QTimer, QByteArray, QThread, Qt
 
 
 
@@ -220,7 +220,7 @@ class tAutoOpenSerialWholeLine(tAutoOpenSerial):
     self._lineBuffer = ""  # Buffer for assembling lines
 
     # Connect the readyRead signal to the line assembly method
-    self.readyRead.connect(self._AssembleLine)
+    self.readyRead.connect(self._AssembleLine, Qt.QueuedConnection)
 
 
   #######################################################
@@ -261,7 +261,8 @@ class tAutoOpenSerialWholeLine(tAutoOpenSerial):
       # Check for complete lines.  This handles the case where there is more than a full line in the buffer
       while "\n" in self._lineBuffer:
         line, self._lineBuffer = self._lineBuffer.split("\n", 1)
-        if self.bPrintDiag:
-          print(f"Current thread: {QThread.currentThread()}", f"Serial port thread: {self.thread()}")
-          print(str(data.data(), "utf-8", errors="ignore"), end="")
         self.readyLine.emit(line + "\n")  # Emit the line including the newline
+        #if self.bPrintDiag:
+          #print(f"Current thread: {QThread.currentThread()}", f"Serial port thread: {self.thread()}")
+          #print('Emitted: ',line)
+
