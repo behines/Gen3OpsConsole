@@ -204,7 +204,8 @@ class tCollector(tActiveObject):
       self.FlushCommandInput()
       self.SetTimeToNow()
       self.SetTelemetryOnOff(True)
-
+    QThread.msleep(10)   # Give the output time to flush
+    
 
   ###############################################
   # Reconnect - Closes and reopens/reinits a port
@@ -261,7 +262,7 @@ class tCollector(tActiveObject):
 
     # If the port appears open but we aren't getting telemetry, re-open
     if self.SerialPort.IsOpen() and self.MissingTelemetryCount > COLLECTOR_MISSING_TELEM_REOPEN_THRESHOLD:
-      print(f'Forcing reopen attempt for collector {self.collectorName}',flush=True)
+      print(f'Forcing reopen attempt for collector {self.CollectorName}',flush=True)
       self.SerialPort.Reopen()
     else:
       self.SerialPort.AttemptOpenIfNeeded()  # Will be a no-op if the port is open
