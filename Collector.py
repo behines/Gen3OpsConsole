@@ -170,7 +170,7 @@ class tCollector(tActiveObject):
     # the virtual port driver to inform when it isn't yet initialized or otherwise ready for
     # data, which can happen.
     self.SerialPort  = tAutoOpenSerialWholeLine(self.PortName, baudrate=self.baud, readBufSize=COLLECTOR_RX_BUFFER_SIZE,
-                                                AutoReopenTimeoutSecs=COLLECTOR_RETRY_TIMEOUT_SECS, parent=self)
+                                                parent=self)
     # Monitor the port for open/close state changes
     self.SerialPort.PortOpenStateChange.connect(self.OnlineStatusUpdate)
 
@@ -205,7 +205,7 @@ class tCollector(tActiveObject):
       self.SetTimeToNow()
       self.SetTelemetryOnOff(True)
     QThread.msleep(10)   # Give the output time to flush
-    
+
 
   ###############################################
   # Reconnect - Closes and reopens/reinits a port
@@ -262,11 +262,12 @@ class tCollector(tActiveObject):
 
     # If the port appears open but has become unresponsive for too long, re-open
     if self.SerialPort.IsOpen() and self.MissingTelemetryCount >= COLLECTOR_MISSING_TELEM_REOPEN_THRESHOLD:
-      print(f'Forcing reopen attempt for collector {self.CollectorName}',flush=True)
+      #print(f'Forcing reopen attempt for collector {self.CollectorName}',flush=True)
       self.SerialPort.Reopen()
       self.MissingTelemetryCount = 0  # Just so we don't introduce a reopen loop
     # If it's been unresponsive at all, try to goose the receiver thread with a signal
     elif self.SerialPort.IsOpen() and self.MissingTelemetryCount > 0:
+      #print(f'Attempting wakeup for collector {self.CollectorName}',flush=True)
       self.SerialPort.ReaderWakeUp.emit()
     else:
       self.SerialPort.AttemptOpenIfNeeded()  # Will be a no-op if the port is open
