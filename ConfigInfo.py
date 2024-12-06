@@ -48,12 +48,14 @@ AGILENTS = [  [ 'ASRL5::INSTR',              # Port
               ]
            ]
 
+# CHANNEL NUMBERS UPDATED FOR NEW RELAY PANEL 12/6/2024
+
 AGILENT_WITH_POWER_RELAYS = 2     # The third Agilent (counting starts at zero)
 NIP_POWER_CHANNELS        = '202:203'
 NIP_ON_OFF_BUTTON_CHANNEL = '201'
 PYRANOMETER_POWER_CHANNEL = '204'
-MOTOR_POWER_CHANNELS      = '210,218:219'    # WAS '218:220' BUT 220 WENT BAD.  MOVED TO 210
-USB_HUB_POWER_CHANNEL     = '216'
+MOTOR_POWER_CHANNELS      = '218:220'    
+USB_HUB_POWER_CHANNEL     = '217'
 
 
 ##########
@@ -62,16 +64,16 @@ USB_HUB_POWER_CHANNEL     = '216'
 
 ShutterMapping = namedtuple('ShutterInfo', ['Name', 'Channel'])
 SHUTTERS = [
-  ShutterMapping('1A', '206'),
-  ShutterMapping('1B', '207'),
-  ShutterMapping('2A', '208'),
-  ShutterMapping('2B', '209'),
-  ShutterMapping('3A', '220'),   # SWAPPED TO BAD CHANNEL WHERE 12V MOTOR POWER #3 WAS
-  ShutterMapping('3B', '211'),
-  ShutterMapping('4A', '212'),
-  ShutterMapping('4B', '213'),
-  ShutterMapping('5A', '214'),
-  ShutterMapping('5B', '215'),
+  ShutterMapping('1A', '205'),
+  ShutterMapping('1B', '206'),
+  ShutterMapping('2A', '207'),
+  ShutterMapping('2B', '208'),
+  ShutterMapping('3A', '209'),   
+  ShutterMapping('3B', '210'),
+  ShutterMapping('4A', '211'),
+  ShutterMapping('4B', '212'),
+  ShutterMapping('5A', '213'),
+  ShutterMapping('5B', '214'),
 ]
 
 # The channel number here is 1000*mainframe number + channel number.  So 1303 is channel 303 from 
