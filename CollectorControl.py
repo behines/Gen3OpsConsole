@@ -299,16 +299,16 @@ class tCollectorPane(QWidget):
         # Update wide-angle readings
         if QUAD_CELL_HANDEDNESS > 0:
           # UL, UR, LL, LR
-          self.ui.WideUL.setText(f'{telemetry["W"][0]:5d}')
-          self.ui.WideUR.setText(f'{telemetry["W"][1]:5d}')
-          self.ui.WideLL.setText(f'{telemetry["W"][2]:5d}')
-          self.ui.WideLR.setText(f'{telemetry["W"][3]:5d}')
+          self.ui.WideUL.setText(f'{telemetry["W"][0]:5d}' if telemetry["W"][0] >= 0 else ' ****')
+          self.ui.WideUR.setText(f'{telemetry["W"][1]:5d}' if telemetry["W"][1] >= 0 else ' ****')
+          self.ui.WideLL.setText(f'{telemetry["W"][2]:5d}' if telemetry["W"][2] >= 0 else ' ****')
+          self.ui.WideLR.setText(f'{telemetry["W"][3]:5d}' if telemetry["W"][3] >= 0 else ' ****')
         else:
           # UL, UR, LL, LR
-          self.ui.WideUR.setText(f'{telemetry["W"][0]:5d}')
-          self.ui.WideUL.setText(f'{telemetry["W"][1]:5d}')
-          self.ui.WideLR.setText(f'{telemetry["W"][2]:5d}')
-          self.ui.WideLL.setText(f'{telemetry["W"][3]:5d}')
+          self.ui.WideUR.setText(f'{telemetry["W"][0]:5d}' if telemetry["W"][0] >= 0 else ' ****')
+          self.ui.WideUL.setText(f'{telemetry["W"][1]:5d}' if telemetry["W"][1] >= 0 else ' ****')
+          self.ui.WideLR.setText(f'{telemetry["W"][2]:5d}' if telemetry["W"][2] >= 0 else ' ****')
+          self.ui.WideLL.setText(f'{telemetry["W"][3]:5d}' if telemetry["W"][3] >= 0 else ' ****')
 
 
       # Tuple of thresholds - wide illum, narrow sky BG %, narrow illum %
