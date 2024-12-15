@@ -155,6 +155,7 @@ class CollectorNativeStates(IntEnum):
   HOME_UNSTICK           = auto()
   HOME_AZIMUTH_NEG_RETRY = auto()
   HOME_AZIMUTH_ERROR     = auto()
+  HOME_COMPLETE          = auto()
   ACQ_BEGIN              = auto()
   ACQ_ELEVATION_WAIT     = auto()
   ACQ_AZ                 = auto()
@@ -163,6 +164,8 @@ class CollectorNativeStates(IntEnum):
   WAITING_FOR_SUN        = auto()
   TRACK                  = auto()
   CLOUD_PAUSE            = auto()
+  STOW_AZ_HOME           = auto()
+  STOW_EL_HOME           = auto()
   STOWING                = auto()
   STOWED                 = auto()
   STOW_ERROR             = auto()
@@ -192,7 +195,8 @@ CollectorNativeStateToMarqueeState = {
   CollectorNativeStates.HOME_UNSTICK           : CollectorMarqueeStates.HOMING,
   CollectorNativeStates.HOME_AZIMUTH_NEG_RETRY : CollectorMarqueeStates.HOMING,
   CollectorNativeStates.HOME_AZIMUTH_ERROR     : CollectorMarqueeStates.ERROR,
-  CollectorNativeStates.ACQ_BEGIN              : CollectorMarqueeStates.ACQUIRE,
+  CollectorNativeStates.HOME_AZIMUTH_NEG_RETRY : CollectorMarqueeStates.HOMING,
+  CollectorNativeStates.HOME_COMPLETE          : CollectorMarqueeStates.HOMING,
   CollectorNativeStates.ACQ_ELEVATION_WAIT     : CollectorMarqueeStates.ACQUIRE,
   CollectorNativeStates.ACQ_AZ                 : CollectorMarqueeStates.ACQUIRE,
   CollectorNativeStates.ACQ_ERROR              : CollectorMarqueeStates.ERROR,
@@ -201,6 +205,8 @@ CollectorNativeStateToMarqueeState = {
   CollectorNativeStates.TRACK                  : CollectorMarqueeStates.TRACK,
   CollectorNativeStates.CLOUD_PAUSE            : CollectorMarqueeStates.CLOUD_PAUSE,
   CollectorNativeStates.STOWING                : CollectorMarqueeStates.STOWING,
+  CollectorNativeStates.STOW_AZ_HOME           : CollectorMarqueeStates.STOWING,
+  CollectorNativeStates.STOW_EL_HOME           : CollectorMarqueeStates.STOWING,
   CollectorNativeStates.STOWED                 : CollectorMarqueeStates.STOWED,
   CollectorNativeStates.STOW_ERROR             : CollectorMarqueeStates.ERROR,
   CollectorNativeStates.ERROR                  : CollectorMarqueeStates.ERROR,
