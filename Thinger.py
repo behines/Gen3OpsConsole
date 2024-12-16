@@ -30,10 +30,11 @@ class tThinger():
   #     
 
   def __init__(self):
-    self.ThingerURL = "https://api.thinger.io/v1/users/" + THINGER_IO_USERNAME + "/buckets/" + THINGER_IO_BUCKET_ID + "/data"
+    self.ThingerURL = "https://backend.thinger.io/v3/users/" + THINGER_IO_USERNAME + "/devices/Windsor/callback/data"
     self.headers = {
-      "Authorization": THINGER_IO_AUTH_TOKEN,
-      "Content-Type": "application/json"
+      "Content-Type": "application/json;charset=UTF-8",
+      "Authorization": THINGER_IO_BEARER_TOKEN,
+      "Accept": "application/json, text/plain, */*"
     }
 
 
@@ -65,4 +66,3 @@ class tThinger():
         print(f"Failed to send data. Status code: {response.status_code}, Response: {response.text}")
     except requests.exceptions.RequestException as e:
       print(f"Exception occurred while sending data to Thinger.io: {e}")
-      
