@@ -13,10 +13,11 @@
 #   tzlocal (installed along with pytz, I believe)
 #   pyserial
 #   debugpy
+#   pything
 #
 # Thus, do
 #   python -m pip install --upgrade pip
-#   python -m pip install pyside6 pyvisa pyvisa-py zeroconf psutil transitions astral pytz tzlocal pyserial debugpy
+#   python -m pip install pyside6 pyvisa pyvisa-py zeroconf psutil transitions astral pytz tzlocal pyserial debugpy pything
 #
 # PRO TIP!!  IMPORTANT
 #   Be sure to install 'pyserial' not 'serial'.  'serial' is for serializing JSON objects, 'pyserial' is

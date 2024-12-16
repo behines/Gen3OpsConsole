@@ -250,3 +250,10 @@ NIP_GHI_SUN_IS_OUT_THRESHOLD =   0.45
 NIP_GHI_SUN_IS_OUT_MIN       =  30
 NIP_DNI_THRESHOLD            =  35    # in W/m^2
 NIP_COVER_GLASS_SCALE_FACTOR = 1.19   # Why it's not 1.08 I don't understand
+
+
+# Replace with your Thinger.io credentials
+THINGER_IO_USERNAME    = "behines"
+THINGER_IO_DEVICE_ID   = "Windsor"
+THINGER_IO_DEVICE_CRED = "LV1xG3FoJ2vKluI@"
+THINGER_IO_BUCKET_ID   = "Windsor_Data"

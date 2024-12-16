@@ -15,6 +15,7 @@ from Agilent       import tAgilent
 from TempHumSensor import tTempHumSensor
 from Marquee       import tMarquee
 from LogFile       import tLogFile
+from Thinger       import tThinger
 
 
 ##########################################################################################
@@ -87,6 +88,9 @@ class tPeriodicLogger(tActiveObject):
     self.DomeTempSensor       .setParent(self)
     self.OutsideTempSensor    .setParent(self)
     self.ElectronicsTempSensor.setParent(self)
+
+    # Create the Thinger.io object for logging to the cloud
+    self.Thinger = tThinger()
 
     # StartThread moves ourself, and all our children, to the thread
     self.StartThread(LOG_INTERVAL_SECONDS * 1000, "Logger")
@@ -212,8 +216,11 @@ class tPeriodicLogger(tActiveObject):
       marquee.SendTemps(*DomeReadings, *OutsideReadings, BoxTemp)
       marquee.SendSun(GHI, DNI)
 
-    print(self.ScheduledTime.toString('yyyy-MM-dd HH:mm:ss'),': Temps: Box=', BoxTemp, 'Dome=', DomeTemp, ' Elec=', ElecTemp,' Stan=',StanTemp,' DNI=', DNI, ' GHI=', GHI, flush=True)
+    print(self.ScheduledTime.toString('yyyy-MM-dd HH:mm:ss'),': Temps: Box=', BoxTemp, 'Dome=', DomeTemp, ' Elec=', ElecTemp,' Stan=', StanTemp,' DNI=', DNI, ' GHI=', GHI, flush=True)
   
+    # Log to the cloud
+    self.Thinger.LogData(DNI, GHI, BoxTemp, SandTopTemp, SandMidTemp, SandBotTemp, DomeTemp,  ElecTemp, StanTemp)
+
     # Return 0 to request continuing scheduling
     return 0
   
