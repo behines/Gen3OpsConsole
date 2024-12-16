@@ -188,7 +188,8 @@ class MasterControl(QMainWindow):
     except TimeoutError:
       print('Motor power relay not responding')
     try:
-      self.UsbPowerCheckboxUpdate  (self.UsbHubPower.GetPowerState())
+      bUsbPowerState = self.UsbHubPower.GetPowerState()
+      self.UsbPowerCheckboxUpdate  (bUsbPowerState)
     except TimeoutError:
       print('USB power relay not responding')
 
@@ -215,6 +216,9 @@ class MasterControl(QMainWindow):
     # Now that everything is going, we can start the collector monitoring threads.  At this point, the 
     # Collectors are still in this thread that created them, but they will now move to their own threads
     for Collector in self.Collectors:
+      # Connect the collector to the USB Hub Power signal
+      # Also tell it the current USB hub power state
+      Collector.SetUsbPowerDevice(self.UsbHubPower, bUsbPowerState)
       Collector.Start()
 
     # Start the NIP sequencer
