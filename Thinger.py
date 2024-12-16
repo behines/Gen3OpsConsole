@@ -10,7 +10,8 @@
 # Modules used
 #
 
-from pything import ThingerClient
+import requests
+import json
 from ConfigInfo import *
 
 
@@ -29,8 +30,11 @@ class tThinger():
   #     
 
   def __init__(self):
-    # Initialize Thinger.io client
-    self.thing = ThingerClient(THINGER_IO_USERNAME, THINGER_IO_DEVICE_ID, THINGER_IO_DEVICE_CRED)
+    self.ThingerURL = "https://api.thinger.io/v1/users/" + THINGER_IO_USERNAME + "/buckets/" + THINGER_IO_BUCKET_ID + "/data"
+    self.headers = {
+      "Authorization": THINGER_IO_AUTH_TOKEN,
+      "Content-Type": "application/json"
+    }
 
 
   ###############################################
@@ -53,8 +57,12 @@ class tThinger():
     }
 
     try:
-      self.thing.write_bucket(THINGER_IO_BUCKET_ID, data)
-      print("Data sent to Thinger.io bucket:", data)
+      response = requests.post(self.ThingerURL, headers=self.headers, json=data)
 
-    except Exception as e:
-      print("Error sending data to Thinger.io bucket:", e)
+      if response.status_code == 200:
+        print("Data sent to Thinger.io bucket:", data)
+      else:
+        print(f"Failed to send data. Status code: {response.status_code}, Response: {response.text}")
+    except requests.exceptions.RequestException as e:
+      print(f"Exception occurred while sending data to Thinger.io: {e}")
+      
