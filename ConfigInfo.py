@@ -258,6 +258,7 @@ THINGER_IO_DEVICE_ID   = "Windsor"
 THINGER_IO_DEVICE_CRED = "LV1xG3FoJ2vKluI@"
 THINGER_IO_BUCKET_ID   = "Windsor_Data"
 # This is the "Stanley" token under the device at Thinger.io
-THINGER_IO_AUTH_TOKEN  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXYiOiJXaW5kc29yIiwiaWF0IjoxNzM0MzI5NzIxLCJqdGkiOiI2NzVmYzU3OTNkMTU0YWI3N2QwM2E4OTQiLCJzdnIiOiJ1cy13ZXN0LmF3cy50aGluZ2VyLmlvIiwidXNyIjoiYmVoaW5lcyJ9.6j-CjLW5naJOGX0re9pbZkwNVCN9HNkzGlrOQlD1Kaw"
+# THINGER_IO_AUTH_TOKEN  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXYiOiJXaW5kc29yIiwiaWF0IjoxNzM0MzI5NzIxLCJqdGkiOiI2NzVmYzU3OTNkMTU0YWI3N2QwM2E4OTQiLCJzdnIiOiJ1cy13ZXN0LmF3cy50aGluZ2VyLmlvIiwidXNyIjoiYmVoaW5lcyJ9.6j-CjLW5naJOGX0re9pbZkwNVCN9HNkzGlrOQlD1Kaw"
 
-
+# This is the "Windsor_Primary" token under our top-level tokens
+THINGER_IO_AUTH_TOKEN  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJXaW5kc29yX1ByaW1hcnkiLCJzdnIiOiJ1cy13ZXN0LmF3cy50aGluZ2VyLmlvIiwidXNyIjoiYmVoaW5lcyJ9.GW5wKmYfYjJgVvfFfDCZ4fi19_NdvfxA5VqnSDCI--Y"
