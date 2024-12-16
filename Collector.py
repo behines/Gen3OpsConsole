@@ -16,6 +16,7 @@ from PySide6.QtCore       import QRecursiveMutex, Signal, QDateTime, QTimeZone, 
 from PySide6.QtSerialPort import QSerialPort
 
 from SerialPort        import tAutoOpenSerialWholeLine
+from PowerControl      import tPowerControl
 from Utilities         import tActiveObject, with_lock
 from ConfigInfo        import *
 
@@ -98,6 +99,7 @@ class tCollector(tActiveObject):
     self.baud           = baud
     self.bInit          = False
     self.CollectorState = CollectorNativeStates.UNKNOWN
+    self.bUsbPowerState = False
 
     # These are cached values.  When they change (via a GUI event), we send a command to the collector
     self.WideAngleIllumPercent      = 0
@@ -140,6 +142,24 @@ class tCollector(tActiveObject):
     if error != QSerialPort.NoError:
       print(f"Serial port error: {error}")
       # Handle error (e.g., reconnect, notify user, etc.)
+
+
+  ###############################################
+  # SetUsbPowerDevice - informs the collector of the USB power device so that it can be aware of USB power events
+  #
+
+  def SetUsbPowerDevice(self, UsbHubPowerDevice: tPowerControl, bCurrentUsbPowerState):
+    self.bUsbPowerState = bCurrentUsbPowerState
+    UsbHubPowerDevice.PowerRelayStateUpdate.connect(self.UsbPowerStateUpdateEvent)
+
+
+  ###############################################
+  # UsbPowerStateUpdateEvent - Called whenever USB power goes on or off
+  #
+
+  def UsbPowerStateUpdateEvent(self, bNewPowerState):
+    self.bUsbPowerState = bNewPowerState
+
 
   ###############################################
   # Start 
@@ -260,6 +280,10 @@ class tCollector(tActiveObject):
     #  else:
     #    print('Periodic task')
 
+    # If USB power is not on, we the port won't even exist and we should not attempt to do anything
+    if not self.bUsbPowerState:
+      return
+    
     # If the port appears open but has become unresponsive for too long, re-open
     if self.SerialPort.IsOpen() and self.MissingTelemetryCount >= COLLECTOR_MISSING_TELEM_REOPEN_THRESHOLD:
       #print(f'Forcing reopen attempt for collector {self.CollectorName}',flush=True)
