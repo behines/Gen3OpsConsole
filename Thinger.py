@@ -61,7 +61,8 @@ class tThinger():
       response = requests.post(self.ThingerURL, headers=self.headers, json=data)
 
       if response.status_code == 200:
-        print("Data sent to Thinger.io bucket:", data)
+        # print("Data sent to Thinger.io bucket:", data)
+        pass
       else:
         print(f"Failed to send data. Status code: {response.status_code}, Response: {response.text}")
     except requests.exceptions.RequestException as e:
