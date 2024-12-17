@@ -133,7 +133,7 @@ class tAgilent(QObject):
     # Create the resource manager if it doesn't exist yet
     if tAgilent.PyVisaResourceManager is None:
       tAgilent.PyVisaResourceManager = pyvisa.ResourceManager()
-      print('Created pyvisa resource manager, found:')
+      print('Created pyvisa resource manager using', tAgilent.PyVisaResourceManager.visalib, 'found:')
       print(tAgilent.PyVisaResourceManager.list_resources())
 
       if (tAgilent.DO_AGILENT_DEBUG):
@@ -214,7 +214,7 @@ class tAgilent(QObject):
     self.device = None
 
     try:
-      self.device              = tAgilent.PyVisaResourceManager.open_resource(self.DeviceName) 
+      self.device              = tAgilent.PyVisaResourceManager.open_resource(self.DeviceName) # , access_mode=pyvisa.constants.AccessModes.no_lock) # No locking) 
       self.device.baud_rate    = tAgilent.BAUD_RATE
       self.device.data_bits    = tAgilent.DATA_BITS
       self.device.parity       = tAgilent.PARITY 
@@ -291,7 +291,7 @@ class tAgilent(QObject):
     self.device.write('ZERO:AUTO ON,(@' + self.FullScanChannelList + ')')
 
     # Configure all channels for a delay time between each of 0.1 sec
-    self.device.write('ROUT:CHAN:DELAY 0.1,(@' + self.FullScanChannelList + ')')
+    self.device.write('ROUT:CHAN:DELAY 0.05,(@' + self.FullScanChannelList + ')')
 
 
 
@@ -556,6 +556,7 @@ class tAgilent(QObject):
   def _GetRelayState(self, ChannelList, bUseThreadInterlocks=False):
     RelayStateList = []
 
+    print('In _GetRelayState')
     Command = 'ROUTE:CLOS? '
     scanlist = '(@' + ChannelList + ')'
     self.device.write(Command + scanlist)
@@ -567,7 +568,7 @@ class tAgilent(QObject):
       pass
 
 
-    # print('_GetRelayState: ', response)
+    print('_GetRelayState: ', response)
     # If no mutexes or whatnot, it's a simple function call
     if bUseThreadInterlocks:
       with QMutexLocker(self.GetRelayState_Mutex):
@@ -632,7 +633,7 @@ class tAgilent(QObject):
         # Emit signal to self.GetRelayState_Mutex thread
         self.DoGetRelayState.emit(RelayChannels, True)
         # Wait for the _GetRelayState worker to complete
-        if not self.GetRelayState_Condition.wait(self.GetRelayState_Mutex, 500):  # 0.5-second timeout
+        if not self.GetRelayState_Condition.wait(self.GetRelayState_Mutex, 8000):  # 5-second timeout
           raise TimeoutError("Timed out waiting for relay state")
         else:
           RelayStateList = self.GetRelayState_Result

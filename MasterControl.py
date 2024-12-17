@@ -4,7 +4,7 @@
 # Application requires that you "pip install":
 #   pyside6
 #   pyvisa
-#   pyvisa-py
+#   pyvisa-py (*) Not needed if NI-VISA is installed
 #   zeroconf (needed for visa device discovery)
 #   psutil   (needed for visa interface discovery)
 #   transitions
@@ -22,6 +22,10 @@
 # PRO TIP!!  IMPORTANT
 #   Be sure to install 'pyserial' not 'serial'.  'serial' is for serializing JSON objects, 'pyserial' is
 #   for doing serial port I/O.
+#
+# ALSO INSTALL:
+#   NI-VISA from National Instruments: https://www.ni.com/en/support/downloads/drivers/download.ni-visa.html?srsltid=AfmBOopFMv3hfOdLMdHyYRWHIyUSGZ2AWTgoTWsv2cLzflK4pR8Z13Q_#548367
+#   It works better than pyvisa-py, allows parallel access to instruments.
 #
 # HARDWARE ASSUMPTIONS
 # Requires:
