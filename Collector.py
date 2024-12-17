@@ -631,7 +631,7 @@ class tCollector(tActiveObject):
 
     print('Hard resetting board with command')
     print(shell_command)
-    subprocess.run(f'cmd /c "{shell_command}"', shell=True)
+    subprocess.run(f'cmd /c "{shell_command} > nul 2>&1"', shell=True)
 
     self.bResponded = True
     return 0
