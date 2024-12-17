@@ -623,7 +623,6 @@ class tCollector(tActiveObject):
     '''
 
     # New way.  Use TI tools to hard-reset the board
-    print('Hard resetting board with command')
     shell_command = (
       r'"C:\Users\PlanetA\Nextcloud\Engineering\Calseed Prototype\Software\TI_Tools\dslite\dslite" '
       r'--reset 1 --config '
@@ -632,7 +631,7 @@ class tCollector(tActiveObject):
 
     print('Hard resetting board with command')
     print(shell_command)
-    subprocess.run(f'cmd /c {shell_command}', shell=True)
+    subprocess.run(f'cmd /c "{shell_command}"', shell=True)
 
     self.bResponded = True
     return 0
