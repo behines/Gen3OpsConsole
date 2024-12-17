@@ -556,7 +556,7 @@ class tAgilent(QObject):
   def _GetRelayState(self, ChannelList, bUseThreadInterlocks=False):
     RelayStateList = []
 
-    print('In _GetRelayState')
+    # print('In _GetRelayState')
     Command = 'ROUTE:CLOS? '
     scanlist = '(@' + ChannelList + ')'
     self.device.write(Command + scanlist)
@@ -568,7 +568,7 @@ class tAgilent(QObject):
       pass
 
 
-    print('_GetRelayState: ', response)
+    # print('_GetRelayState: ', response)
     # If no mutexes or whatnot, it's a simple function call
     if bUseThreadInterlocks:
       with QMutexLocker(self.GetRelayState_Mutex):
