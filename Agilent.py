@@ -285,6 +285,10 @@ class tAgilent(QObject):
     self.device.write('FORMAT:READING:TIME OFF')
     self.device.write('FORMAT:READING:ALARM OFF')
 
+    # Configure all channels to have autozero enabled.  This is the default but is persistent even through
+    # a factory reset.  See Keysight manual page 135 "ZERO:AUTO"
+    self.device.write('ZERO:AUTO ON,(@' + self.FullScanChannelList + ')')
+
 
   ###############################################
   # ConfigureChannelsforDNI

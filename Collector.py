@@ -19,6 +19,7 @@ from SerialPort        import tAutoOpenSerialWholeLine
 from PowerControl      import tPowerControl
 from Utilities         import tActiveObject, with_lock
 from ConfigInfo        import *
+import subprocess
 
 
 ##########################################################################################
@@ -612,10 +613,26 @@ class tCollector(tActiveObject):
 
   #@with_lock
   def Reboot(self):
+    # Old way. Send a string to the board
+    '''
     result = self.SerialPort.write('/IREBOOT')
 
     if result != 8:
       return -1    
+
+    '''
+
+    # New way.  Use TI tools to hard-reset the board
+    print('Hard resetting board with command')
+    shell_command = (
+      r'"C:\Users\PlanetA\Nextcloud\Engineering\Calseed Prototype\Software\TI_Tools\dslite\dslite" '
+      r'--reset 1 --config '
+      rf'"C:\Users\PlanetA\Nextcloud\Engineering\Calseed Prototype\Software\TI_Tools\dslite\{self.CollectorName}.ccxml"'
+    )
+
+    print('Hard resetting board with command')
+    print(shell_command)
+    subprocess.run(f'cmd /c {shell_command}', shell=True)
 
     self.bResponded = True
     return 0
