@@ -56,7 +56,8 @@ class tAgilent(QObject):
   STOP_BITS    = pyvisa.constants.StopBits.one
   FLOW_CONTROL = pyvisa.constants.ControlFlow.rts_cts
 
-  TIMEOUT_SECS = 5           # How long to give the instrument to respond before raising a timeout error.  
+  TIMEOUT_SECS = 20          # How long to give the instrument to respond before raising a timeout error.  
+                             # This was 5 seconds but now we have 0.167 second integration and 0.1 sec delay = 0.267 * 60 = 16 sec
                              # 5 sec might seem like a long time but it's in the right ballpark - if you set it to 2 sec, things fail.
                              # I guess it just takes a finite amount of time to run the entire scan list.
   DO_AGILENT_DEBUG = False
@@ -289,6 +290,10 @@ class tAgilent(QObject):
     # a factory reset.  See Keysight manual page 135 "ZERO:AUTO"
     self.device.write('ZERO:AUTO ON,(@' + self.FullScanChannelList + ')')
 
+    # Configure all channels for a delay time between each of 0.1 sec
+    self.device.write('ROUT:CHAN:DELAY 0.1,(@' + self.FullScanChannelList + ')')
+
+
 
   ###############################################
   # ConfigureChannelsforDNI
@@ -314,6 +319,9 @@ class tAgilent(QObject):
     self.device.write('CALC:SCAL:OFFS 0.0,' + scanlist)
     self.device.write('CALC:SCAL:STAT ON,' + scanlist)
     self.device.write('CALC:SCAL:UNIT "Wm2",'+ scanlist)
+
+    # Configure channel for 10 power line cycles of integration instead of 1
+    self.device.write('SENS:VOLT:DC:NPLC 10,' + scanlist)
 
   
   ###############################################
@@ -354,6 +362,9 @@ class tAgilent(QObject):
     self.device.write("CALC:SCAL:STAT ON," + scanlist)
     self.device.write('CALC:SCAL:UNIT "Wm2",'+ scanlist)
 
+    # Configure channel for 10 power line cycles of integration instead of 1
+    self.device.write('SENS:VOLT:DC:NPLC 10,' + scanlist)
+
 
   ###############################################
   # ConfigureChannelsAsThermocouple 
@@ -376,12 +387,15 @@ class tAgilent(QObject):
 
     # Set the reference junction to internal.  By defaulit, a fixed reference junction temp of 0.0 
     # is used.  We want to do better than that.
-    TcSetReferemceCommand = 'TEMPerature:TRANsducer:TCouple:RJUNction:TYPE INT,' + scanlist
+    TcSetReferenceCommand = 'TEMPerature:TRANsducer:TCouple:RJUNction:TYPE INT,' + scanlist
 
     self.device.write(ChannelConfCommand)
     self.device.write(UnitsConfCommand)
     self.device.write(TcCheckEnableCommand)
-    self.device.write(TcSetReferemceCommand)
+    self.device.write(TcSetReferenceCommand)
+
+    # Configure all channels for 10 power line cycles of integration instead of 1
+    self.device.write('SENS:TEMP:NPLC 10,' + scanlist)
 
 
   ###############################################
