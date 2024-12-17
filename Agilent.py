@@ -56,7 +56,7 @@ class tAgilent(QObject):
   STOP_BITS    = pyvisa.constants.StopBits.one
   FLOW_CONTROL = pyvisa.constants.ControlFlow.rts_cts
 
-  TIMEOUT_SECS = 20          # How long to give the instrument to respond before raising a timeout error.  
+  TIMEOUT_SECS = 30          # How long to give the instrument to respond before raising a timeout error.  
                              # This was 5 seconds but now we have 0.167 second integration and 0.1 sec delay = 0.267 * 60 = 16 sec
                              # 5 sec might seem like a long time but it's in the right ballpark - if you set it to 2 sec, things fail.
                              # I guess it just takes a finite amount of time to run the entire scan list.
