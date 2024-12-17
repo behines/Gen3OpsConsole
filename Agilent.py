@@ -633,7 +633,7 @@ class tAgilent(QObject):
         # Emit signal to self.GetRelayState_Mutex thread
         self.DoGetRelayState.emit(RelayChannels, True)
         # Wait for the _GetRelayState worker to complete
-        if not self.GetRelayState_Condition.wait(self.GetRelayState_Mutex, 8000):  # 5-second timeout
+        if not self.GetRelayState_Condition.wait(self.GetRelayState_Mutex, 30000):  # 5-second timeout
           raise TimeoutError("Timed out waiting for relay state")
         else:
           RelayStateList = self.GetRelayState_Result
