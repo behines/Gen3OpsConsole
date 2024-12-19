@@ -209,8 +209,8 @@ class tAutoOpenSerialWholeLine(tAutoOpenSerial):
     self._lineBuffer = ""  # Buffer for assembling lines
 
     # Connect the readyRead signal to the line assembly method
-    self.readyRead   .connect(self._AssembleLine, Qt.QueuedConnection)
-    self.ReaderWakeUp.connect(self.WakeUp, Qt.QueuedConnection)
+    self.readyRead   .connect(self._AssembleLine) #, Qt.QueuedConnection)
+    self.ReaderWakeUp.connect(self.WakeUp) #, Qt.QueuedConnection)
 
 
   #######################################################
