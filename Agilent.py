@@ -477,8 +477,11 @@ class tAgilent(QObject):
     scan_complete = False
     while not scan_complete:
       with QMutexLocker(self._lock):
-        opc_response = int(self.device.query("*OPC?").strip())
-      if opc_response == 1:
+        self.device.write("*OPC?")
+        response = self.device.read()
+        print('opcresponse = ', response)
+        response = int(response.strip())
+      if response == 1:
         scan_complete = True
       else:
         # Yield to Qt event loop to keep UI responsive
