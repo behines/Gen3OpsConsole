@@ -409,7 +409,7 @@ class MasterControl(QMainWindow):
       #Collector.RequestExit()
 
     # Tell the periodic logger thread to shut down, and wait for confirmation
-    self.PeriodicLogger.RequestExit()
+    #self.PeriodicLogger.RequestExit()
 
     # Shut down the collector window
     self.CollectorControlWindow.ForceClose()
