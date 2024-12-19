@@ -54,7 +54,7 @@ class tPeriodicLogger(tActiveObject):
   def __init__(self, Agilents, GhiChannelIndex, DniChannelIndex, BoxMeasurementIndex,
                SandTopMeasurementIndex, SandMidMeasurementIndex, SandBotMeasurementIndex,
                DomeTempSensor, OutsideTempSensor, ElectronicsTempSensor, Collectors, LogFile: tLogFile, parent=None):
-    super().__init__(parent)   # tPeriodicThread constructor
+    super().__init__(LOG_INTERVAL_SECONDS * 1000, parent)   # # tActiveObject constructor
 
     self.Agilents = Agilents
 
@@ -92,8 +92,8 @@ class tPeriodicLogger(tActiveObject):
     # Create the Thinger.io object for logging to the cloud
     self.Thinger = tThinger()
 
-    # StartThread moves ourself, and all our children, to the thread
-    self.StartThread(LOG_INTERVAL_SECONDS * 1000, "Logger")
+    # start the periodic timer running to cause callbacks to PeriodicMethod
+    self.Start()
 
 
 

@@ -10,10 +10,7 @@
 # Modules used
 #
 
-from PySide6.QtCore import QObject, QThread, Signal, QDateTime, QTimeZone, QTimer, QEventLoop, QMutexLocker, Qt
-import debugpy
-import threading
-
+from PySide6.QtCore import QObject, Signal, QDateTime, QTimeZone, QTimer, QEventLoop, QMutexLocker, Qt
 from ConfigInfo import *
 
 
@@ -164,98 +161,20 @@ class EventMonitor(QObject):
 ##########################################################################################
 ##########################################################################################
 ##########################################################################################
-# tActiveThread - Class that implements the thread for a tActiveObject.  
-#
-# The main job of the thread is to start an event loop, by calleing the base class run() method
-#
-
-class tActiveThread(QThread):
-
-
-  ###############################################
-  # Constructor and destructor
-  # 
-  # We make use of parent in the class.  We know that the parent is a tActiveObject,
-  # so we can reach into the ActiveObject and start its timer for it if need be.
-  #   
-
-  def __init__(self, ActiveObject, parent=None):
-    super().__init__(parent)
-    self.ActiveObject = ActiveObject
-
-  def __del__(self):
-    pass
-
-
-  ###############################################
-  # run - Starts the active object's event loop
-  #  
-
-  def run(self):
-    threading.currentThread().name = self.objectName()  # Set Python thread name
-    # Enable breakpoints within code in this thread
-    debugpy.debug_this_thread()
-    
-    #print('ActiveObject thread started')
-
-    self.ActiveObject.InitMethod()
-
-    # Set up timer if requested
-    if self.ActiveObject.TimerPeriodInMs != 0:
-      self.ActiveObject.Timer = QTimer(self)
-      self.ActiveObject.Timer.setSingleShot(True)
-      self.ActiveObject.Timer.timeout.connect(self.ActiveObject.OnTimerTimeout, Qt.QueuedConnection)
-
-      # Get the current time in the specified timezone
-      current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
-      # Calculate the remaining time until the next interval
-      milliseconds_until_next_interval = int(self.ActiveObject.TimerPeriodInMs - (current_time.time().msecsSinceStartOfDay() % self.ActiveObject.TimerPeriodInMs))
-      # Calculate the exact datetime for the next run
-      self.ActiveObject.ScheduledTime = current_time.addMSecs(milliseconds_until_next_interval)
-      #print('Starting ActiveObject Timer, period = ' + str(self.ActiveObject.TimerPeriodInMs) + ' in init, object id = ' + str(id(self)), flush=True)
-      #print(f"Timer creation thread: {QThread.currentThread()}")
-
-      self.ActiveObject.Timer.start(milliseconds_until_next_interval)
-
-    #else:
-      # Example usage in your thread
-    #  self.monitor = EventMonitor()
-      # Assuming 'thread' is the QThread where your QSerialPort is running
-    #  self.event_loop = QThread.currentThread().eventDispatcher()
-    #  if self.event_loop:
-    #    self.event_loop.installEventFilter(self.monitor)
-     #   print('Event filter installed')
-
-    # Start the thread's event loop by calling the base class run().  The default
-    # implementation simply calls exec()
-    super().run()       # i.e., self.exec()
-
-    if self.ActiveObject.TimerPeriodInMs != 0:
-      self.ActiveObject.Timer.stop()
-
-    #print('ActiveThread exiting')
-
-
-##########################################################################################
-##########################################################################################
-##########################################################################################
-# tActiveObject - Class that implements a thread that starts an event loop, so that the
-#                 object can respond to signals.
+# tActiveObject - Class that implements a timer that causes PeriodicMethod to be called at the specified rate
 #
 # This class is meant to be inherited by any class whose main purpose is to be an "active
-# object" that can respond to signals and emit responses.
+# object" that executes a function periodically.
 #
-# This class will not actually start the thread.  The derived class constructor should call
-# self.StartThread() as its last act
+# This class will not actually start the timer.  The derived class or its owner should call Start()
+# on the object when ready to kick things off.
 #
-# Your derived class's destructor should call self.ShutDownComplete.emit() as its last act
+# Of course any class can just implement its own timer callback, but this adds a little bit of 
+# functionality to call the function synchronously - that is, if it's scheduled to run every 0.5
+# seconds, it will run at 0.5, 1.0, 1.5, 2.0 exactly.
 #
 
 class tActiveObject(QObject):
-
-  RequestExitSignal = Signal()
-  #ShutDownComplete = Signal()
-
 
   ###############################################
   # Constructor and destructor
@@ -263,10 +182,10 @@ class tActiveObject(QObject):
   # The thread should clean up properly, but if not the destructor will tidy up
   #   
 
-  def __init__(self,parent=None):
+  def __init__(self, TimerPeriodInMs, parent=None):
     parent = None  # ActiveObjects have to have no parent, in order to be able to move them to a thread
     super().__init__(parent)
-    
+    self.TimerPeriodInMs = TimerPeriodInMs
 
   def __del__(self):
     if self.TimerPeriodInMs != 0:
@@ -274,91 +193,25 @@ class tActiveObject(QObject):
 
 
   ###############################################
-  # StartThread
-  # 
-  # Causes the object's run method to start.  Also moves the affinity of the caller (and all
-  # its children) to the thread.
-  # 
-  # INPUTS:
-  #   TimerPeriodInMs - if nonzero, will call self.PeriodicMethod at this interval
-  #   name            - a descriptive name for the thread that will show up in the debugger
-  #  
-
-  def StartThread(self, TimerPeriodInMs=0, name=None):
-    # Now move ourself and all our new children to the thread we will start
-    self.TheThread = tActiveThread(self, self)
-    if not name is None:
-      # print('Setting thread name to ',name)
-      self.TheThread.setObjectName(name)
-    self.moveToThread(self.TheThread)
-
-    # Now start the thread.  
-    # self.TheThread.started .connect(self.OnThreadStart)
-    # self.finished   .connect(self.deleteLater)     # Causes the our destructor to be called when the thread exits
-    self.RequestExitSignal.connect(self.OnExitRequest)
-
-    self.TimerPeriodInMs = TimerPeriodInMs
-
-    # Now start the thread.  
-    #self.TheThread.started .connect(self.OnThreadStart)
-    #self.TheThread.finished.connect(self.deleteLater)     # Causes our destructor to be called when the thread exits
-
-    self.TheThread.start()
-
-
-  ###############################################
-  # RequestExit - Ask the ActiveObject to exit
-  # 
-  # Sends itself the RequestExitSignal signal
-  #  
-
-  def RequestExit(self):
-    self.RequestExitSignal.emit()
-    self.TheThread.quit()        # Tell the thread's event loop to exit.  
-    self.TheThread.wait()
-    self.TheThread.deleteLater()
-
-
-  ###############################################
-  # OnExitRequest
-  # 
-  # Called when we receive a RequestExitSignal signal
-  #
-  # Stops the periodic timer if running
-  #
-  # Tells the thread's event loop to exit, which will cause run() to return, which will 
-  # fire the finished signal, which will call deleteLater, which will run our destructor.
-  #  
-
-  def OnExitRequest(self):
-    #print('ActiveObject exiting')
-    #if self.TimerPeriodInMs != 0:
-    #  self.Timer.stop()
-      
-    # Schedule the thread for deletion, so that it doesn't get killed while it's still running
-    #self.TheThread.deleteLater()
-
-    # This method is being processed by the thread we are trying to shut down.
-    #QCoreApplication.exit(0)     # Safely exit the event loop
-    #self.TheThread.quit()        # Tell the thread's event loop to exit.  
-    #self.TheThread.wait()
-    #self.TheThread.deleteLater()
-    #print('ActiveObject exited')
-    pass
-
-
-
-  ###############################################
-  # InitMethod - Called when the thread first starts.  It is intended that you
-  #              override this with your own method
-  #
-  # This provides a place where you can perform initialization code that needs to run within
-  # the context of the new thread
+  # Start - Starts the periodic timer callbacks running
   # 
 
-  def InitMethod(self):
-    pass
-  
+  def Start(self):
+    # Set up timer if requested
+    if self.TimerPeriodInMs != 0:
+      self.Timer = QTimer(self)
+      self.Timer.setSingleShot(True)
+      self.Timer.timeout.connect(self.OnTimerTimeout, Qt.QueuedConnection)
+
+      # Get the current time in the specified timezone
+      current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
+      # Calculate the remaining time until the next interval
+      milliseconds_until_next_interval = int(self.ActiveObject.TimerPeriodInMs - (current_time.time().msecsSinceStartOfDay() % self.ActiveObject.TimerPeriodInMs))
+      # Calculate the exact datetime for the next run
+      self.ScheduledTime = current_time.addMSecs(milliseconds_until_next_interval)
+
+      self.Timer.start(milliseconds_until_next_interval)
+
 
   ###############################################
   # PeriodicMethod - Called whenever the timer fires.  It is intended that you
@@ -391,162 +244,3 @@ class tActiveObject(QObject):
     self.Timer.start(milliseconds_until_next_interval)
     #print(f"After timer start attempt: thread: {self.Timer.thread()}")
 
-
-''' This code not used a present
-
-##########################################################################################
-##########################################################################################
-##########################################################################################
-# tThreadRunner - class that implements the ability to spawn a thread and assign the 
-#                 owner to the thread.
-#
-# This class is meant to be inherited by any class whose main purpose is to spawn a persistent
-# thread once initialized.
-#
-
-class tThreadRunner(QObject):
-  Finished = Signal()     # Signal for thread completion
-  error    = Signal(str)  # Signal for errors
-
-
-  ###############################################
-  # Constructor and destructor
-  # 
-  # The thread should clean up properly, but if not the destructor will tidy up
-  #   
-
-  def __init__(self):
-    super().__init__()
-    self.TheThread = None
-
-  def __del__(self):
-    try:
-      self.StopThread()
-    except Exception as e:
-      print(f"Warning: Exception during tThreadRunner cleanup: {e}")
-
-
-  ###############################################
-  # SpawnMethodAsThreadAndSetAffinityToNewThread
-  # 
-  # The thread should clean up properly, but if not the destructor will tidy up
-  # The object that calls this method will have its affinity moved to the new thread
-  #   
-  # The method you spawn should never return, unless you want the thread to exit
-  #
-
-  def SpawnMethodAsThreadAndSetAffinityToNewThread(self, method, *args, **kwargs):
-  
-    self.TheThread = QThread()
-    self.moveToThread(self.TheThread)
-
-    # Start the method in the new thread
-    
-    self.methodToRun = lambda: method(*args, **kwargs)  # Store the method and its arguments
-    self.TheThread.started .connect(self._run)
-    self.Finished          .connect(self.TheThread.quit)
-    self.Finished          .connect(self.deleteLater)
-    self.TheThread.finished.connect(self.TheThread.deleteLater)
-
-    self.TheThread.start()
-
-
-  ###############################################
-  # The (private) method that runs the thread 
-  # 
-  # The thread should clean up properly, but if not the destructor will tidy up
-  #   
-
-  def _run(self):
-    try:
-      self.methodToRun()
-      self.Finished.emit()
-    except Exception as e:
-      self.error.emit(str(e))
-
-
-  ###############################################
-  # Stops the thread if running
-  # 
-
-  def StopThread(self):
-    if self.TheThread and self.TheThread.isRunning():
-      self.TheThread.quit()
-      self.TheThread.wait()
-      self.TheThread = None
-
-
-##########################################################################################
-##########################################################################################
-##########################################################################################
-# tPeriodicThread - a class that owns a thread that runs at a specified interval
-#
-# This class is meant to be inherited by any class whose main purpose is to spawn a persistent
-# periodically running thread once initialized.
-#
-# The derived class should provide a method tPeriodicMethod(self, args), and then you spawn
-# the periodic method using
-#    self.SpawnPeriodicMethodAsThreadAndSetAffinityToNewThread(PeriodInMs, self.PeriodicMethod, arg1, arg2 [etc])
-# If your PeriodicMethod wants to know the time at which is was scheduled to run, that is stored in 
-# self.ScheduledTime
-#
-
-class tPeriodicThread(tThreadRunner):
-
-  ###############################################
-  # Constructor
-  # 
-
-  def __init__(self, interval_ms):
-    super().__init__()
-
-
-  ###############################################
-  # SpawnPeriodicMethodAsThreadAndSetAffinityToNewThread
-  # 
-  # Will run the method you provide with the specified period, synced to the clock.  So a 1-minute period
-  # will run at 1:01:00, 1:02:00, etc.
-  #
-  # Your method should normally return 0.  If it returns non-zero, the thread will exit and scheduling will
-  # cease.  If it raises an exception, the thread will also exit with an exception.
-
-  def SpawnPeriodicMethodAsThreadAndSetAffinityToNewThread(self, PeriodInMs, method, *args, **kwargs):
-    self.PeriodInMs = PeriodInMs
-    self.SpawnMethodAsThreadAndSetAffinityToNewThread(method, *args, **kwargs)
-
-
-  ###############################################
-  # Overloaded (private) method that runs the thread, repeating method periodically
-  # 
-  
-  def _run(self):
-    try:
-      # Get the current time in the specified timezone
-      current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
-
-      # Calculate the remaining time until the next interval
-      milliseconds_until_next_interval = int(self.PeriodInMs - (current_time.time().msecsSinceStartOfDay() % self.PeriodInMs))
-      
-      # Calculate the exact datetime for the next run
-      self.ScheduledTime = current_time.addMSecs(milliseconds_until_next_interval)
-
-      while True:
-        if milliseconds_until_next_interval > 0:
-          QThread.msleep(milliseconds_until_next_interval)
-          
-        # Run the method; break out of loop if it returns non-zero
-        if self.methodToRun() != 0:
-          break
-
-        self.ScheduledTime = self.ScheduledTime.addMSecs(self.PeriodInMs)
-
-        current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
-        milliseconds_until_next_interval = current_time.msecsTo(self.ScheduledTime)
-          
-      self.Finished.emit()
-
-    except Exception as e:
-      print('Error in tPeriodicThread::_run: ', str(e))
-      self.error.emit(str(e))
-
-'''

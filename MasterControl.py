@@ -117,7 +117,7 @@ class MasterControl(QMainWindow):
     self.setWindowTitle('Windsor Master Control Console')
 
     # Create Collector Control Window
-    self.CollectorControlWindow = tCollectorControlWindow()
+    self.CollectorControlWindow = tCollectorControlWindow(self)
     self.CollectorControlWindow.show()
 
     # Adjust the positions of the windows
@@ -216,7 +216,7 @@ class MasterControl(QMainWindow):
     self.PeriodicLogger = tPeriodicLogger(self.Agilents, GhiChannelIndex, DniChannelIndex, BoxMeasurementIndex, 
                                           SandTopMeasurementIndex, SandMidMeasurementIndex, SandBotMeasurementIndex,
                                           self.DomeTempSensor, self.OutsideTempSensor, self.ElectronicsTempSensor,
-                                          self.Collectors, self.LogFile) #, parent=None)
+                                          self.Collectors, self.LogFile, self)
 
     # Now that everything is going, we can start the collector monitoring threads.  At this point, the 
     # Collectors are still in this thread that created them, but they will now move to their own threads

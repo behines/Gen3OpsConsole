@@ -71,7 +71,7 @@ class tCollectorPane(QWidget):
 
 
     # Create the Collector object that interfaces to the hardware
-    self.Collector = tCollector(collectorName, portName, baud)
+    self.Collector = tCollector(collectorName, portName, baud, self)
     self.Collector.PortOpenStateChange.connect(self.ConnectionEvent)
 
     self.Collector.ReleaseStringReceived.connect(self.UpdateReleaseString)

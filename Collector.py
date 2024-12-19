@@ -86,11 +86,11 @@ class tCollector(tActiveObject):
   # 
   # INPUTS:
   #
-  #   parent - if provided, will be ignored, activeobject have to have no parent
+  #   
   #     
 
   def __init__(self, collectorName, portName, baud, parent=None):
-    super().__init__(parent)   # tActiveObject constructor
+    super().__init__(COLLECTOR_RETRY_TIMEOUT_SECS * 1000, parent)   # tActiveObject constructor
 
     # Mutex for controlling access to the device
     self._lock = QRecursiveMutex()
@@ -165,28 +165,12 @@ class tCollector(tActiveObject):
   ###############################################
   # Start 
   # 
-  # Call this after construction to start the collector's active objects running.
-  # This includes opening the serial port.
+  # Call this after construction to start the collector's periodic task running.
+  # This also includes opening the serial port.
   #     
   
   #@with_lock
   def Start(self):
-    # Start our event loop going, also with a timer that will try to reconnect if not connected
-    #if self.CollectorName == "4B":
-    #  self.StartThread(0, self.CollectorName)
-    #else:
-    self.StartThread(COLLECTOR_RETRY_TIMEOUT_SECS * 1000, self.CollectorName)
-
-
-  ###############################################
-  # InitMethod - Init code that must run within the new thread's context
-  # 
-  # Called as part of the ActiveObject base class startup.  Is called from the newly created thread, 
-  # allowing you to initialize objects that need to be created within the new thread.
-  #     
-  
-  #@with_lock
-  def InitMethod(self):
     # We set rtscts and dsrdtr even though this is a virtual COM Port.  This provides a way for 
     # the virtual port driver to inform when it isn't yet initialized or otherwise ready for
     # data, which can happen.
@@ -207,6 +191,9 @@ class tCollector(tActiveObject):
     self.OnlineStatusUpdate(self.SerialPort.IsOpen())
     if not self.bInit:
       print('tCollector: Could not open collector',self.CollectorName,'on port', self.PortName, flush=True)
+
+    # And start the periodic task running
+    super().Start()
 
 
   ###############################################
