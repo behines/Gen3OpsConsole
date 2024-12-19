@@ -25,7 +25,7 @@ import os
 import sys
 
 # For implementing object locking and retry timer
-from PySide6.QtCore import QRecursiveMutex, QElapsedTimer, QObject, QThread, Signal, QMutex, QWaitCondition, QMutexLocker
+from PySide6.QtCore import QRecursiveMutex, QElapsedTimer, QObject, QThread, Signal, QMutex, QWaitCondition, QMutexLocker, QCoreApplication
 from Utilities      import requires_device_open, with_lock, SignalThenWaitFor, SignalEmitter
 
 
@@ -56,7 +56,7 @@ class tAgilent(QObject):
   STOP_BITS    = pyvisa.constants.StopBits.one
   FLOW_CONTROL = pyvisa.constants.ControlFlow.rts_cts
 
-  TIMEOUT_SECS = 30          # How long to give the instrument to respond before raising a timeout error.  
+  TIMEOUT_SECS = 3           # How long to give the instrument to respond before raising a timeout error.  
                              # This was 5 seconds but now we have 0.167 second integration and 0.1 sec delay = 0.267 * 60 = 16 sec
                              # 5 sec might seem like a long time but it's in the right ballpark - if you set it to 2 sec, things fail.
                              # I guess it just takes a finite amount of time to run the entire scan list.
@@ -291,7 +291,7 @@ class tAgilent(QObject):
     self.device.write('ZERO:AUTO ON,(@' + self.FullScanChannelList + ')')
 
     # Configure all channels for a delay time between each of 0.1 sec
-    self.device.write('ROUT:CHAN:DELAY 0.05,(@' + self.FullScanChannelList + ')')
+    self.device.write('ROUT:CHAN:DELAY 0.1,(@' + self.FullScanChannelList + ')')
 
 
 
@@ -321,7 +321,7 @@ class tAgilent(QObject):
     self.device.write('CALC:SCAL:UNIT "Wm2",'+ scanlist)
 
     # Configure channel for 10 power line cycles of integration instead of 1
-    self.device.write('SENS:VOLT:DC:NPLC 10,' + scanlist)
+    self.device.write('SENS:VOLT:DC:NPLC 20,' + scanlist)
 
   
   ###############################################
@@ -363,7 +363,7 @@ class tAgilent(QObject):
     self.device.write('CALC:SCAL:UNIT "Wm2",'+ scanlist)
 
     # Configure channel for 10 power line cycles of integration instead of 1
-    self.device.write('SENS:VOLT:DC:NPLC 10,' + scanlist)
+    self.device.write('SENS:VOLT:DC:NPLC 20,' + scanlist)
 
 
   ###############################################
@@ -395,7 +395,7 @@ class tAgilent(QObject):
     self.device.write(TcSetReferenceCommand)
 
     # Configure all channels for 10 power line cycles of integration instead of 1
-    self.device.write('SENS:TEMP:NPLC 10,' + scanlist)
+    self.device.write('SENS:TEMP:NPLC 20,' + scanlist)
 
 
   ###############################################
@@ -461,31 +461,49 @@ class tAgilent(QObject):
   #   A comma-separated list of values.  If the reading times out, it will return -1 for all readings
 
   @requires_device_open()
-  @with_lock
+  #@with_lock
   def Read(self, bTrimCrLf):
-    # Flush any characters in the port.  This is defensive, in case the last read timed out and then actually returned something later.
-    self.FlushInputBuffer()
 
-    # Arm the scan.  It is now waiting for a trigger, but will go immediately since trigger mode is IMM.
-    self.device.write('READ?')
-    # self.device.write('*TRG')   # See comment about triggering in previous routine
+    with QMutexLocker(self._lock):
+      # Flush any characters in the port.  This is defensive, in case the last read timed out and then actually returned something later.
+      self.FlushInputBuffer()
 
-    # This doesn't seem to work.  It seems that we can't read anything because the read itself
-    # is tying up the output buffer
-    #if self.WaitForScanToComplete() < 0:
-    #  return [-1]*len(self.ChannelList)
-    # Instead, simply insert a delay
+      # Initiate the scan. It is now waiting for a trigger, but will go immediately since trigger mode is IMM.
+      self.device.write("INIT")
+      # self.device.write('*TRG')   # See comment about triggering in previous routine
 
-    try:
-      response = self.device.read()
-    except pyvisa.errors.VisaIOError:
-      print('Agilent timeout, Retrying...')
+
+    # Poll for operation completion
+    scan_complete = False
+    while not scan_complete:
+      with QMutexLocker(self._lock):
+        opc_response = int(self.device.query("*OPC?").strip())
+      if opc_response == 1:
+        scan_complete = True
+      else:
+        # Yield to Qt event loop to keep UI responsive
+        QCoreApplication.processEvents()
+
+    with QMutexLocker(self._lock):
+      # Retrieve the results.  This does not remove them from memory, but memory will be cleared at the next INIT call.
+      self.device.write('FETCH?')
+
+      # This doesn't seem to work.  It seems that we can't read anything because the read itself
+      # is tying up the output buffer
+      #if self.WaitForScanToComplete() < 0:
+      #  return [-1]*len(self.ChannelList)
+      # Instead, simply insert a delay
+
       try:
         response = self.device.read()
       except pyvisa.errors.VisaIOError:
-        print('Agilent 2nd Timeout, bailing out')
-        minus_ones = [-1]*len(self.ChannelList)
-        return ','.join(str(num) for num in minus_ones)
+        print('Agilent timeout, Retrying...')
+        try:
+          response = self.device.read()
+        except pyvisa.errors.VisaIOError:
+          print('Agilent 2nd Timeout, bailing out')
+          minus_ones = [-1]*len(self.ChannelList)
+          return ','.join(str(num) for num in minus_ones)
 
     if bTrimCrLf:
       response = response.strip()  #[:-2]
