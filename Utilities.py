@@ -201,7 +201,7 @@ class tActiveObject(QObject):
     if self.TimerPeriodInMs != 0:
       self.Timer = QTimer(self)
       self.Timer.setSingleShot(True)
-      self.Timer.timeout.connect(self.OnTimerTimeout, Qt.QueuedConnection)
+      self.Timer.timeout.connect(self.OnTimerTimeout)  #, Qt.QueuedConnection)
 
       # Get the current time in the specified timezone
       current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
