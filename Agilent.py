@@ -472,22 +472,19 @@ class tAgilent(QObject):
       self.device.write("INIT")
       # self.device.write('*TRG')   # See comment about triggering in previous routine
 
-
     # Poll for operation completion
-    scan_complete = False
-    while not scan_complete:
+    IsBusyOrScanning = True
+    while IsBusyOrScanning:
+      QCoreApplication.processEvents()
       with QMutexLocker(self._lock):
-        self.device.write("*OPC?")
-        response = self.device.read()
-        print('opcresponse = ', response)
-        response = int(response.strip())
-      if response == 1:
-        scan_complete = True
-      else:
-        # Yield to Qt event loop to keep UI responsive
-        QCoreApplication.processEvents()
+        # Flush any characters in the port.  This is defensive, in case the last read timed out and then actually returned something later.
+        self.FlushInputBuffer()
+        StatusReg = int(self.device.query('STAT:OPER:COND?').strip())
+      IsBusyOrScanning = (StatusReg & tAgilent.STATUS_Scanning) != 0
 
     with QMutexLocker(self._lock):
+      # Flush any characters in the port.  This is defensive, in case the last read timed out and then actually returned something later.
+      self.FlushInputBuffer()
       # Retrieve the results.  This does not remove them from memory, but memory will be cleared at the next INIT call.
       self.device.write('FETCH?')
 
