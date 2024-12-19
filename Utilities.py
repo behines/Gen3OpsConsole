@@ -206,7 +206,7 @@ class tActiveObject(QObject):
       # Get the current time in the specified timezone
       current_time = QDateTime.currentDateTime().toTimeZone(QTimeZone(SITE_TIMEZONE.encode('utf-8')))
       # Calculate the remaining time until the next interval
-      milliseconds_until_next_interval = int(self.ActiveObject.TimerPeriodInMs - (current_time.time().msecsSinceStartOfDay() % self.ActiveObject.TimerPeriodInMs))
+      milliseconds_until_next_interval = int(self.TimerPeriodInMs - (current_time.time().msecsSinceStartOfDay() % self.TimerPeriodInMs))
       # Calculate the exact datetime for the next run
       self.ScheduledTime = current_time.addMSecs(milliseconds_until_next_interval)
 

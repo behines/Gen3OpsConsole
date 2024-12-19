@@ -117,7 +117,7 @@ class MasterControl(QMainWindow):
     self.setWindowTitle('Windsor Master Control Console')
 
     # Create Collector Control Window
-    self.CollectorControlWindow = tCollectorControlWindow(self)
+    self.CollectorControlWindow = tCollectorControlWindow()  #self)
     self.CollectorControlWindow.show()
 
     # Adjust the positions of the windows
@@ -405,7 +405,8 @@ class MasterControl(QMainWindow):
 
     # Shut down all the collectors
     for Collector in self.Collectors:
-      Collector.RequestExit()
+      pass
+      #Collector.RequestExit()
 
     # Tell the periodic logger thread to shut down, and wait for confirmation
     self.PeriodicLogger.RequestExit()
