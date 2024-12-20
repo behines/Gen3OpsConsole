@@ -94,8 +94,8 @@ class tPeriodicLogger(tActiveObject):
 
     # Create the timer to awaken and read the scanned thermocouples after half a period
     self.ReadScannedResultsTimer = QTimer(self)
-    self.Timer.setSingleShot(True)
-    self.Timer.timeout.connect(self.LogTemperatureData)
+    self.ReadScannedResultsTimer.setSingleShot(True)
+    self.ReadScannedResultsTimer.timeout.connect(self.LogTemperatureData)
 
     # start the periodic timer running to cause callbacks to PeriodicMethod
     self.Start()
