@@ -506,7 +506,6 @@ class tAgilent(QObject):
 
       try:
         response = self.device.read()
-        print('Fetched')
       except pyvisa.errors.VisaIOError:
         print('Agilent timeout, Retrying...')
         try:
