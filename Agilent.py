@@ -395,7 +395,7 @@ class tAgilent(QObject):
     self.device.write(TcSetReferenceCommand)
 
     # Configure all channels for 10 power line cycles of integration instead of 1
-    self.device.write('SENS:TEMP:NPLC 60,' + scanlist)
+    self.device.write('SENS:TEMP:NPLC 20,' + scanlist)
 
 
   ###############################################
