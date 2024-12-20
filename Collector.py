@@ -573,7 +573,7 @@ class tCollector(tActiveObject):
 
     result = self.SerialPort.write(SetTimeCmd)
 
-    if result != 9:
+    if result != 19:
       print ('Could not set time for ', self.CollectorName)
       self.bResponded = True
       return -1
