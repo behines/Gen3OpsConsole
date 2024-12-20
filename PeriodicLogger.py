@@ -6,7 +6,7 @@
 # owned by the same thread that reads all the states, so it can communicate directly with 
 # the marquee display rather than having to use signals.
 
-from PySide6.QtCore import QObject, Signal
+from PySide6.QtCore import QObject, Signal, QTimer
 
 # Import configuration of the system
 from ConfigInfo    import *
@@ -51,7 +51,7 @@ class tPeriodicLogger(tActiveObject):
   #   parent - if provided, will be ignored, activeobject have to have no parent
   #     
 
-  def __init__(self, Agilents, GhiChannelIndex, DniChannelIndex, BoxMeasurementIndex,
+  def __init__(self, Agilents : list[tAgilent], GhiChannelIndex, DniChannelIndex, BoxMeasurementIndex,
                SandTopMeasurementIndex, SandMidMeasurementIndex, SandBotMeasurementIndex,
                DomeTempSensor, OutsideTempSensor, ElectronicsTempSensor, Collectors, LogFile: tLogFile, parent=None):
     super().__init__(LOG_INTERVAL_SECONDS * 1000, parent)   # # tActiveObject constructor
@@ -92,6 +92,11 @@ class tPeriodicLogger(tActiveObject):
     # Create the Thinger.io object for logging to the cloud
     self.Thinger = tThinger()
 
+    # Create the timer to awaken and read the scanned thermocouples after half a period
+    self.ReadScannedResultsTimer = QTimer(self)
+    self.Timer.setSingleShot(True)
+    self.Timer.timeout.connect(self.LogTemperatureData)
+
     # start the periodic timer running to cause callbacks to PeriodicMethod
     self.Start()
 
@@ -113,7 +118,21 @@ class tPeriodicLogger(tActiveObject):
   # 
 
   def PeriodicMethod(self):
-    return self.LogTemperatureData()
+    self.InitiateScansOnAllAgilents()
+
+    # Exit for now, then awaken 3/4 of the way through the periodic task interval to read the results
+    self.ReadScannedResultsTimer.start(1000 * LOG_INTERVAL_SECONDS * 3/4)
+    
+
+
+  ###############################################
+  # InitiateScansOnAllAgilents - Kick off the thermocouple scan on all Agilents
+  # 
+
+  def InitiateScansOnAllAgilents(self):
+    for agilent in self.Agilents:
+      with agilent:  # Acquire the lock
+        agilent.DoScan()
 
 
   ###############################################
@@ -135,7 +154,7 @@ class tPeriodicLogger(tActiveObject):
     OutputLine = ''
     for agilent in self.Agilents:
       with agilent:  # Acquire the lock
-        OutputLine = OutputLine + agilent.Read(True) + ','
+        OutputLine = OutputLine + agilent.RetrieveScanResults(True) + ','
     # Remove the final extra comma
     OutputLine = OutputLine.rstrip(',')  # Remove trailing comma
     

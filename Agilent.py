@@ -291,7 +291,7 @@ class tAgilent(QObject):
     self.device.write('ZERO:AUTO ON,(@' + self.FullScanChannelList + ')')
 
     # Configure all channels for a delay time between each of 0.1 sec
-    self.device.write('ROUT:CHAN:DELAY 0.1,(@' + self.FullScanChannelList + ')')
+    self.device.write('ROUT:CHAN:DELAY 0.25,(@' + self.FullScanChannelList + ')')
 
 
 
@@ -395,7 +395,7 @@ class tAgilent(QObject):
     self.device.write(TcSetReferenceCommand)
 
     # Configure all channels for 10 power line cycles of integration instead of 1
-    self.device.write('SENS:TEMP:NPLC 10,' + scanlist)
+    self.device.write('SENS:TEMP:NPLC 60,' + scanlist)
 
 
   ###############################################
@@ -450,7 +450,7 @@ class tAgilent(QObject):
 
 
   ###############################################
-  # Read
+  # DoScan - Initiate a scan, for fetching later
   #
   # Runs a scan of the defined channel list.
   #
@@ -458,19 +458,29 @@ class tAgilent(QObject):
   # slot 100 through slot 300 (channels are re-ordered as needed)
   # 
   # RETURNS:
+  #   Nothing.  The values will be saved in memory for FETCh?'ing later
+
+  @requires_device_open()
+  @with_lock
+  def DoScan(self):
+    # Flush any characters in the port.  This is defensive, in case the last read timed out and then actually returned something later.
+    self.FlushInputBuffer()
+
+    # Initiate the scan. It is now waiting for a trigger, but will go immediately since trigger mode is IMM.
+    self.device.write("INIT")
+    # self.device.write('*TRG')   # See comment about triggering in previous routine
+
+
+
+  ###############################################
+  # RetrieveScanResults - Retrieve results from an earlier commanded scan
+  #
+  # RETURNS:
   #   A comma-separated list of values.  If the reading times out, it will return -1 for all readings
 
   @requires_device_open()
   #@with_lock
-  def Read(self, bTrimCrLf):
-
-    with QMutexLocker(self._lock):
-      # Flush any characters in the port.  This is defensive, in case the last read timed out and then actually returned something later.
-      self.FlushInputBuffer()
-
-      # Initiate the scan. It is now waiting for a trigger, but will go immediately since trigger mode is IMM.
-      self.device.write("INIT")
-      # self.device.write('*TRG')   # See comment about triggering in previous routine
+  def RetrieveScanResults(self, bTrimCrLf):
 
     # Poll for operation completion
     IsBusyOrScanning = True
@@ -509,6 +519,24 @@ class tAgilent(QObject):
       response = response.strip()  #[:-2]
       
     return response
+  
+
+  ###############################################
+  # Read
+  #
+  # Runs a scan of the defined channel list.
+  #
+  # The instrument scans the list of channels in ascending order from
+  # slot 100 through slot 300 (channels are re-ordered as needed)
+  # 
+  # RETURNS:
+  #   A comma-separated list of values.  If the reading times out, it will return -1 for all readings
+
+  @requires_device_open()
+  #@with_lock
+  def Read(self, bTrimCrLf):
+    self.DoScan()
+    return self.RetrieveScanResults(bTrimCrLf)
 
 
   ###############################################
