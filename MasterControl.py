@@ -218,13 +218,7 @@ class MasterControl(QMainWindow):
                                           self.DomeTempSensor, self.OutsideTempSensor, self.ElectronicsTempSensor,
                                           self.Collectors, self.LogFile, self)
 
-    # Now that everything is going, we can start the collector monitoring threads.  At this point, the 
-    # Collectors are still in this thread that created them, but they will now move to their own threads
-    for Collector in self.Collectors:
-      # Connect the collector to the USB Hub Power signal
-      # Also tell it the current USB hub power state
-      Collector.SetUsbPowerDevice(self.UsbHubPower, bUsbPowerState)
-      Collector.Start()
+
 
     # Start the NIP sequencer
     # The third Agilent is the one with the Actuator card in it for sequencing
@@ -233,6 +227,14 @@ class MasterControl(QMainWindow):
                                       NIP_ON_OFF_BUTTON_CHANNEL, PYRANOMETER_POWER_CHANNEL,
                                       self.Sun, self.PeriodicLogger, self)
       
+
+    # Now that everything is going, we can start the collector monitoring threads.  At this point, the 
+    # Collectors are still in this thread that created them, but they will now move to their own threads
+    for Collector in self.Collectors:
+      # Connect the collector to the USB Hub Power signal
+      # Also tell it the current USB hub power state
+      Collector.SetUsbPowerDevice(self.UsbHubPower, bUsbPowerState)
+      Collector.Start(self.NipSequencer.SunriseSunsetUpdate)   # Collector listens to NipSequencer sunrise/sunset signals
 
 
     # Connect to signals

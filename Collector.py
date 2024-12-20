@@ -12,7 +12,7 @@
 #
 
 # module used to talk over serial with the esp32
-from PySide6.QtCore       import QRecursiveMutex, Signal, QDateTime, QTimeZone, QThread
+from PySide6.QtCore       import QRecursiveMutex, Signal, QDateTime, QTime, QTimeZone, QThread
 from PySide6.QtSerialPort import QSerialPort
 
 from SerialPort        import tAutoOpenSerialWholeLine
@@ -78,6 +78,7 @@ class tCollector(tActiveObject):
 
   UpdateThresholds           = Signal()
   
+
   ###############################################
   # Constructor part 1
   #
@@ -122,6 +123,12 @@ class tCollector(tActiveObject):
 
     self.UpdateThresholds.connect(self.SendThresholdPercentages)
 
+    # Initialize sunrise and sunset to just before midnight.  These will get overwritten shortly 
+    # when the NIP sequencer actually computes them, but for now this will be "in the future".
+    timezone     = QTimeZone(SITE_TIMEZONE.encode('utf-8'))
+    self.sunrise = QDateTime.currentDateTime(timezone)
+    self.sunrise.setTime(QTime(23, 59))  # Set time to 11:59 PM
+    self.sunset  = self.sunrise
 
   ###############################################
   # Destructor
@@ -170,7 +177,12 @@ class tCollector(tActiveObject):
   #     
   
   #@with_lock
-  def Start(self):
+  def Start(self, SunriseSunsetUpdateSignal):
+
+    # Connect to sunrise and sunset updates
+    SunriseSunsetUpdateSignal.connect(self.UpdateSunriseSunset)
+
+
     # We set rtscts and dsrdtr even though this is a virtual COM Port.  This provides a way for 
     # the virtual port driver to inform when it isn't yet initialized or otherwise ready for
     # data, which can happen.
@@ -194,6 +206,19 @@ class tCollector(tActiveObject):
 
     # And start the periodic task running
     super().Start()
+
+
+  ###############################################
+  # UpdateSunriseSunset - Called whenever a new sunrise and sunset are computed 
+  # 
+  # Call this after construction to start the collector's periodic task running.
+  # This also includes opening the serial port.
+  #   
+
+  def UpdateSunriseSunset(self, Sunrise: QDateTime, Sunset: QDateTime):
+    self.sunrise = Sunrise
+    self.sunset  = Sunset
+    self.SetTimeToNow()          # Inform the collector
 
 
   ###############################################
@@ -542,7 +567,8 @@ class tCollector(tActiveObject):
     current_time = QDateTime.currentDateTime(timezone)
     
     # Format to HHMMSS.s (with 0.1 second resolution)
-    SetTimeCmd = '/K' + current_time.toString('hhmmss') + f"{int(current_time.time().msec() / 100)}"
+    SetTimeCmd = '/K' + current_time.toString('hhmmss') + f"{int(current_time.time().msec() / 100)}," +  \
+                        self.sunrise.toString('hhmm') + "," + self.sunset.toString('hhmm')
     # print('Set time (',self.CollectorName,'): ', SetTimeCmd)
 
     result = self.SerialPort.write(SetTimeCmd)
