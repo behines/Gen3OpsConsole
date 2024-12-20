@@ -118,10 +118,8 @@ class tPeriodicLogger(tActiveObject):
   # 
 
   def PeriodicMethod(self):
-    print('Initiating scans')
     self.InitiateScansOnAllAgilents()
 
-    print('Setting timer for ms ', 1000 * LOG_INTERVAL_SECONDS * 3/4)
     # Exit for now, then awaken 3/4 of the way through the periodic task interval to read the results
     self.ReadScannedResultsTimer.start(1000 * LOG_INTERVAL_SECONDS * 3/4)
     
@@ -152,7 +150,6 @@ class tPeriodicLogger(tActiveObject):
     # Collect all data
     #
 
-    print('Retrieving')
     # Read the Agilents and build out a string
     OutputLine = ''
     for agilent in self.Agilents:

@@ -482,7 +482,6 @@ class tAgilent(QObject):
   #@with_lock
   def RetrieveScanResults(self, bTrimCrLf):
 
-    print('Retrieve')
     # Poll for operation completion
     IsBusyOrScanning = True
     while IsBusyOrScanning:
@@ -493,7 +492,6 @@ class tAgilent(QObject):
         StatusReg = int(self.device.query('STAT:OPER:COND?').strip())
       IsBusyOrScanning = (StatusReg & tAgilent.STATUS_Scanning) != 0
 
-    print('Scan Complete')
     with QMutexLocker(self._lock):
       # Flush any characters in the port.  This is defensive, in case the last read timed out and then actually returned something later.
       self.FlushInputBuffer()
