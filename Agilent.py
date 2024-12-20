@@ -132,7 +132,7 @@ class tAgilent(QObject):
                      
     # Create the resource manager if it doesn't exist yet
     if tAgilent.PyVisaResourceManager is None:
-      tAgilent.PyVisaResourceManager = pyvisa.ResourceManager()
+      tAgilent.PyVisaResourceManager = pyvisa.ResourceManager('@py')   # Force pyvisa-py version, as NI did not fully uninstall properly
       print('Created pyvisa resource manager using', tAgilent.PyVisaResourceManager.visalib, 'found:')
       print(tAgilent.PyVisaResourceManager.list_resources())
 
