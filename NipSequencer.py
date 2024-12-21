@@ -3,20 +3,19 @@
 #
 # Makes decisions about operating modes, power states, etc.
 #
-# This class is mostly about the NIP tracker state.  It also controls pyranometer power,
-# but that is exceptionally simple inasmuch as all it does is track sunrise/sunset
 #
+## This class is mostly about the NIP tracker state.  It also controls pyranometer power,
+# but that is exceptionally simple inasmuch as all it does is track sunrise/sunset.
 #
-# The sequencer runs as its own thread.  That way it can both think about time and 
-# listen for user input.
+# The sequencer runs in a timer callback.
 #
 # The current assumption is that all of the actuators needed by the sequencer are
 # on a single Agilent card.  The mainframe unit is passed in to this method.  The
 # individual channel assignments are coded in the Configuration below.
 #
+#
 # We use the "transitions" state machine library at
 # https://github.com/pytransitions/transitions?tab=readme-ov-file#hsm
-#
 #
 # A note on how the library works.  It's confusing if you come back to 
 # it after a couple of years.  What happens is that for every transition defined
@@ -98,6 +97,7 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
   NipStateUpdate      = Signal(str)
   SunriseSunsetUpdate = Signal(QDateTime,QDateTime)
   ClearSkyGhiUpdate   = Signal(float)
+  NipHasDni           = Signal()
 
   states = [
     { 'name': 'off',     'on_enter': ['PowerDown'] },
@@ -392,6 +392,7 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
 
       if bHaveDNI:
         self.YesDNI()
+        self.NipHasDni.emit()
       else:
         self.NoDNI()
     

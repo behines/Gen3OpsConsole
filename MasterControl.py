@@ -52,20 +52,21 @@ from collections import namedtuple
 import sys
 import os
 
-from PySide6.QtWidgets import QApplication, QMainWindow, QCheckBox, QLabel, QWidget, QGridLayout, QScrollArea, QVBoxLayout, QMessageBox
-from PySide6.QtCore    import Qt, QFile, QThread, QDateTime, QTimeZone, QTimer, QSignalBlocker
+from PySide6.QtWidgets  import QApplication, QMainWindow, QCheckBox, QLabel, QWidget, QGridLayout, QScrollArea, QVBoxLayout, QMessageBox
+from PySide6.QtCore     import Qt, QFile, QThread, QDateTime, QTimeZone, QTimer, QSignalBlocker
 
 # Import configuration of the system
-from Gen2OpsConsole_ui import Ui_MasterControl
-from ConfigInfo        import *
-from CollectorControl  import tCollectorControlWindow
-from TempHumSensor     import tTempHumSensor
-from Agilent           import tAgilent
-from PeriodicLogger    import tPeriodicLogger
-from PowerControl      import tPowerControl
-from Sun               import tSun
-from NipSequencer      import tNipSequencer
-from LogFile           import tLogFile
+from Gen2OpsConsole_ui  import Ui_MasterControl
+from ConfigInfo         import *
+from CollectorControl   import tCollectorControlWindow
+from TempHumSensor      import tTempHumSensor
+from Agilent            import tAgilent
+from PeriodicLogger     import tPeriodicLogger
+from PowerControl       import tPowerControl
+from Sun                import tSun
+from NipSequencer       import tNipSequencer
+from CollectorSequencer import tCollectorSequencer
+from LogFile            import tLogFile
 
 
 
@@ -236,14 +237,15 @@ class MasterControl(QMainWindow):
       Collector.SetUsbPowerDevice(self.UsbHubPower, bUsbPowerState)
       Collector.Start(self.NipSequencer.SunriseSunsetUpdate)   # Collector listens to NipSequencer sunrise/sunset signals
 
+    self.CollectorSequencer = tCollectorSequencer(self.Collectors, self.UsbHubPower, self.NipSequencer.SunriseSunsetUpdate, self.NipSequencer.NipHasDni, self)
 
     # Connect to signals
     self.ConnectToSignals()
 
     # Since the NIP sequencer won't run for a full minute, go ahead and run it once right now.
     # One might want to do this inside the NipSequencer constructor instead.  But that first 
-    # run emits Sunrise and Sunset signals that we'd like to catch, so we want to wait until 
-    # after we've connected to the signals
+    # run emits Sunrise and Sunset signals that we, and the collector sequencer, would like to
+    # catch, so we want to wait until after we've connected to the signals
     self.NipSequencer.RunStateMachine()
 
 
@@ -359,7 +361,7 @@ class MasterControl(QMainWindow):
     self.ui.NipStateLabel.setText(NipStateString)
 
   #######################################################
-  # UpdateNipStateMessage
+  # UpdateSunriseSunset
 
   def UpdateSunriseSunset(self, Sunrise: QDateTime, Sunset: QDateTime):
     SunriseString = Sunrise.toString("HH:mm:ss")

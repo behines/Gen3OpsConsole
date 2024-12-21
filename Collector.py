@@ -725,3 +725,46 @@ class tCollector(tActiveObject):
   def SetNarrowIllumPercentThreshold(self, NarrowIllumPercent):
     self.NarrowIlluminationPercent = NarrowIllumPercent
     self.UpdateThresholds.emit()
+
+
+  ###############################################
+  # IsTrackingOrAttemptingToTrack
+  # 
+  # True if the collector will try to track if conditions are right
+  #     
+
+  def IsTrackingOrAttemptingToTrack(self):
+    bIsTrackingState = self.CollectorState in [
+      CollectorNativeStates.HOME_ELEVATION_LOW    ,
+      CollectorNativeStates.HOME_ELEVATION_HIGH   ,
+      CollectorNativeStates.HOME_AZIMUTH_NEG      ,
+      CollectorNativeStates.HOME_AZIMUTH_POS      ,
+      CollectorNativeStates.HOME_AZIMUTH_NEG_RETRY,
+      CollectorNativeStates.ACQ_BEGIN             ,
+      CollectorNativeStates.ACQ_ELEVATION_WAIT    ,
+      CollectorNativeStates.ACQ_AZ                ,
+      CollectorNativeStates.ACQ_ERROR             ,
+      CollectorNativeStates.ACQUIRE               ,
+      CollectorNativeStates.WAITING_FOR_SUN       ,
+      CollectorNativeStates.TRACK                 ,
+      CollectorNativeStates.CLOUD_PAUSE ]
+    
+    return bIsTrackingState
+    
+
+  ###############################################
+  # CanTrackIfRequested
+  # 
+  # True if the collector will try to track if conditions are right
+  #     
+
+  def CanTrackIfRequested(self):
+    bCanTrackIfRequested = self.CollectorState in [
+      CollectorNativeStates.OFF                    ,
+      CollectorNativeStates.HOME_COMPLETE          ,
+      CollectorNativeStates.STOW_AZ_HOME           ,
+      CollectorNativeStates.STOW_EL_HOME           ,
+      CollectorNativeStates.STOWED                 ,
+      CollectorNativeStates.STOW_ERROR ]
+
+    return bCanTrackIfRequested    

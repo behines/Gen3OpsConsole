@@ -195,8 +195,8 @@ CollectorNativeStateToMarqueeState = {
   CollectorNativeStates.HOME_UNSTICK           : CollectorMarqueeStates.HOMING,
   CollectorNativeStates.HOME_AZIMUTH_NEG_RETRY : CollectorMarqueeStates.HOMING,
   CollectorNativeStates.HOME_AZIMUTH_ERROR     : CollectorMarqueeStates.ERROR,
-  CollectorNativeStates.HOME_AZIMUTH_NEG_RETRY : CollectorMarqueeStates.HOMING,
   CollectorNativeStates.HOME_COMPLETE          : CollectorMarqueeStates.HOMING,
+  CollectorNativeStates.ACQ_BEGIN              : CollectorMarqueeStates.ACQUIRE,
   CollectorNativeStates.ACQ_ELEVATION_WAIT     : CollectorMarqueeStates.ACQUIRE,
   CollectorNativeStates.ACQ_AZ                 : CollectorMarqueeStates.ACQUIRE,
   CollectorNativeStates.ACQ_ERROR              : CollectorMarqueeStates.ERROR,
@@ -251,6 +251,45 @@ NIP_GHI_SUN_IS_OUT_MIN       =  30
 NIP_DNI_THRESHOLD            =  35    # in W/m^2
 NIP_COVER_GLASS_SCALE_FACTOR = 1.19   # Why it's not 1.08 I don't understand
 
+
+
+###########
+# Collector Sequencer
+#
+
+
+COLLECTOR_STATE_MACHINE_PERIOD = 60
+
+# How long to allow these operations to take
+COLL_POWEROFF_TIMEOUT =   5
+COLL_POWERON_TIMEOUT  =  15
+COLL_UNSTICK_TIMEOUT  = 120
+
+
+# Start and end times.  How many hours after sunrise to start each collector, and
+# how many hours before sunset to shut it down.
+COLLECTOR_START_AND_END_TIMES = {
+  '1A': [ +1, -1 ],
+  '1B': [ +1, -1 ],
+  '1C': [ +1, -1 ],
+  '2A': [ +1, -1 ],
+  '2B': [ +1, -1 ],
+  '2C': [ +1, -1 ],
+  '3A': [ +1, -1 ],
+  '3B': [ +1, -1 ],
+  '3C': [ +1, -1 ],
+  '4A': [ +1, -1 ],
+  '4B': [ +1, -1 ],
+  '4C': [ +1, -1 ],
+  '5A': [ +1, -1 ],
+  '5B': [ +1, -1 ],
+  '5C': [ +1, -1 ],
+}
+
+
+###########
+# Thinger.io Internet-of-Things cloud server login params
+#
 
 # Replace with your Thinger.io credentials
 THINGER_IO_USERNAME    = "behines"
