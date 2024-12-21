@@ -148,8 +148,9 @@ class tCollector(tActiveObject):
 
   def HandleSerialPortError(self, error):
     if error != QSerialPort.NoError:
-      print(f"Serial port error: {error}")
-      # Handle error (e.g., reconnect, notify user, etc.)
+      if self.CollectorName != '5C':
+        print(f"Serial port error: {error}")
+        # Handle error (e.g., reconnect, notify user, etc.)
 
 
   ###############################################
@@ -232,7 +233,7 @@ class tCollector(tActiveObject):
     if not self.SerialPort.IsOpen():
       print(f'tCollector: ERROR: Collector {self.CollectorName} offline in InitializeConnection', flush=True)
     else:
-      print(f'tCollector: INFO: Collector {self.CollectorName} back online', flush=True)
+      # print(f'tCollector: INFO: Collector {self.CollectorName} back online', flush=True)
       self.CollectorState = CollectorNativeStates.UNKNOWN
       self.FlushCommandInput()
       self.SetTimeToNow()
