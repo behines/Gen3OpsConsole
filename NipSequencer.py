@@ -328,7 +328,7 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
 
   def DoShutdown(self):
     print("NIP Sequencer exiting")
-    # Callt he Shutdown method from the transitions library to enter the Shutdown state
+    # Call the Shutdown method from the transitions library to enter the Shutdown state
     self.Shutdown()
     
 
