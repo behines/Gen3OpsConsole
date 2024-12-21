@@ -249,7 +249,6 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
 
     # Really the only work we have to do is if our state is 'daytime'.  All other state transitions
     # are handled automatically by timeouts.
-    print('Collector sequencer state: ', self.state)
     if self.state != 'daytime':
       return
     
