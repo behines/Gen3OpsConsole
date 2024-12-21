@@ -269,20 +269,20 @@ COLL_UNSTICK_TIMEOUT  = 120
 # Start and end times.  How many hours after sunrise to start each collector, and
 # how many hours before sunset to shut it down.
 COLLECTOR_START_AND_END_TIMES = {
-  '1A': [ +1, -1 ],
-  '1B': [ +1, -1 ],
+  '1A': [ +2, -1 ],
+  '1B': [ +2, -1 ],
   '1C': [ +1, -1 ],
-  '2A': [ +1, -1 ],
-  '2B': [ +1, -1 ],
-  '2C': [ +1, -1 ],
-  '3A': [ +1, -1 ],
-  '3B': [ +1, -1 ],
+  '2A': [ +2, -2 ],
+  '2B': [ +2, -2 ],
+  '2C': [ +2, -1.5 ],
+  '3A': [ +2, -2 ],
+  '3B': [ +2, -2 ],
   '3C': [ +1, -1 ],
-  '4A': [ +1, -1 ],
-  '4B': [ +1, -1 ],
-  '4C': [ +1, -1 ],
-  '5A': [ +1, -1 ],
-  '5B': [ +1, -1 ],
+  '4A': [ +2, -2 ],
+  '4B': [ +2, -2 ],
+  '4C': [ +2, -1.5 ],
+  '5A': [ +2, -1.5 ],
+  '5B': [ +2, -1.5 ],
   '5C': [ +1, -1 ],
 }
 
