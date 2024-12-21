@@ -148,6 +148,7 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
        key: {
           'HoursAfterSunrise' : values[0],
           'HoursBeforeSunset' : values[1],
+          'HasRebootedYet'    : False,
           'IsDoneForTheDay'   : False,
        }
        for key, values in COLLECTOR_START_AND_END_TIMES.items()
@@ -267,14 +268,23 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
       bShouldBeTracking = (current_time >= StartTime) and (current_time <= EndTime)
       bShouldBeDone     =                                 (current_time >  EndTime)
 
-      bIsTracking = Collector.IsTrackingOrAttemptingToTrack()
       if (bDontStartYet):
+        status['HasRebootedYet']   = False
         status['IsDoneForTheDay']  = False
         bAllAreDone                = False
 
-      if bShouldBeTracking and (not bIsTracking) and Collector.CanTrackIfRequested():
-        print(f'Sequencer: Requesting {Collector.CollectorName} to Track')
-        Collector.DoTrack.emit()
+      bIsTracking = Collector.IsTrackingOrAttemptingToTrack()
+
+      if bShouldBeTracking:
+        if bIsTracking:
+          status['HasRebootedYet'] = True   # Don't reboot a collector that is already successfully tracking
+        elif not status['HasRebootedYet']:
+          print(f'Sequencer: Requesting {Collector.CollectorName} to Reboot')
+          Collector.DoReboot.emit()
+          status['HasRebootedYet'] = True
+        elif Collector.CanTrackIfRequested():
+          print(f'Sequencer: Requesting {Collector.CollectorName} to Track')
+          Collector.DoTrack.emit()
 
       elif (bShouldBeDone and not status['IsDoneForTheDay']):
         print(f'Sequencer: Requesting {Collector.CollectorName} to Stow')

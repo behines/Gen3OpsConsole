@@ -179,8 +179,11 @@ class tPeriodicLogger(tActiveObject):
         GHI = OutputLineParsed[self.GhiChannelIndex]
       if not self.DniChannelIndex is None:
         DNI = OutputLineParsed[self.DniChannelIndex]
+      # Clip nonsensical DNI and GHI values
       GHI = 0.0 if GHI < 0.0 else GHI
       DNI = 0.0 if DNI < 0.0 else DNI
+      GHI = 0.0 if GHI > 2000.0 else GHI
+      DNI = 0.0 if DNI > 2000.0 else DNI
     except (ValueError, IndexError, TypeError) as e:
       GHI = 0.0
       DNI = 0.0
@@ -188,6 +191,7 @@ class tPeriodicLogger(tActiveObject):
       SandTopTemp = 0
       SandMidTemp = 0
       SandBotTemp = 0      
+
 
     # Tell the sequencer about the new values
     #SystemState |= {'GHI': GHI, 'DNI': DNI}
