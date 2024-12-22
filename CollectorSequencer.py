@@ -143,7 +143,7 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
                                   ignore_invalid_triggers = True,
                                   after_state_change = 'NotifyStateChange')
     
-    self.LastState      = 'Unknown'
+    self.LastState      = 'Night'
 
     # Set sunrise and sunset to be in the future.  We will get actual values soon
     ThisTimeInTwoDays  = QDateTime.currentDateTime().addDays(2)
@@ -177,7 +177,7 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
     self.StateMachineTimer = QTimer(self)
     self.StateMachineTimer.setSingleShot(False)
     self.StateMachineTimer.timeout.connect(self.RunStateMachine)
-    print("Collector Sequencer starting up...")
+    print("Collector Sequencer starting up...", flush=True)
     self.StateMachineTimer.start(1000 * COLLECTOR_STATE_MACHINE_PERIOD)
 
 
@@ -254,7 +254,7 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
   #     
 
   def StowAll(self): 
-    print('Sending Stow to all')
+    print('Sending Stow to all', flush=True)
     for Collector in self.Collectors:
       Collector.DoStow.emit() 
 
@@ -266,7 +266,7 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
   #     
 
   def UnstickAll(self): 
-    print('Sending Unstick to all')
+    print('Sending Unstick to all', flush=True)
     for Collector in self.Collectors:
       Collector.DoUnstick.emit() 
 
@@ -300,7 +300,7 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
   #     
 
   def NotifyStateChange(self):
-    print('Collector sequencer transition: ' + self.LastState + ' -> ' + self.state)
+    print('Collector sequencer transition: ' + self.LastState + ' -> ' + self.state, flush=True)
     self.LastState = self.state
     self.StateUpdate.emit(self.state)
 
@@ -351,16 +351,16 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
         if bIsTracking:
           status['HasRebootedYet'] = True   # Don't reboot a collector that is already successfully tracking
         elif not status['HasRebootedYet']:
-          print(f'Sequencer: Requesting {Collector.CollectorName} to Reboot')
+          print(f'Sequencer: Requesting {Collector.CollectorName} to Reboot', flush=True)
           Collector.DoReboot.emit()
           status['HasRebootedYet'] = True
         # Next.  If in full automation, we start to track from states including STOW states and HOME_COMPLETE.  In Semi Automation, we only start from Off.
         elif Collector.IsOff() or (self.bFullAutomation and Collector.CanTrackIfRequested()):
-          print(f'Sequencer: Requesting {Collector.CollectorName} to Track')
+          print(f'Sequencer: Requesting {Collector.CollectorName} to Track', flush=True)
           Collector.DoTrack.emit()
 
       elif (bShouldBeDone and not status['IsDoneForTheDay']):
-        print(f'Sequencer: Requesting {Collector.CollectorName} to Stow')
+        print(f'Sequencer: Requesting {Collector.CollectorName} to Stow', flush=True)
         Collector.DoStow.emit()
         status['IsDoneForTheDay']  = True
 
