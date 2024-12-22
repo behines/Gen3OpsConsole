@@ -52,8 +52,8 @@ from collections import namedtuple
 import sys
 import os
 
-from PySide6.QtWidgets  import QApplication, QMainWindow, QCheckBox, QLabel, QWidget, QGridLayout, QScrollArea, QVBoxLayout, QMessageBox
-from PySide6.QtCore     import Qt, QFile, QThread, QDateTime, QTimeZone, QTimer, QSignalBlocker
+from PySide6.QtWidgets  import QApplication, QMainWindow, QLabel, QButtonGroup, QMessageBox
+from PySide6.QtCore     import Qt, QThread, QDateTime, QTimeZone, QTimer, QSignalBlocker
 
 # Import configuration of the system
 from Gen2OpsConsole_ui  import Ui_MasterControl
@@ -290,12 +290,45 @@ class MasterControl(QMainWindow):
     self.NipSequencer.NipStateUpdate     .connect(self.UpdateNipStateMessage)
     self.NipSequencer.SunriseSunsetUpdate.connect(self.UpdateSunriseSunset)
 
+    self.CollectorSequencer.StateUpdate  .connect(self.UpdateMasterStateLabel)
+
+    # Access the radio buttons by their object names
+    self.SequencerModeRadioGroup = QButtonGroup(self)
+    self.SequencerModeRadioGroup.addButton(self.ui.FullAutoRadioButton)
+    self.SequencerModeRadioGroup.addButton(self.ui.SemiAutoRadioButton)
+    self.SequencerModeRadioGroup.addButton(self.ui.SequencerOffRadioButton)
+
+    # Connect the group signal
+    self.SequencerModeRadioGroup.buttonClicked.connect(self.SequencerModeChangeRequest)
+
     # Connect command buttons
     self.ui.OffPushButton        .clicked.connect(lambda: [Collector.DoOff    .emit() for Collector in self.Collectors])
     self.ui.HomePushButton       .clicked.connect(lambda: [Collector.DoHome   .emit() for Collector in self.Collectors])
     self.ui.SetTimePushButton    .clicked.connect(lambda: [Collector.DoSetTime.emit() for Collector in self.Collectors])
     self.ui.StowPushButton       .clicked.connect(lambda: [Collector.DoStow   .emit() for Collector in self.Collectors])
     self.ui.TrackPushButton      .clicked.connect(lambda: [Collector.DoTrack  .emit() for Collector in self.Collectors])
+
+
+
+  #######################################################
+  # SequencerModeChangeRequest - When the user clicks the sequencer mode button
+  #
+  
+  def SequencerModeChangeRequest(self, NewState : str):
+    if self.ui.SequencerOffRadioButton.isChecked():
+      self.CollectorSequencer.DisableSeq.emit()
+    else:
+      # Not off, either full or semi auto
+      self.CollectorSequencer.EnableSeq.emit()
+      self.CollectorSequencer.SetFullAutomation(self.ui.FullAutoRadioButton.isChecked())
+
+
+  #######################################################
+  # UpdateMasterStateLabel - Updates the master state shown in the main panel
+  #
+  
+  def UpdateMasterStateLabel(self, NewState : str):
+    self.ui.MasterStateLabel.setText(NewState)
 
 
   #######################################################

@@ -67,14 +67,15 @@ class StateMachineWithTimeouts(Machine):
 
 class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must derive from QObject
 
-  NipStateUpdate      = Signal(str)
-  SunriseSunsetUpdate = Signal(QDateTime,QDateTime)
-  ClearSkyGhiUpdate   = Signal(float)
+  StateUpdate       = Signal(str)
+  DisableSeq        = Signal()
+  EnableSeq         = Signal()
+  SetFullAutomation = Signal(bool)
 
   states = [
-    { 'name': 'off',        'on_enter': ['StowAll']      },
-            
-    { 'name': 'daytime'                            }, 
+    { 'name': 'Disabled',                                  },
+    { 'name': 'Night',        'on_enter': ['StowAll']      },
+    { 'name': 'Daytime'                                    }, 
     { 'name': 'PoweredOff',   'on_enter': ['UsbPowerOff'],  'timeout': COLL_POWEROFF_TIMEOUT,  'on_timeout': 'PowerOn'   }, 
     { 'name': 'PoweringUp',   'on_enter': ['UsbPowerOn'],   'timeout': COLL_POWERON_TIMEOUT,   'on_timeout': 'Unstick' }, 
     { 'name': 'Unstick-stow', 'on_enter': ['UnstickAll'],   'timeout': COLL_UNSTICK_TIMEOUT,   'on_timeout': 'DoOff' }, 
@@ -86,10 +87,10 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
     #   trigger, source, dest, conditions, unless, before, after, prepare, **kwargs)
 
     # DNI appearing when we're in Off tells us to start our day
-    [ 'YesDNI',       'off',         'daytime'                ],
+    [ 'YesDNI',       'Night',       'Daytime'     , 'IsBeforeBedtime' ],  # Only switch to daytime if it's not after bedtime
 
     # If we decide the day is done, it's time to power everyone off
-    [ 'DayIsDone',    'daytime',     'PoweredOff'             ],
+    [ 'DayIsDone',    'Daytime',     'PoweredOff'             ],
 
     # A PowerOn transition takes us into PoweringUp
     [ 'PowerOn',      'PoweredOff',  'PoweringUp'             ], 
@@ -98,8 +99,15 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
     [ 'Unstick',      'PoweringUp',  'Unstick-stow'           ], 
 
     # DoOff transition causes us to enter off
-    [ 'DoOff',        'Unstick-stow', 'off'                   ]
+    [ 'DoOff',        'Unstick-stow', 'Night'                 ],
 
+    [ 'Disable',      'Night',        'Disabled'              ],
+    [ 'Disable',      'Daytime'       'Disabled'              ],
+    [ 'Disable',      'PoweredOff',   'Disabled'              ],
+    [ 'Disable',      'PoweringUp',   'Disabled'              ],
+    [ 'Disable',      'Unstick-stow', 'Disabled'              ],
+
+    [ 'Enable',       'Disabled',     'Daytime'               ],   # When re-enabled we'll jump right into Daytime mode
   ]
 
   '''
@@ -131,15 +139,17 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
     self.StateMachine   = StateMachineWithTimeouts(model       = self,
                                   states      = tCollectorSequencer.states, 
                                   transitions = tCollectorSequencer.transitions,
-                                  initial     = 'off',
-                                  ignore_invalid_triggers = True)
+                                  initial     = 'Night',
+                                  ignore_invalid_triggers = True,
+                                  after_state_change = 'NotifyStateChange')
     
     self.LastState      = self.state
 
     # Set sunrise and sunset to be in the future.  We will get actual values soon
-    ThisTimeInTwoDays = QDateTime.currentDateTime().addDays(2)
-    self.Sunrise = ThisTimeInTwoDays
-    self.Sunset  = ThisTimeInTwoDays
+    ThisTimeInTwoDays  = QDateTime.currentDateTime().addDays(2)
+    self.Sunrise       = ThisTimeInTwoDays
+    self.Sunset        = ThisTimeInTwoDays
+    self.LatestEndTime = ThisTimeInTwoDays
 
     self.Collectors  = Collectors
     self.UsbHubPower = UsbHubPower
@@ -155,8 +165,13 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
     }
 
     # Connect signals
-    SunriseSunsetSignal.connect(self.UpdateSunriseSunset)
-    NipHasDniSignal    .connect(self.YesDNI)             # Just directly connect this to the state machine transition method
+    SunriseSunsetSignal   .connect(self.UpdateSunriseSunset)
+    NipHasDniSignal       .connect(self.YesDNI)             # Just directly connect this to the state machine transition method
+
+    self.bFullAutomation = True
+    self.SetFullAutomation.connect(self.SetAutomationLevel)
+    self.EnableSeq        .connect(self.EnableSequencer)
+    self.DisableSeq       .connect(self.DisableSequencer)
 
     # Create a timer to run the state machine periodically
     self.StateMachineTimer = QTimer(self)
@@ -178,12 +193,59 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
 
 
   #######################################################
+  # EnableSequencer
+
+  def EnableSequencer(self):
+    self.Enable()      # Call the state machine transition.  Only makes sense if we're in Disabled, else ignored
+
+
+  #######################################################
+  # DisableSequencer
+
+  def DisableSequencer(self):
+    self.Disable()     # Call the state machine transition. 
+
+
+  #######################################################
+  # SetAutomationLevel - Callback for signal
+  #
+
+  def SetAutomationLevel(self, bFullAuto):
+    self.bFullAutomation = bFullAuto
+    
+
+  #######################################################
   # UpdateSunriseSunset
 
   def UpdateSunriseSunset(self, Sunrise: QDateTime, Sunset: QDateTime):
     self.Sunrise = Sunrise
     self.Sunset  = Sunset
 
+    # Compute the latest time that any collector wants to be shut down
+    self.LatestEndTime = Sunrise
+    for Collector in self.Collectors:
+      status = self.CollectorStatus[Collector.CollectorName]
+      EndTime   = self.Sunset .addSecs(int(-3600 * status['HoursBeforeSunset']))
+      if (EndTime > self.LatestEndTime):
+        self.LatestEndTime = EndTime
+
+
+  #######################################################
+  # IsBeforeBedtime - True only if it's not before everyone's bedtime
+  #
+
+  def IsBeforeBedtime(self) -> bool:
+    # Get current time
+    current_time = QDateTime.currentDateTime()
+    # Convert current time to SITE_TIMEZONE just in case it's not set the same on this computer
+    time_zone    = QTimeZone(SITE_TIMEZONE.encode('utf-8'))
+    current_time = current_time.toTimeZone(time_zone)
+
+    # Compare to the "latest end time" computed during UpdateSunriseSunset
+    bIsBeforeBedtime = self.LatestEndTime > current_time
+
+    return bIsBeforeBedtime
+  
 
   ###############################################
   # StowAll 
@@ -192,6 +254,7 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
   #     
 
   def StowAll(self): 
+    print('Sending Stow to all')
     for Collector in self.Collectors:
       Collector.DoStow.emit() 
 
@@ -203,6 +266,7 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
   #     
 
   def UnstickAll(self): 
+    print('Sending Unstick to all')
     for Collector in self.Collectors:
       Collector.DoUnstick.emit() 
 
@@ -229,6 +293,17 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
 
   
 
+  ###############################################
+  # NotifyStateChange - Callback for state change events
+  # 
+  # Called by the transitions library after a state change
+  #     
+
+  def NotifyStateChange(self):
+    print('Collector sequencer transition: ' + self.LastState + ' -> ' + self.state)
+    self.LastState = self.state
+    self.StateUpdate.emit(self.state)
+
 
   ###############################################
   # RunStateMachine - Execute one iteration of the state machine
@@ -243,14 +318,11 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
     time_zone    = QTimeZone(SITE_TIMEZONE.encode('utf-8'))
     current_time = current_time.toTimeZone(time_zone)
 
-    # A state transition may have occurred while we were asleep, as a result of a timeout
-    if self.LastState != self.state:
-      print('Collector sequencer timeout transition: ' + self.LastState + ' -> ' + self.state)
-      self.LastState = self.state
 
-    # Really the only work we have to do is if our state is 'daytime'.  All other state transitions
+
+    # Really the only work we have to do is if our state is 'Daytime'.  All other state transitions
     # are handled automatically by timeouts.
-    if self.state != 'daytime':
+    if self.state != 'Daytime':
       return
     
     bAllAreDone = True
@@ -282,7 +354,8 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
           print(f'Sequencer: Requesting {Collector.CollectorName} to Reboot')
           Collector.DoReboot.emit()
           status['HasRebootedYet'] = True
-        elif Collector.CanTrackIfRequested():
+        # Next.  If in full automation, we start to track from states including STOW states and HOME_COMPLETE.  In Semi Automation, we only start from Off.
+        elif Collector.IsOff() or (self.bFullAutomation and Collector.CanTrackIfRequested()):
           print(f'Sequencer: Requesting {Collector.CollectorName} to Track')
           Collector.DoTrack.emit()
 

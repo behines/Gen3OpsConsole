@@ -52,6 +52,9 @@
                  <property name="text">
                   <string>Full Auto</string>
                  </property>
+                 <property name="checked">
+                  <bool>true</bool>
+                 </property>
                 </widget>
                </item>
                <item>
@@ -199,7 +202,7 @@
                 </font>
                </property>
                <property name="text">
-                <string>WhoKnows</string>
+                <string>Unknown</string>
                </property>
               </widget>
              </item>
@@ -334,7 +337,7 @@
                  <item>
                   <widget class="QLabel" name="label_11">
                    <property name="text">
-                    <string> </string>
+                    <string/>
                    </property>
                   </widget>
                  </item>
@@ -398,7 +401,7 @@
                     </font>
                    </property>
                    <property name="text">
-                    <string> </string>
+                    <string/>
                    </property>
                   </widget>
                  </item>

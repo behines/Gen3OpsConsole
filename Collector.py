@@ -620,7 +620,7 @@ class tCollector(tActiveObject):
 
 
   ###############################################
-  # Reboot - Sends an Unstick command
+  # Reboot - causes a reboot by using DsLite to reset the board
   # 
   #     
 
@@ -642,8 +642,8 @@ class tCollector(tActiveObject):
       rf'"C:\Users\PlanetA\Nextcloud\Engineering\Calseed Prototype\Software\TI_Tools\dslite\{self.CollectorName}.ccxml"'
     )
 
-    print('Hard resetting board with command')
-    print(shell_command)
+    print(f'Hard resetting {self.CollectorName}')
+    #print(shell_command)
     subprocess.run(f'cmd /c "{shell_command} > nul 2>&1"', shell=True)
 
     self.bResponded = True
@@ -768,3 +768,17 @@ class tCollector(tActiveObject):
       CollectorNativeStates.STOW_ERROR ]
 
     return bCanTrackIfRequested    
+
+
+  ###############################################
+  # IsOff
+  # 
+  # True if the collector is in Off state
+  #     
+
+  def IsOff(self):
+    bIsOff = self.CollectorState in [
+      CollectorNativeStates.OFF  ]
+
+    return bIsOff    
+  
