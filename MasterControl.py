@@ -291,6 +291,8 @@ class MasterControl(QMainWindow):
     self.NipSequencer.SunriseSunsetUpdate.connect(self.UpdateSunriseSunset)
 
     self.CollectorSequencer.StateUpdate  .connect(self.UpdateMasterStateLabel)
+    # The signal has already been emitted by the sequencer, so we need to do this to init the GUI properly
+    self.UpdateMasterStateLabel(self.CollectorSequencer.state)
 
     # Access the radio buttons by their object names
     self.SequencerModeRadioGroup = QButtonGroup(self)
