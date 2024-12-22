@@ -322,7 +322,7 @@ class MasterControl(QMainWindow):
     else:
       # Not off, either full or semi auto
       self.CollectorSequencer.EnableSeq.emit()
-      self.CollectorSequencer.SetFullAutomation(self.ui.FullAutoRadioButton.isChecked())
+      self.CollectorSequencer.SetFullAutomation.emit(self.ui.FullAutoRadioButton.isChecked())
 
 
   #######################################################
