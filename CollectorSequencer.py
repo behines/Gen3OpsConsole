@@ -144,7 +144,6 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
                                   after_state_change = 'NotifyStateChange')
     
     self.LastState      = 'Unknown'
-    self.NotifyStateChange()
 
     # Set sunrise and sunset to be in the future.  We will get actual values soon
     ThisTimeInTwoDays  = QDateTime.currentDateTime().addDays(2)
