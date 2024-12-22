@@ -334,7 +334,7 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
       status = self.CollectorStatus[Collector.CollectorName]
 
       StartTime = self.Sunrise.addSecs(int( 3600 * status['HoursAfterSunrise']))
-      EndTime   = self.Sunset .addSecs(int(-3600 * status['HoursBeforeSunset']))
+      EndTime   = self.Sunset .addSecs(int( 3600 * status['HoursBeforeSunset']))
 
       bDontStartYet     = (current_time <  StartTime)
       bShouldBeTracking = (current_time >= StartTime) and (current_time <= EndTime)
