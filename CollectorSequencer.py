@@ -102,12 +102,12 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
     [ 'DoOff',        'Unstick-stow', 'Night'                 ],
 
     [ 'Disable',      'Night',        'Disabled'              ],
-    [ 'Disable',      'Daytime'       'Disabled'              ],
+    [ 'Disable',      'Daytime',      'Disabled'              ],
     [ 'Disable',      'PoweredOff',   'Disabled'              ],
     [ 'Disable',      'PoweringUp',   'Disabled'              ],
     [ 'Disable',      'Unstick-stow', 'Disabled'              ],
 
-    [ 'Enable',       'Disabled',     'Daytime'               ],   # When re-enabled we'll jump right into Daytime mode
+    [ 'Enable',       'Disabled',     'Daytime'               ]   # When re-enabled we'll jump right into Daytime mode
   ]
 
   '''
@@ -143,7 +143,8 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
                                   ignore_invalid_triggers = True,
                                   after_state_change = 'NotifyStateChange')
     
-    self.LastState      = self.state
+    self.LastState      = 'Unknown'
+    self.NotifyStateChange()
 
     # Set sunrise and sunset to be in the future.  We will get actual values soon
     ThisTimeInTwoDays  = QDateTime.currentDateTime().addDays(2)
