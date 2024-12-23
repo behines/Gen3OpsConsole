@@ -241,9 +241,11 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
     time_zone    = QTimeZone(SITE_TIMEZONE.encode('utf-8'))
     current_time = current_time.toTimeZone(time_zone)
 
+    
     # Compare to the "latest end time" computed during UpdateSunriseSunset
     bIsBeforeBedtime = self.LatestEndTime > current_time
-
+    print(f'IsBeforeBedtime: {bIsBeforeBedtime}')
+          
     return bIsBeforeBedtime
   
 
