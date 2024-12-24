@@ -225,7 +225,7 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
     self.LatestEndTime = Sunrise
     for Collector in self.Collectors:
       status = self.CollectorStatus[Collector.CollectorName]
-      EndTime   = self.Sunset .addSecs(int(-3600 * status['HoursBeforeSunset']))
+      EndTime   = self.Sunset .addSecs(int(3600 * status['HoursBeforeSunset']))
       if (EndTime > self.LatestEndTime):
         self.LatestEndTime = EndTime
 
@@ -244,7 +244,7 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
     
     # Compare to the "latest end time" computed during UpdateSunriseSunset
     bIsBeforeBedtime = self.LatestEndTime > current_time
-    print(f'IsBeforeBedtime: {bIsBeforeBedtime}')
+    # print(f'IsBeforeBedtime: {bIsBeforeBedtime}', flush=True)
           
     return bIsBeforeBedtime
   
