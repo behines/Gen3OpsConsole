@@ -32,20 +32,19 @@ def main():
   print(f"Connecting to Agilent on: {instr_string}")
   
   rm=pyvisa.ResourceManager('@py')
-  dev=rm.open_resource('ASRL5::INSTR')
+  dev=rm.open_resource(instr_string)
   dev.baud_rate=9600
   dev.data_bits=8
   dev.parity=pyvisa.constants.Parity.none
   dev.stop_bits=pyvisa.constants.StopBits.one
   dev.flow_control=pyvisa.constants.ControlFlow.rts_cts
-  dev.query('*IDN?')
+ 
+  print(' ')
+  print(dev.query('*IDN?'), end='')
 
-  print('Card 1: ', end='')
-  dev.query('SYST:CTYPE? 100')
-  print('Card 2: ', end='')
-  dev.query('SYST:CTYPE? 200')
-  print('Card 3: ', end='')
-  dev.query('SYST:CTYPE? 300')
+  print('Card 1: ', dev.query('SYST:CTYPE? 100'), end='')
+  print('Card 2: ', dev.query('SYST:CTYPE? 200'), end='')
+  print('Card 3: ', dev.query('SYST:CTYPE? 300'), end='')
 
 
 if __name__ == "__main__":
