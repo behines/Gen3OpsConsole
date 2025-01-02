@@ -148,9 +148,8 @@ class tCollector(tActiveObject):
 
   def HandleSerialPortError(self, error):
     if error != QSerialPort.NoError:
-      if self.CollectorName != '5C':
-        print(f"Serial port error: {error}")
-        # Handle error (e.g., reconnect, notify user, etc.)
+      print(f"Serial port error: {error}")
+      # Handle error (e.g., reconnect, notify user, etc.)
 
 
   ###############################################
