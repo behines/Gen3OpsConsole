@@ -20,6 +20,28 @@ from enum        import IntEnum, auto
 # anything we want to configure.
 #
 
+# The results of GetAgilentInfo.py for each of the three units are as follows.  This allows them to be uniquely
+# identified if need be.
+#
+# Unit 1 (ASRL5):
+# HEWLETT-PACKARD,34970A,0,9-1-2
+# Card 1:  HEWLETT-PACKARD,34901A,0,2.3
+# Card 2:  HEWLETT-PACKARD,34901A,0,2.3
+# Card 3:  HEWLETT-PACKARD,34901A,0,2.3
+# 
+# Unit 2 (ASRL7):
+# HEWLETT-PACKARD,34970A,0,9-1-2
+# Card 1:  HEWLETT-PACKARD,34901A,0,2.3
+# Card 2:  HEWLETT-PACKARD,34901A,0,2.3
+# Card 3:  HEWLETT-PACKARD,0,0,0
+# 
+# Unit 3 (ASRL 9):
+# HEWLETT-PACKARD,34970A,0,9-1-2
+# Card 1:  HEWLETT-PACKARD,34901A,0,2.0
+# Card 2:  HEWLETT-PACKARD,34903A,0,1.0
+# Card 3:  HEWLETT-PACKARD,0,0,0
+
+
 # Elements of the AGILENTS array have 7 members.  The DESCRIPTOR_FIELDS tell what each of those 7 entries are
 AGILENT_DESCRIPTOR_FIELDS = [ 'Port','Channel list','Thermocouple channels','GHI channels','DNI channels','DNI gain','Front panel channel' ]
 AGILENTS = [  [ 'ASRL5::INSTR',              # Port
