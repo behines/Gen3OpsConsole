@@ -23,19 +23,19 @@ from enum        import IntEnum, auto
 # The results of GetAgilentInfo.py for each of the three units are as follows.  This allows them to be uniquely
 # identified if need be.
 #
-# Unit 1 (ASRL5):
+# Unit 1 (ASRL4):
 # HEWLETT-PACKARD,34970A,0,9-1-2
 # Card 1:  HEWLETT-PACKARD,34901A,0,2.3
 # Card 2:  HEWLETT-PACKARD,34901A,0,2.3
 # Card 3:  HEWLETT-PACKARD,34901A,0,2.3
 # 
-# Unit 2 (ASRL7):
+# Unit 2 (ASRL5):
 # HEWLETT-PACKARD,34970A,0,9-1-2
 # Card 1:  HEWLETT-PACKARD,34901A,0,2.3
 # Card 2:  HEWLETT-PACKARD,34901A,0,2.3
 # Card 3:  HEWLETT-PACKARD,0,0,0
 # 
-# Unit 3 (ASRL 9):
+# Unit 3 (ASRL 6):
 # HEWLETT-PACKARD,34970A,0,9-1-2
 # Card 1:  HEWLETT-PACKARD,34901A,0,2.0
 # Card 2:  HEWLETT-PACKARD,34903A,0,1.0
@@ -44,7 +44,7 @@ from enum        import IntEnum, auto
 
 # Elements of the AGILENTS array have 7 members.  The DESCRIPTOR_FIELDS tell what each of those 7 entries are
 AGILENT_DESCRIPTOR_FIELDS = [ 'Port','Channel list','Thermocouple channels','GHI channels','DNI channels','DNI gain','Front panel channel' ]
-AGILENTS = [  [ 'ASRL5::INSTR',              # Port
+AGILENTS = [  [ 'ASRL4::INSTR',              # Port
                 '101:120,201:220,301:320',   # Full scan channel list
                 '101:120,201:220,301:320',   # Thermocouple channel list
                 None,                        # GHI channel
@@ -52,7 +52,7 @@ AGILENTS = [  [ 'ASRL5::INSTR',              # Port
                 8.23,                        # NIP Gain in uV per W/m^2
                 303                          # Channel to display on front panel
               ],
-              [ 'ASRL7::INSTR',              # Port
+              [ 'ASRL5::INSTR',              # Port
                 '101:120,201:220',           # Full scan channel list
                 '101:120,201:220',           # Thermocouple channel list
                 None,                        # GHI channel
@@ -60,7 +60,7 @@ AGILENTS = [  [ 'ASRL5::INSTR',              # Port
                 8.23,                        # NIP Gain in uV per W/m^2
                 101                          # Channel to display on front panel
               ],
-              [ 'ASRL9::INSTR',              # Port
+              [ 'ASRL6::INSTR',              # Port
                 '119:120',                   # Full scan channel list
                 None,                        # Thermocouple channel list
                 120,                         # GHI channel
@@ -134,35 +134,35 @@ MARQUEE_BAUD_RATE    = 115200
 # There are 30 readings per minute of 11 characters each (if there is a CR/LF after each)
 TEMP_HUM_BAUD_RATE           = 115200
 TEMP_HUM_RX_BUFFER_SIZE      = 15 * 30 * 11
-OUTSIDE_TEMP_SENSOR_PORT     = 'COM6'  # Replace with your read serial port
-DOME_TEMP_SENSOR_PORT        = 'COM8'
-ELECTRONICS_TEMP_SENSOR_PORT = 'COM100'   # Temp of electronics box
+OUTSIDE_TEMP_SENSOR_PORT     = 'COM7'  # Replace with your read serial port
+DOME_TEMP_SENSOR_PORT        = 'COM39'
+ELECTRONICS_TEMP_SENSOR_PORT = 'COM38'   # Temp of electronics box
 
 
 ##########
 # Collector COM ports and serial port config info
 #
 
-COLLECTOR_BAUD_RATE      = 38400
+COLLECTOR_BAUD_RATE      =  9600
 COLLECTOR_RX_BUFFER_SIZE =  2000
 COLLECTOR_TX_BUFFER_SIZE =  2000
 
 COLLECTOR_PORTS = [
-  ['1A', 'COM87'],
-  ['1B', 'COM98'],
-  ['1C', 'COM95'],
-  ['2A', 'COM97'],
-  ['2B', 'COM85'],
-  ['2C', 'COM89'],
-  ['3A', 'COM91'],
-  ['3B', 'COM92'],
-  ['3C', 'COM64'],
-  ['4A', 'COM81'],
-  ['4B', 'COM71'],
-  ['4C', 'COM66'],
-  ['5A', 'COM68'],
-  ['5B', 'COM60'],
-  ['5C', 'COM62'],
+  ['1A', 'COM8'],
+  ['1B', 'COM10'],
+  ['1C', 'COM12'],
+  ['2A', 'COM14'],
+  ['2B', 'COM16'],
+  ['2C', 'COM18'],
+  ['3A', 'COM20'],
+  ['3B', 'COM22'],
+  ['3C', 'COM25'],
+  ['4A', 'COM27'],
+  ['4B', 'COM28'],
+  ['4C', 'COM31'],
+  ['5A', 'COM32'],
+  ['5B', 'COM34'],
+  ['5C', 'COM36'],
 ]
 
 class CollectorNativeStates(IntEnum): 
