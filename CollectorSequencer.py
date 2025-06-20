@@ -350,6 +350,7 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
       bIsTracking = Collector.IsTrackingOrAttemptingToTrack()
 
       if bShouldBeTracking:
+        status['IsDoneForTheDay']  = False  # This is important for cases where the sun comes out midday
         if bIsTracking:
           status['HasRebootedYet'] = True   # Don't reboot a collector that is already successfully tracking
         elif not status['HasRebootedYet']:
