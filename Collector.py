@@ -130,6 +130,9 @@ class tCollector(tActiveObject):
     self.sunrise.setTime(QTime(23, 59))  # Set time to 11:59 PM
     self.sunset  = self.sunrise
 
+    # To avoid repeated error messages
+    self.LastSerialPortErrorTime = {}
+
   ###############################################
   # Destructor
   # 
@@ -148,8 +151,20 @@ class tCollector(tActiveObject):
 
   def HandleSerialPortError(self, error):
     if error != QSerialPort.NoError:
-      print(f"Serial port error: {error}")
-      # Handle error (e.g., reconnect, notify user, etc.)
+      timezone = QTimeZone(SITE_TIMEZONE.encode('utf-8'))
+      current_time = QDateTime.currentDateTime(timezone)
+
+      # We keep an associative array of the last known time for each type of serial port error 
+      # Check if we have an entry
+      secsSinceLastError = 10000000
+      if error in self.LastSerialPortErrorTime:
+        secsSinceLastError = self.LastSerialPortErrorTime[error].secsTo(current_time)
+
+      self.LastSerialPortErrorTime[error] = current_time
+
+      if secsSinceLastError > 100:
+        print(f"Collector {self.CollectorName}: Serial port error: {error}")
+        # Handle error (e.g., reconnect, notify user, etc.)
 
 
   ###############################################
