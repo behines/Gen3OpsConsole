@@ -241,7 +241,7 @@ class tAutoOpenSerialWholeLine(tAutoOpenSerial):
     
     while self.bytesAvailable() > 0:
       if self.bWakingUp:
-        print('*****Waking up worked*****')
+        print(f'*****{self.portName()}: Waking up worked*****')
       self.bWakingUp = False
       data = self.read()  # Read available bytes as a QByteArray
 
