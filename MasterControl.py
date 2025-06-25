@@ -299,6 +299,7 @@ class MasterControl(QMainWindow):
     self.SequencerModeRadioGroup.addButton(self.ui.FullAutoRadioButton)
     self.SequencerModeRadioGroup.addButton(self.ui.SemiAutoRadioButton)
     self.SequencerModeRadioGroup.addButton(self.ui.SequencerOffRadioButton)
+    self.ui.FullAutoRadioButton.setChecked(True)
 
     # Connect the group signal
     self.SequencerModeRadioGroup.buttonClicked.connect(self.SequencerModeChangeRequest)
