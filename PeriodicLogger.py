@@ -213,7 +213,7 @@ class tPeriodicLogger(tActiveObject):
     ElecTemp = float(ElecBoxReadings[0])
 
     # Append the Outside and Dome and elec box readings to the data record
-    OutputLine = OutputLine + ','.join(map(str, OutsideReadings + DomeReadings + ElecBoxReadings))
+    OutputLine = OutputLine + ',' + ','.join(map(str, OutsideReadings + DomeReadings + ElecBoxReadings))
 
     self.DniUpdate        .emit(DNI)
     self.GhiUpdate        .emit(GHI)
