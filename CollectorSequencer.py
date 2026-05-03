@@ -264,13 +264,11 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
   ###############################################
   # UnstickAll 
   # 
-  # Comamnd all collectors to Unstick then stow
+  # Gen3 firmware does not currently implement an Unstick command.
   #     
 
   def UnstickAll(self): 
-    print('Sending Unstick to all', flush=True)
-    for Collector in self.Collectors:
-      Collector.DoUnstick.emit() 
+    print('Unstick is not currently implemented for Gen3', flush=True)
 
 
 

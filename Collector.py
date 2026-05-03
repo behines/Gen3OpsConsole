@@ -458,20 +458,36 @@ class tCollector(tActiveObject):
 
 
   ###############################################
+  # _SendCommand
+  #
+  # Sends a Gen3 collector command.
+  #
+
+  def _SendCommand(self, CommandName, *args):
+    CommandParts = [CommandName] + [str(arg) for arg in args]
+    Command      = " ".join(CommandParts) + "\r"
+
+    result = self.SerialPort.write(Command)
+
+    if result != len(Command):
+      return -1
+
+    return result
+
+
+  ###############################################
   # FlushInput
   # 
-  # Write extras characters just to flush any pending "/" command and get back in sync
-  # The longest command is 10 characters, so send 11 blanks.
+  # Cancels any pending line-editor input and submits a blank line to get back in sync.
   #     
 
   #@with_lock
   def FlushCommandInput(self):
-    nToSend = 11
-    # Write extras characters just to flush any pending "/" command and get back in sync
-    # The longest command is 10 characters, so send 11 blanks.
-    result = self.SerialPort.write(nToSend * ' ')
+    # Ctrl-C clears any partial command without executing it; CR then submits a blank line.
+    FlushString = "\x03\r"
+    result = self.SerialPort.write(FlushString)
 
-    if result != nToSend:
+    if result != len(FlushString):
       print('Error flushing input for collector ', self.CollectorName, flush=True)
       return -1  
     
@@ -486,9 +502,9 @@ class tCollector(tActiveObject):
 
   #@with_lock
   def Stow(self):
-    result = self.SerialPort.write('/Q')
+    result = self._SendCommand("Stow")
 
-    if result == 2:
+    if result > 0:
       print ('Stowing collector ', self.CollectorName)
       self.bResponded = True
       return 0
@@ -505,9 +521,9 @@ class tCollector(tActiveObject):
 
   #@with_lock
   def Track(self):
-    result = self.SerialPort.write('/t')
+    result = self._SendCommand("TrackOn")
 
-    if result == 2:
+    if result > 0:
       print ('Tracking collector ', self.CollectorName)
       self.bResponded = True
       return 0
@@ -524,11 +540,9 @@ class tCollector(tActiveObject):
 
   #@with_lock
   def Home(self):
-    # Write extras characters just to flush any pending "/" command and get back in sync
-    # The longest command is 10 characters, so send ten blanks.
-    result = self.SerialPort.write('/h')
+    result = self._SendCommand("Home")
 
-    if result == 2:
+    if result > 0:
       print ('Homing collector ', self.CollectorName)
       self.bResponded = True
       return 0
@@ -546,9 +560,9 @@ class tCollector(tActiveObject):
   #@with_lock
   def Off(self):
     print('Sending Off command')
-    result = self.SerialPort.write('/o')
+    result = self._SendCommand("TrackOff")
 
-    if result == 2:
+    if result > 0:
       print ('Turning off collector ', self.CollectorName)
       self.bResponded = True
       return 0
@@ -581,14 +595,12 @@ class tCollector(tActiveObject):
 
     current_time = QDateTime.currentDateTime(timezone)
     
-    # Format to HHMMSS.s (with 0.1 second resolution)
-    SetTimeCmd = '/K' + current_time.toString('hhmmss') + f"{int(current_time.time().msec() / 100)}," +  \
-                        self.sunrise.toString('hhmm') + "," + self.sunset.toString('hhmm')
-    # print('Set time (',self.CollectorName,'): ', SetTimeCmd)
+    # Format to HHMMSSt (with 0.1 second resolution)
+    CurrentTimeString = current_time.toString('hhmmss') + f"{int(current_time.time().msec() / 100)}"
 
-    result = self.SerialPort.write(SetTimeCmd)
+    result = self._SendCommand("SetTime", CurrentTimeString, self.sunrise.toString('hhmm'), self.sunset.toString('hhmm'))
 
-    if result != 19:
+    if result < 0:
       print ('Could not set time for ', self.CollectorName)
       self.bResponded = True
       return -1
@@ -603,14 +615,14 @@ class tCollector(tActiveObject):
 
   #@with_lock
   def MotStatus(self):
-    result = self.SerialPort.write('/s')
+    result = self._SendCommand("Status")
 
-    if result != 2:
+    if result < 0:
       return -1    
 
-    result = self.SerialPort.write('/u')
+    result = self._SendCommand("Tuning")
 
-    if result != 2:
+    if result < 0:
       return -1    
 
     self.bResponded = True
@@ -625,13 +637,9 @@ class tCollector(tActiveObject):
 
   #@with_lock
   def Unstick(self):
-    result = self.SerialPort.write('/G')
-
-    if result != 2:
-      return -1    
-
+    print('Unstick is not currently implemented for Gen3', flush=True)
     self.bResponded = True
-    return 0
+    return -1
 
 
   ###############################################
@@ -641,16 +649,6 @@ class tCollector(tActiveObject):
 
   #@with_lock
   def Reboot(self):
-    # Old way. Send a string to the board
-    '''
-    result = self.SerialPort.write('/IREBOOT')
-
-    if result != 8:
-      return -1    
-
-    '''
-
-    # New way.  Use TI tools to hard-reset the board
     shell_command = (
       r'"C:\Users\PlanetA\Nextcloud\Engineering\Calseed Prototype\Software\TI_Tools\dslite\dslite" '
       r'--reset 1 --config '
@@ -676,11 +674,11 @@ class tCollector(tActiveObject):
 
   #@with_lock
   def SetTelemetryOnOff(self, bTelemetryOn : bool):
-    cmd = '/L' if bTelemetryOn else '/l'
+    cmd = "TelOn" if bTelemetryOn else "TelOff"
 
-    result = self.SerialPort.write(cmd)
+    result = self._SendCommand(cmd)
 
-    if result != 2:
+    if result < 0:
       print ('Could not set telemetry on state for ', self.CollectorName)
       self.bResponded = True
       return -1
@@ -692,16 +690,17 @@ class tCollector(tActiveObject):
   ###############################################
   # SetThresholdPercentages()
   # 
-  # Sends a message Jnnnmmmppp with the three percentages
+  # Sends the three tracking threshold percentages
   #     
 
   #@with_lock
   def SendThresholdPercentages(self):
-    SetThresholdsCmd = '/J' + f"{self.WideAngleIllumPercent:03d}{self.NarrowSkyBackgroundPercent:03d}{self.NarrowIlluminationPercent:03d}"
+    result = self._SendCommand("Thresh",
+                               self.WideAngleIllumPercent,
+                               self.NarrowSkyBackgroundPercent,
+                               self.NarrowIlluminationPercent)
 
-    result = self.SerialPort.write(SetThresholdsCmd)
-
-    if result !=11:
+    if result < 0:
       print ('Could not set threshold percentages for ', self.CollectorName)
       self.bResponded = True
       return -1

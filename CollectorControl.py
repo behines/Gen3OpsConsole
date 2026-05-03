@@ -97,9 +97,19 @@ class tCollectorPane(QWidget):
     self.ui.StowPushButton.       clicked.connect(self.Collector.DoStow     )
     self.ui.SetTimePushButton.    clicked.connect(self.Collector.DoSetTime  )
     self.ui.MotorStatusPushButton.clicked.connect(self.Collector.DoMotStatus)
-    self.ui.UnstickPushButton.    clicked.connect(self.Collector.DoUnstick  )
+    self.ui.UnstickPushButton.    clicked.connect(self.UnstickNotImplemented)
     self.ui.RebootPushButton.     clicked.connect(self.Collector.DoReboot   )
     self.ui.TimeButton.           clicked.connect(self.Collector.DoReconnect)
+
+
+  ###############################################
+  # UnstickNotImplemented
+  #
+  # Gen3 firmware does not currently implement an Unstick command.
+  #
+
+  def UnstickNotImplemented(self):
+    QMessageBox.information(self, "Unstick", "Not currently implemented for Gen3")
 
 
   ###############################################
