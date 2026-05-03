@@ -15,7 +15,7 @@
 # https://github.com/pytransitions/transitions?tab=readme-ov-file#hsm
 #
 # See the comments at the top of NipSequencer.py for some explanation on how
-# the package works.  There is also a document Gen2 Ops Console.docx that includes
+# the package works.  There is also a document Gen3 Ops Console.docx that includes
 # information on sequencing.
 #
 

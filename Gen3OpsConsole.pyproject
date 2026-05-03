@@ -1,6 +1,6 @@
 {
     "files": [
         "MasterControl.py",
-        "MasterControl.ui"
+        "Gen3OpsConsole.ui"
     ]
 }

@@ -38,7 +38,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="C:\Users\brad\Documents\PlanetA\Software\Gen2OpsConsole\Gen2OpsConsole\.qtcreator\Python_3_10_9_Windowed_venv"
+VIRTUAL_ENV="C:\Users\brad\Documents\PlanetA\Software\Gen3OpsConsole\.qtcreator\Python_3_10_9_Windowed_venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"

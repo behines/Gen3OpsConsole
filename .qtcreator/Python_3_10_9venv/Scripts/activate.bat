@@ -8,7 +8,7 @@ if defined _OLD_CODEPAGE (
     "%SystemRoot%\System32\chcp.com" 65001 > nul
 )
 
-set VIRTUAL_ENV=C:\Users\brad\Documents\PlanetA\Software\Gen2OpsConsole\Gen2OpsConsole\.qtcreator\Python_3_10_9venv
+set VIRTUAL_ENV=C:\Users\brad\Documents\PlanetA\Software\Gen3OpsConsole\.qtcreator\Python_3_10_9venv
 
 if not defined PROMPT set PROMPT=$P$G
 

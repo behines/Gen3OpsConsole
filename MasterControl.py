@@ -36,7 +36,7 @@
 # ************* COMPILING THE UI ***************
 # It is nececcsary to convert the .ui files from Qt Creator into _ui.py files that the app will
 # load at runtime.  To do this:
-#   pyside6-uic Gen2OpsConsole.ui -o Gen2OpsConsole_ui.py
+#   pyside6-uic Gen3OpsConsole.ui -o Gen3OpsConsole_ui.py
 #   pyside6-uic  CollectorPane.ui -o  CollectorPane_ui.py  
 #
 
@@ -57,7 +57,7 @@ from PySide6.QtWidgets  import QApplication, QMainWindow, QLabel, QButtonGroup, 
 from PySide6.QtCore     import Qt, QThread, QDateTime, QTimeZone, QTimer, QSignalBlocker
 
 # Import configuration of the system
-from Gen2OpsConsole_ui  import Ui_MasterControl
+from Gen3OpsConsole_ui  import Ui_MasterControl
 from ConfigInfo         import *
 from CollectorControl   import tCollectorControlWindow
 from TempHumSensor      import tTempHumSensor
@@ -91,10 +91,10 @@ class MasterControl(QMainWindow):
 
     # Load MasterControl UI dynamically
     #loader = QUiLoader()
-    #ui_file = QFile("Gen2OpsConsole.ui")
+    #ui_file = QFile("Gen3OpsConsole.ui")
     
     #if not ui_file.exists():
-    #  QMessageBox.critical(self, "Error", "UI file not found: Gen2OpsConsole.ui")
+    #  QMessageBox.critical(self, "Error", "UI file not found: Gen3OpsConsole.ui")
     #  sys.exit(1)
     
     #ui_file.open(QFile.ReadOnly)
