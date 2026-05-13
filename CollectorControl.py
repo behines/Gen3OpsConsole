@@ -37,7 +37,7 @@ class tCollectorPane(QWidget):
   # INPUTS:
   #     
 
-  def __init__(self, collectorName, portName, baud, parent=None):
+  def __init__(self, collectorName, portName, boardSerial, baud, parent=None):
     super().__init__(parent)   # QWidget constructor
       
     self.bInit       = False
@@ -71,7 +71,7 @@ class tCollectorPane(QWidget):
 
 
     # Create the Collector object that interfaces to the hardware
-    self.Collector = tCollector(collectorName, portName, baud, self)
+    self.Collector = tCollector(collectorName, portName, boardSerial, baud, self)
     self.Collector.PortOpenStateChange.connect(self.ConnectionEvent)
 
     self.Collector.ReleaseStringReceived.connect(self.UpdateReleaseString)
@@ -95,21 +95,11 @@ class tCollectorPane(QWidget):
     self.ui.HomePushButton.       clicked.connect(self.Collector.DoHome     )
     self.ui.TrackPushButton.      clicked.connect(self.Collector.DoTrack    )
     self.ui.StowPushButton.       clicked.connect(self.Collector.DoStow     )
+    self.ui.FlatPushButton.       clicked.connect(self.Collector.DoFlat     )
     self.ui.SetTimePushButton.    clicked.connect(self.Collector.DoSetTime  )
     self.ui.MotorStatusPushButton.clicked.connect(self.Collector.DoMotStatus)
-    self.ui.UnstickPushButton.    clicked.connect(self.UnstickNotImplemented)
     self.ui.RebootPushButton.     clicked.connect(self.Collector.DoReboot   )
     self.ui.TimeButton.           clicked.connect(self.Collector.DoReconnect)
-
-
-  ###############################################
-  # UnstickNotImplemented
-  #
-  # Gen3 firmware does not currently implement an Unstick command.
-  #
-
-  def UnstickNotImplemented(self):
-    QMessageBox.information(self, "Unstick", "Not currently implemented for Gen3")
 
 
   ###############################################
@@ -148,9 +138,9 @@ class tCollectorPane(QWidget):
     self.ui.HomePushButton.       setEnabled(bConnected)
     self.ui.TrackPushButton.      setEnabled(bConnected)
     self.ui.StowPushButton.       setEnabled(bConnected)
+    self.ui.FlatPushButton.       setEnabled(bConnected)
     self.ui.SetTimePushButton.    setEnabled(bConnected)
     self.ui.MotorStatusPushButton.setEnabled(bConnected)
-    self.ui.UnstickPushButton.    setEnabled(bConnected)
     self.ui.RebootPushButton.     setEnabled(bConnected)
 
     # Set the box labels and state label to gray if not connected    
@@ -439,24 +429,28 @@ class tCollectorControlWindow(QWidget):
   def __init__(self, parent=None):
     super().__init__(parent)
     self.setWindowTitle("Collector Control")
-    # Create a central widget and grid layout for 5x3 collector panes
+    # Create a central widget and grid layout for the configured collector panes
     central_widget = QWidget()
     layout = QGridLayout(central_widget)
 
     # Create the collector array.  We have to do it here, rather than at a higher level,
     # because the tCollector widget needs to be told its parent.  The collector panes will 
     # create and own the collecor objects
-    self.CollectorPanes = [ tCollectorPane(*port_info, COLLECTOR_BAUD_RATE, self) for port_info in COLLECTOR_PORTS ]
+    self.CollectorPanes = [
+      tCollectorPane(port_info.Name, port_info.Port, port_info.BoardSerial, COLLECTOR_BAUD_RATE, self)
+      for port_info in PROJECT_CONFIG.CollectorPorts
+    ]
     Collector_iterator = (CollectorPane for CollectorPane in self.CollectorPanes)  # Compact generator for use in loop below
-    for row in range(5):
-      for col in range(3):
-        layout.addWidget(next(Collector_iterator), row, col)
-    #layout.addWidget(next(Collector_iterator), 0,0)
+    for index, CollectorPane in enumerate(self.CollectorPanes):
+      row = index // PROJECT_CONFIG.CollectorGridCols
+      col = index %  PROJECT_CONFIG.CollectorGridCols
+      layout.addWidget(CollectorPane, row, col)
 
     PaneGeometry    = self.CollectorPanes[0].geometry()
     CurrentGeometry = self.geometry()
 
-    self.resize(50+3*PaneGeometry.width(), 50+3.2*PaneGeometry.height())
+    self.resize(50 + PROJECT_CONFIG.CollectorGridCols * PaneGeometry.width(),
+                50 + (PROJECT_CONFIG.CollectorGridRows + 0.2) * PaneGeometry.height())
 
     # Wrap the central widget with a QScrollArea
     scroll_area = QScrollArea()

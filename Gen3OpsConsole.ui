@@ -674,6 +674,13 @@
             </widget>
            </item>
            <item>
+            <widget class="QPushButton" name="FlatPushButton">
+             <property name="text">
+              <string>Flat</string>
+             </property>
+            </widget>
+           </item>
+           <item>
             <widget class="QPushButton" name="SetTimePushButton">
              <property name="text">
               <string>Set Time</string>

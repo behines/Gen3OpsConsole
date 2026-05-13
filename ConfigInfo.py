@@ -4,8 +4,37 @@
 #
 # 
 
+import sys
+
 from collections import namedtuple
 from enum        import IntEnum, auto
+
+from ProjectConfig import AGILENT_DESCRIPTOR_FIELDS, CollectorMapping, PICOTOOL_PATH, tProjectConfig
+
+#################################################
+#
+# CONFIGURATION SOURCE OF TRUTH
+#
+# Project configuration should store facts, not duplicate conclusions.
+# Hardware lists, ports, channel groups, and credentials are the source of
+# truth.  The bHas... values on tProjectConfig are derived properties computed
+# from those facts so call sites can stay readable without creating a second
+# manually-maintained copy of the same information.
+#
+# Use [] for an absent multi-device list.  Examples:
+#   Agilents       = []
+#   CollectorPorts = []
+#
+# Use None for an absent single device, single channel group, or credential.
+# Examples:
+#   MarqueePort               = None
+#   OutsideTempSensorPort     = None
+#   UsbHubPowerChannel        = None
+#   ThingerBearerToken        = None
+#
+# If a site later gains a capability, fill in the underlying list, port,
+# channel, or credential field.  Do not edit the derived properties.
+#
 
 #################################################
 #
@@ -43,41 +72,19 @@ from enum        import IntEnum, auto
 
 
 # Elements of the AGILENTS array have 7 members.  The DESCRIPTOR_FIELDS tell what each of those 7 entries are
-AGILENT_DESCRIPTOR_FIELDS = [ 'Port','Channel list','Thermocouple channels','GHI channels','DNI channels','DNI gain','Front panel channel' ]
-AGILENTS = [  [ 'ASRL4::INSTR',              # Port
-                '101:120,201:220,301:320',   # Full scan channel list
-                '101:120,201:220,301:320',   # Thermocouple channel list
-                None,                        # GHI channel
-                None,                        # DNI Channel
-                8.23,                        # NIP Gain in uV per W/m^2
-                303                          # Channel to display on front panel
-              ],
-              [ 'ASRL5::INSTR',              # Port
-                '101:120,201:220',           # Full scan channel list
-                '101:120,201:220',           # Thermocouple channel list
-                None,                        # GHI channel
-                None,                        # DNI Channel
-                8.23,                        # NIP Gain in uV per W/m^2
-                101                          # Channel to display on front panel
-              ],
-              [ 'ASRL6::INSTR',              # Port
-                '119:120',                   # Full scan channel list
-                None,                        # Thermocouple channel list
-                120,                         # GHI channel
-                119,                         # DNI Channel
-                8.23,                        # NIP Gain in uV per W/m^2
-                119                          # Channel to display on front panel  105 == NIP channel
-              ]
-           ]
 
-# CHANNEL NUMBERS UPDATED FOR NEW RELAY PANEL 12/6/2024
+#################################################
+#
+# Compatibility globals
+#
+# These names are maintained for older modules that still import flat
+# configuration values from ConfigInfo.  The site-specific source of truth now
+# lives in WindsorConfig.py and SandiaConfig.py.  SetActiveProject() overwrites
+# these globals from PROJECT_CONFIG after parsing --site.
+#
 
-AGILENT_WITH_POWER_RELAYS = 2     # The third Agilent (counting starts at zero)
-NIP_POWER_CHANNELS        = '202:203'
-NIP_ON_OFF_BUTTON_CHANNEL = '201'
-PYRANOMETER_POWER_CHANNEL = '204'
-MOTOR_POWER_CHANNELS      = '218:220'    
-USB_HUB_POWER_CHANNEL     = '217'
+AGILENTS                  = []
+AGILENT_WITH_POWER_RELAYS = None
 
 
 ##########
@@ -127,16 +134,12 @@ COLLECTOR_MISSING_TELEM_REOPEN_THRESHOLD = 2
 #
 
 # NOTE: Agilent and marquee serial port configs are in their respective classes
-MARQUEE_COM_PORT     = 'COM3'
 MARQUEE_BAUD_RATE    = 115200
 
 # Make the buffer big enough to hold 15 minutes of readings, in case we only read every 10 minutes.  
 # There are 30 readings per minute of 11 characters each (if there is a CR/LF after each)
 TEMP_HUM_BAUD_RATE           = 115200
 TEMP_HUM_RX_BUFFER_SIZE      = 15 * 30 * 11
-OUTSIDE_TEMP_SENSOR_PORT     = 'COM7'  # Replace with your read serial port
-DOME_TEMP_SENSOR_PORT        = 'COM39'
-ELECTRONICS_TEMP_SENSOR_PORT = 'COM38'   # Temp of electronics box
 
 
 ##########
@@ -147,23 +150,7 @@ COLLECTOR_BAUD_RATE      = 38400
 COLLECTOR_RX_BUFFER_SIZE =  2000
 COLLECTOR_TX_BUFFER_SIZE =  2000
 
-COLLECTOR_PORTS = [
-  ['1A', 'COM8'],
-  ['1B', 'COM10'],
-  ['1C', 'COM12'],
-  ['2A', 'COM14'],
-  ['2B', 'COM16'],
-  ['2C', 'COM18'],
-  ['3A', 'COM20'],
-  ['3B', 'COM22'],
-  ['3C', 'COM25'],
-  ['4A', 'COM27'],
-  ['4B', 'COM28'],
-  ['4C', 'COM31'],
-  ['5A', 'COM32'],
-  ['5B', 'COM34'],
-  ['5C', 'COM36'],
-]
+COLLECTOR_PORTS = []
 
 class CollectorNativeStates(IntEnum): 
   UNKNOWN                = -1
@@ -239,18 +226,19 @@ COLLECTOR_LOG_MAXLINES = 200
 #########
 # Logging - daily folder is not in Nextcloud, to avoid constant thrashing
 LOG_INTERVAL_SECONDS = 60
-DAILY_FOLDER   = 'WindsorDailyLog'    # Will be placed under "My Documents"
-ARCHIVE_FOLDER = 'Nextcloud/Engineering/Calseed Prototype/Data/DailyLogs'  # Logs get copied to here at midnight
+DAILY_FOLDER   = None
+ARCHIVE_FOLDER = None
 
-# This will be the first line of every data file that is created.  We make it a string of double-quoted strings so that 
-# Excel can read it in as strings.  Note the single-quotes around the whole shebang.
-HEADER1        = '"Windsor Testbed","Version","1.0"'
+# This will be the first line of every data file that is created.  The active
+# project supplies a string of double-quoted fields so Excel can read it as
+# strings.
+HEADER1        = None
 
 # Site Info
-SITE_LATITUDE  =   34.183941
-SITE_LONGITUDE = -118.168791
-SITE_ELEVATION =  331   # meters
-SITE_TIMEZONE  = 'America/Los_Angeles'
+SITE_LATITUDE  = None
+SITE_LONGITUDE = None
+SITE_ELEVATION = None
+SITE_TIMEZONE  = None
 
 # Must match value on realtime side for proper display
 QUAD_CELL_HANDEDNESS = -1
@@ -281,6 +269,9 @@ NIP_COVER_GLASS_SCALE_FACTOR = 1.19   # Why it's not 1.08 I don't understand
 
 
 COLLECTOR_STATE_MACHINE_PERIOD = 60
+COLLECTOR_START_AFTER_SUNRISE_MINUTES = 30
+COLLECTOR_STOP_BEFORE_SUNSET_MINUTES  = 30
+USE_DNI_TO_START_DAY                  = True
 
 # How long to allow these operations to take
 COLL_POWEROFF_TIMEOUT =   5
@@ -288,40 +279,74 @@ COLL_POWERON_TIMEOUT  =  30
 COLL_UNSTICK_TIMEOUT  = 120
 
 
-# Start and end times.  How many hours after sunrise to start each collector, and
-# how many hours before sunset to shut it down.
-COLLECTOR_START_AND_END_TIMES = {
-  '1A': [ +2, -1.5 ],
-  '1B': [ +2, -1.5 ],
-  '1C': [ +2, -1 ],
-  '2A': [ +1, -2 ],
-  '2B': [ +2, -2 ],
-  '2C': [ +2, -1 ],
-  '3A': [ +1, -2 ],
-  '3B': [ +2, -2 ],
-  '3C': [ +2, -1 ],
-  '4A': [ +1, -2 ],
-  '4B': [ +2, -2 ],
-  '4C': [ +2, -1 ],
-  '5A': [ +1, -1 ],
-  '5B': [ +1, -1 ],
-  '5C': [ +1, -1 ],
-}
+COLLECTOR_START_AND_END_TIMES = {}
 
 
 ###########
-# Thinger.io Internet-of-Things cloud server login params
+# Thinger.io Internet-of-Things cloud server compatibility values
+#
+# The source of truth for cloud logging identity and credentials is the active
+# tProjectConfig.  These globals exist only for older call sites.
 #
 
-# Replace with your Thinger.io credentials
-THINGER_IO_USERNAME    = "behines"
-THINGER_IO_DEVICE_ID   = "Windsor"
-THINGER_IO_DEVICE_CRED = "LV1xG3FoJ2vKluI@"
-THINGER_IO_BUCKET_ID   = "Windsor_Data"
-# This is the "Stanley" token under the device at Thinger.io
-# THINGER_IO_AUTH_TOKEN  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJkZXYiOiJXaW5kc29yIiwiaWF0IjoxNzM0MzI5NzIxLCJqdGkiOiI2NzVmYzU3OTNkMTU0YWI3N2QwM2E4OTQiLCJzdnIiOiJ1cy13ZXN0LmF3cy50aGluZ2VyLmlvIiwidXNyIjoiYmVoaW5lcyJ9.6j-CjLW5naJOGX0re9pbZkwNVCN9HNkzGlrOQlD1Kaw"
-# This is the "Windsor_Primary" token under our top-level tokens
-#THINGER_IO_AUTH_TOKEN  = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJXaW5kc29yX1ByaW1hcnkiLCJzdnIiOiJ1cy13ZXN0LmF3cy50aGluZ2VyLmlvIiwidXNyIjoiYmVoaW5lcyJ9.GW5wKmYfYjJgVvfFfDCZ4fi19_NdvfxA5VqnSDCI--Y"
+THINGER_IO_USERNAME     = None
+THINGER_IO_DEVICE_ID    = None
+THINGER_IO_BUCKET_ID    = None
+THINGER_IO_BEARER_TOKEN = None
 
-# This is the "Bearer" token assigned in the Callback pulldown menu for the Windsor device
-THINGER_IO_BEARER_TOKEN = "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJEZXZpY2VDYWxsYmFja19XaW5kc29yIiwic3ZyIjoidXMtd2VzdC5hd3MudGhpbmdlci5pbyIsInVzciI6ImJlaGluZXMifQ.1ZBsOMKvGqnh-8w2-0OWa6iGcim05X0bBAKQw33XRE8"
+
+from WindsorConfig import WINDSOR_CONFIG
+from SandiaConfig  import SANDIA_CONFIG
+
+PROJECT_CONFIGS = {
+  "windsor": WINDSOR_CONFIG,
+  "sandia" : SANDIA_CONFIG,
+}
+
+
+def _ProjectNameFromCommandLine():
+  for i, arg in enumerate(sys.argv):
+    if arg == "--site" and i + 1 < len(sys.argv):
+      return sys.argv[i + 1].lower()
+    if arg.startswith("--site="):
+      return arg.split("=", 1)[1].lower()
+  return "windsor"
+
+
+def SetActiveProject(ProjectName):
+  global PROJECT_CONFIG, AGILENTS, COLLECTOR_PORTS
+  global AGILENT_WITH_POWER_RELAYS
+  global DAILY_FOLDER, ARCHIVE_FOLDER, HEADER1
+  global SITE_LATITUDE, SITE_LONGITUDE, SITE_ELEVATION, SITE_TIMEZONE
+  global COLLECTOR_START_AFTER_SUNRISE_MINUTES, COLLECTOR_STOP_BEFORE_SUNSET_MINUTES
+  global USE_DNI_TO_START_DAY, THINGER_IO_USERNAME, THINGER_IO_DEVICE_ID, THINGER_IO_BUCKET_ID, THINGER_IO_BEARER_TOKEN
+
+  if ProjectName not in PROJECT_CONFIGS:
+    raise ValueError(f"Unknown site '{ProjectName}'. Expected one of: {', '.join(PROJECT_CONFIGS.keys())}")
+
+  PROJECT_CONFIG = PROJECT_CONFIGS[ProjectName]
+
+  AGILENTS       = PROJECT_CONFIG.Agilents
+  COLLECTOR_PORTS = PROJECT_CONFIG.CollectorPorts
+  AGILENT_WITH_POWER_RELAYS = PROJECT_CONFIG.PowerRelayAgilentIndex
+
+  DAILY_FOLDER   = PROJECT_CONFIG.LogFolder
+  ARCHIVE_FOLDER = PROJECT_CONFIG.ArchiveFolder
+  HEADER1        = PROJECT_CONFIG.HeaderIdentity
+
+  SITE_LATITUDE  = PROJECT_CONFIG.Latitude
+  SITE_LONGITUDE = PROJECT_CONFIG.Longitude
+  SITE_ELEVATION = PROJECT_CONFIG.Elevation
+  SITE_TIMEZONE  = PROJECT_CONFIG.Timezone
+
+  COLLECTOR_START_AFTER_SUNRISE_MINUTES = PROJECT_CONFIG.CollectorStartAfterSunriseMinutes
+  COLLECTOR_STOP_BEFORE_SUNSET_MINUTES  = PROJECT_CONFIG.CollectorStopBeforeSunsetMinutes
+  USE_DNI_TO_START_DAY                  = PROJECT_CONFIG.bUseDniToStartDay
+
+  THINGER_IO_USERNAME = PROJECT_CONFIG.ThingerUserName
+  THINGER_IO_DEVICE_ID = PROJECT_CONFIG.ThingerDeviceId
+  THINGER_IO_BUCKET_ID = PROJECT_CONFIG.ThingerBucketId
+  THINGER_IO_BEARER_TOKEN = PROJECT_CONFIG.ThingerBearerToken
+
+
+SetActiveProject(_ProjectNameFromCommandLine())

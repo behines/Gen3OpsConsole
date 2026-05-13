@@ -74,7 +74,7 @@ class tPeriodicLogger(tActiveObject):
     self.LogFile               = LogFile
 
     # Marquee display
-    self.Marquee               = tMarquee(MARQUEE_COM_PORT, Collectors, self)
+    self.Marquee               = tMarquee(PROJECT_CONFIG.MarqueePort, Collectors, self) if PROJECT_CONFIG.bHasMarquee else None
 
 
     # moveToThread() to changes the thread affinity of a QObject (and its children). This means that the object's
@@ -85,12 +85,15 @@ class tPeriodicLogger(tActiveObject):
       #agilent.moveToThread(self)
       agilent.setParent(self)
 
-    self.DomeTempSensor       .setParent(self)
-    self.OutsideTempSensor    .setParent(self)
-    self.ElectronicsTempSensor.setParent(self)
+    if self.DomeTempSensor is not None:
+      self.DomeTempSensor.setParent(self)
+    if self.OutsideTempSensor is not None:
+      self.OutsideTempSensor.setParent(self)
+    if self.ElectronicsTempSensor is not None:
+      self.ElectronicsTempSensor.setParent(self)
 
     # Create the Thinger.io object for logging to the cloud
-    self.Thinger = tThinger()
+    self.Thinger = tThinger() if PROJECT_CONFIG.bHasThinger else None
 
     # Create the timer to awaken and read the scanned thermocouples after half a period
     self.ReadScannedResultsTimer = QTimer(self)
@@ -118,7 +121,8 @@ class tPeriodicLogger(tActiveObject):
   # 
 
   def PeriodicMethod(self):
-    self.InitiateScansOnAllAgilents()
+    if len(self.Agilents) > 0:
+      self.InitiateScansOnAllAgilents()
 
     # Exit for now, then awaken 3/4 of the way through the periodic task interval to read the results
     self.ReadScannedResultsTimer.start(1000 * LOG_INTERVAL_SECONDS * 3/4)
@@ -157,22 +161,33 @@ class tPeriodicLogger(tActiveObject):
         OutputLine = OutputLine + agilent.RetrieveScanResults(True) + ','
     # Remove the final extra comma
     OutputLine = OutputLine.rstrip(',')  # Remove trailing comma
+
+    GHI = 0.0
+    DNI = 0.0
+    BoxTemp = 0.0
+    SandTopTemp = 0.0
+    SandMidTemp = 0.0
+    SandBotTemp = 0.0
     
     try:
       OutputLineParsed = list(map(float,OutputLine.split(',')))
       # Get the "box" reading to send to the marquee display
-      BoxTemp     = OutputLineParsed[self.BoxMeasurementIndex]
-      if BoxTemp<-1E37:   # bad thermocouple
-        BoxTemp = 0
-      SandTopTemp = OutputLineParsed[self.SandTopMeasurementIndex]
-      if SandTopTemp < -1E37:
-        SandTopTemp = 0
-      SandMidTemp = OutputLineParsed[self.SandMidMeasurementIndex]
-      if SandMidTemp < -1E37:
-        SandMidTemp = 0
-      SandBotTemp = OutputLineParsed[self.SandBotMeasurementIndex]
-      if SandBotTemp < -1E37:
-        SandBotTemp = 0
+      if self.BoxMeasurementIndex is not None:
+        BoxTemp = OutputLineParsed[self.BoxMeasurementIndex]
+        if BoxTemp<-1E37:   # bad thermocouple
+          BoxTemp = 0
+      if self.SandTopMeasurementIndex is not None:
+        SandTopTemp = OutputLineParsed[self.SandTopMeasurementIndex]
+        if SandTopTemp < -1E37:
+          SandTopTemp = 0
+      if self.SandMidMeasurementIndex is not None:
+        SandMidTemp = OutputLineParsed[self.SandMidMeasurementIndex]
+        if SandMidTemp < -1E37:
+          SandMidTemp = 0
+      if self.SandBotMeasurementIndex is not None:
+        SandBotTemp = OutputLineParsed[self.SandBotMeasurementIndex]
+        if SandBotTemp < -1E37:
+          SandBotTemp = 0
 
       # Get the GHI and DNI
       if not self.GhiChannelIndex is None:
@@ -197,23 +212,40 @@ class tPeriodicLogger(tActiveObject):
     #SystemState |= {'GHI': GHI, 'DNI': DNI}
 
     # Get the dome and outside temp sensor and electronics box temp readings
-    DomeReadings    = self.DomeTempSensor.GetReading()
+    DomeReadings    = self.DomeTempSensor.GetReading() if self.DomeTempSensor is not None else None
     if DomeReadings == None:
       DomeReadings = [ 0, 0 ]
     DomeTemp = float(DomeReadings[0])
 
-    OutsideReadings = self.OutsideTempSensor.GetReading()
+    OutsideReadings = self.OutsideTempSensor.GetReading() if self.OutsideTempSensor is not None else None
     if OutsideReadings == None:
       OutsideReadings = [ 0, 0 ]
     StanTemp = float(OutsideReadings[0])
 
-    ElecBoxReadings = self.ElectronicsTempSensor.GetReading()
+    ElecBoxReadings = self.ElectronicsTempSensor.GetReading() if self.ElectronicsTempSensor is not None else None
     if ElecBoxReadings == None:
       ElecBoxReadings = [ 0, 0 ]
     ElecTemp = float(ElecBoxReadings[0])
 
-    # Append the Outside and Dome and elec box readings to the data record
-    OutputLine = OutputLine + ',' + ','.join(map(str, OutsideReadings + DomeReadings + ElecBoxReadings))
+    TempHumidityFields = []
+    if PROJECT_CONFIG.bHasOutsideTempSensor:
+      TempHumidityFields.extend(OutsideReadings)
+    if PROJECT_CONFIG.bHasDomeTempSensor:
+      TempHumidityFields.extend(DomeReadings)
+    if PROJECT_CONFIG.bHasElectronicsTempSensor:
+      TempHumidityFields.extend(ElecBoxReadings)
+    if len(TempHumidityFields) > 0:
+      if OutputLine != '':
+        OutputLine += ','
+      OutputLine += ','.join(map(str, TempHumidityFields))
+
+    CollectorSnapshotFields = []
+    for Collector in self.Collectors:
+      CollectorSnapshotFields.append(str(Collector.CollectorState.value))
+      CollectorSnapshotFields.append(Collector.CollectorState.name)
+    if OutputLine != '':
+      OutputLine += ','
+    OutputLine += ','.join(CollectorSnapshotFields)
 
     self.DniUpdate        .emit(DNI)
     self.GhiUpdate        .emit(GHI)
@@ -235,14 +267,16 @@ class tPeriodicLogger(tActiveObject):
       pass #Sequencer.StartNewDay()
 
     # Send data to the marquee display
-    with self.Marquee as marquee:    
-      marquee.SendTemps(*DomeReadings, *OutsideReadings, BoxTemp)
-      marquee.SendSun(GHI, DNI)
+    if self.Marquee is not None:
+      with self.Marquee as marquee:    
+        marquee.SendTemps(*DomeReadings, *OutsideReadings, BoxTemp)
+        marquee.SendSun(GHI, DNI)
 
     print(self.ScheduledTime.toString('yyyy-MM-dd HH:mm:ss'),': Temps: Box=', BoxTemp, 'Dome=', DomeTemp, ' Elec=', ElecTemp,' Stan=', StanTemp,' DNI=', DNI, ' GHI=', GHI, flush=True)
   
     # Log to the cloud
-    self.Thinger.LogData(DNI, GHI, BoxTemp, SandTopTemp, SandMidTemp, SandBotTemp, DomeTemp,  ElecTemp, StanTemp)
+    if self.Thinger is not None:
+      self.Thinger.LogData(DNI, GHI, BoxTemp, SandTopTemp, SandMidTemp, SandBotTemp, DomeTemp,  ElecTemp, StanTemp)
 
     # Return 0 to request continuing scheduling
     return 0

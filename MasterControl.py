@@ -65,7 +65,7 @@ from Agilent            import tAgilent
 from PeriodicLogger     import tPeriodicLogger
 from PowerControl       import tPowerControl
 from Sun                import tSun
-from NipSequencer       import tNipSequencer
+from NipSequencer       import tNipSequencer, tSunClockSequencer
 from CollectorSequencer import tCollectorSequencer
 from LogFile            import tLogFile
 
@@ -116,7 +116,9 @@ class MasterControl(QMainWindow):
     self.ui = Ui_MasterControl()
     self.ui.setupUi(self)
     
-    self.setWindowTitle('Windsor Master Control Console')
+    self.setWindowTitle(PROJECT_CONFIG.WindowTitle)
+    self.ui.label.setText(PROJECT_CONFIG.DisplayName + ' Master Control Panel')
+    self.ui.menuWindsorOps.setTitle(PROJECT_CONFIG.MenuTitle)
 
     # Create Collector Control Window
     self.CollectorControlWindow = tCollectorControlWindow()  #self)
@@ -167,38 +169,49 @@ class MasterControl(QMainWindow):
     # Construct the Agilent objects.  The '*' splats the descriptor onto the constructor arguments
     # This includes opening the devices
     # Create the objects with no parant for now, because later the PeriodicLogger will take ownership.
-    self.Agilents   = [ tAgilent(*descriptor, parent=None) for descriptor in AGILENTS ]
+    self.Agilents   = [ tAgilent(*descriptor, parent=None) for descriptor in PROJECT_CONFIG.Agilents ]
 
     # Get the complete channel list, adding the mainframe number as a prefix 1000, 2000, 3000, to each channel
     CompleteChannelList = [channel + 1000*(index+1) for index, agilent in enumerate(self.Agilents) for channel in agilent.ChannelList]
 
-    self.DomeTempSensor        = tTempHumSensor(DOME_TEMP_SENSOR_PORT,        parent=None)
-    self.OutsideTempSensor     = tTempHumSensor(OUTSIDE_TEMP_SENSOR_PORT,     parent=None)
-    self.ElectronicsTempSensor = tTempHumSensor(ELECTRONICS_TEMP_SENSOR_PORT, parent=None)
+    self.DomeTempSensor        = tTempHumSensor(PROJECT_CONFIG.DomeTempSensorPort,        parent=None) if PROJECT_CONFIG.bHasDomeTempSensor        else None
+    self.OutsideTempSensor     = tTempHumSensor(PROJECT_CONFIG.OutsideTempSensorPort,     parent=None) if PROJECT_CONFIG.bHasOutsideTempSensor     else None
+    self.ElectronicsTempSensor = tTempHumSensor(PROJECT_CONFIG.ElectronicsTempSensorPort, parent=None) if PROJECT_CONFIG.bHasElectronicsTempSensor else None
 
     # Get the indices of channels that we will want to pick out of the data for reporting to 
     # the marquee display
-    BoxMeasurementIndex     = CompleteChannelList.index(BOX_CHANNEL_FOR_MARQUEE_DISPLAY)
-    SandTopMeasurementIndex = CompleteChannelList.index(SAND_TOP_CHANNEL)
-    SandMidMeasurementIndex = CompleteChannelList.index(SAND_MID_CHANNEL)
-    SandBotMeasurementIndex = CompleteChannelList.index(SAND_BOT_CHANNEL)
+    BoxMeasurementIndex     = CompleteChannelList.index(BOX_CHANNEL_FOR_MARQUEE_DISPLAY) if BOX_CHANNEL_FOR_MARQUEE_DISPLAY in CompleteChannelList else None
+    SandTopMeasurementIndex = CompleteChannelList.index(SAND_TOP_CHANNEL)                 if SAND_TOP_CHANNEL                 in CompleteChannelList else None
+    SandMidMeasurementIndex = CompleteChannelList.index(SAND_MID_CHANNEL)                 if SAND_MID_CHANNEL                 in CompleteChannelList else None
+    SandBotMeasurementIndex = CompleteChannelList.index(SAND_BOT_CHANNEL)                 if SAND_BOT_CHANNEL                 in CompleteChannelList else None
 
     # Determine which channels to use for reporting DNI and GHI to marquee
     DniChannelIndex = FindFirstNonNoneValueForField(CompleteChannelList, 'DNI channels') 
     GhiChannelIndex = FindFirstNonNoneValueForField(CompleteChannelList, 'GHI channels') 
 
     # Motor and USB hub power relay objects.  Set the checkboxes based on the current relay state
-    self.MotorPower  = tPowerControl(self.Agilents[AGILENT_WITH_POWER_RELAYS], 'Motors',  MOTOR_POWER_CHANNELS,  tAgilent.RELAY_NORMALLY_CLOSED, self)
-    self.UsbHubPower = tPowerControl(self.Agilents[AGILENT_WITH_POWER_RELAYS], 'USB Hub', USB_HUB_POWER_CHANNEL, tAgilent.RELAY_NORMALLY_CLOSED, self)
-    try:
-      self.MotorPowerCheckboxUpdate(self.MotorPower .GetPowerState())
-    except TimeoutError:
-      print('Motor power relay not responding')
-    try:
-      bUsbPowerState = self.UsbHubPower.GetPowerState()
-      self.UsbPowerCheckboxUpdate  (bUsbPowerState)
-    except TimeoutError:
-      print('USB power relay not responding')
+    self.MotorPower  = None
+    self.UsbHubPower = None
+    bUsbPowerState   = True
+    if PROJECT_CONFIG.bHasMotorPowerRelay:
+      self.MotorPower = tPowerControl(self.Agilents[PROJECT_CONFIG.PowerRelayAgilentIndex], 'Motors', PROJECT_CONFIG.MotorPowerChannels, tAgilent.RELAY_NORMALLY_CLOSED, self)
+      try:
+        self.MotorPowerCheckboxUpdate(self.MotorPower.GetPowerState())
+      except TimeoutError:
+        print('Motor power relay not responding')
+    else:
+      self.MotorPowerCheckboxUpdate(False)
+      self.ui.MotorPowerCheckBox.setEnabled(False)
+    if PROJECT_CONFIG.bHasUsbPowerRelay:
+      self.UsbHubPower = tPowerControl(self.Agilents[PROJECT_CONFIG.PowerRelayAgilentIndex], 'USB Hub', PROJECT_CONFIG.UsbHubPowerChannel, tAgilent.RELAY_NORMALLY_CLOSED, self)
+      try:
+        bUsbPowerState = self.UsbHubPower.GetPowerState()
+        self.UsbPowerCheckboxUpdate(bUsbPowerState)
+      except TimeoutError:
+        print('USB power relay not responding')
+    else:
+      self.UsbPowerCheckboxUpdate(True)
+      self.ui.UsbPowerCheckBox.setEnabled(False)
 
 
     ##### Prepare the log file
@@ -207,10 +220,25 @@ class MasterControl(QMainWindow):
     # Header line 2 is  field/channel names
     DailyFolder   = os.path.join(os.path.expanduser("~"), "Documents", DAILY_FOLDER)
     ArchiveFolder = os.path.join(os.path.expanduser("~"), ARCHIVE_FOLDER)
-    Header1 = HEADER1 + ',' + ','.join([f'"{element}"' if element is not None else '""' for sublist in AGILENTS for element in sublist])
-    Header2 = '"Date","Time",' + ','.join(str(num) for num in CompleteChannelList) + ',"Outside T","Outside H","Dome T","Dome H","Elec T","Elec H"'
+    Header1Parts = [HEADER1]
+    if len(PROJECT_CONFIG.Agilents) > 0:
+      Header1Parts.append(','.join([f'"{element}"' if element is not None else '""' for sublist in PROJECT_CONFIG.Agilents for element in sublist]))
+    Header1 = ','.join(Header1Parts)
 
-    self.LogFile = tLogFile(DailyFolder, ArchiveFolder, Header1, Header2, SITE_TIMEZONE)
+    Header2Fields = ['"Date"', '"Time"']
+    Header2Fields.extend([str(num) for num in CompleteChannelList])
+    if PROJECT_CONFIG.bHasOutsideTempSensor:
+      Header2Fields.extend(['"Outside T"', '"Outside H"'])
+    if PROJECT_CONFIG.bHasDomeTempSensor:
+      Header2Fields.extend(['"Dome T"', '"Dome H"'])
+    if PROJECT_CONFIG.bHasElectronicsTempSensor:
+      Header2Fields.extend(['"Elec T"', '"Elec H"'])
+    for CollectorInfo in PROJECT_CONFIG.CollectorPorts:
+      Header2Fields.append(f'"{CollectorInfo.Name} ModeNum"')
+      Header2Fields.append(f'"{CollectorInfo.Name} ModeString"')
+    Header2 = ','.join(Header2Fields)
+
+    self.LogFile = tLogFile(DailyFolder, ArchiveFolder, Header1, Header2, SITE_TIMEZONE, PROJECT_CONFIG.LogFilePrefix)
 
     # The parent of the object has to be None or it can't be moved to a thread.  The Logger needs to be passed the
     # collector list just so that it can pass it on to the Marquee object, which it creates.
@@ -225,9 +253,12 @@ class MasterControl(QMainWindow):
     # Start the NIP sequencer
     # The third Agilent is the one with the Actuator card in it for sequencing
     self.Sun          = tSun(SITE_LATITUDE, SITE_LONGITUDE, SITE_ELEVATION, SITE_TIMEZONE)
-    self.NipSequencer = tNipSequencer(self.Agilents[AGILENT_WITH_POWER_RELAYS], NIP_POWER_CHANNELS, 
-                                      NIP_ON_OFF_BUTTON_CHANNEL, PYRANOMETER_POWER_CHANNEL,
-                                      self.Sun, self.PeriodicLogger, self)
+    if PROJECT_CONFIG.bHasNip and PROJECT_CONFIG.bHasPowerRelays:
+      self.NipSequencer = tNipSequencer(self.Agilents[PROJECT_CONFIG.PowerRelayAgilentIndex], PROJECT_CONFIG.NipPowerChannels,
+                                        PROJECT_CONFIG.NipOnOffButtonChannel, PROJECT_CONFIG.PyranometerPowerChannel,
+                                        self.Sun, self.PeriodicLogger, self)
+    else:
+      self.NipSequencer = tSunClockSequencer(self.Sun, self)
       
 
     # Now that everything is going, we can start the collector monitoring threads.  At this point, the 
@@ -271,15 +302,36 @@ class MasterControl(QMainWindow):
   #
   
   def ConnectToSignals(self):
-    self.PeriodicLogger.DniUpdate        .connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.DniLabel        , floatVal))
-    self.PeriodicLogger.GhiUpdate        .connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.GhiLabel        , floatVal))
-    self.PeriodicLogger.BoxTempUpdate    .connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.BoxTempLabel    , floatVal))
-    self.PeriodicLogger.DomeTempUpdate   .connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.DomeTempLabel   , floatVal))
-    self.PeriodicLogger.ElecTempUpdate   .connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.ElecTempLabel   , floatVal))
-    self.PeriodicLogger.StanTempUpdate   .connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.StanleyTempLabel, floatVal))
-    self.PeriodicLogger.SandTopTempUpdate.connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.SandTopTempLabel, floatVal))
-    self.PeriodicLogger.SandMidTempUpdate.connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.SandMidTempLabel, floatVal))
-    self.PeriodicLogger.SandBotTempUpdate.connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.SandBotTempLabel, floatVal))
+    if PROJECT_CONFIG.bHasDniSensor:
+      self.PeriodicLogger.DniUpdate.connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.DniLabel, floatVal))
+    else:
+      self.ui.DniLabel.setText("---")
+    if PROJECT_CONFIG.bHasGhiSensor:
+      self.PeriodicLogger.GhiUpdate.connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.GhiLabel, floatVal))
+    else:
+      self.ui.GhiLabel.setText("---")
+    if PROJECT_CONFIG.bHasThermocouples:
+      self.PeriodicLogger.BoxTempUpdate    .connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.BoxTempLabel    , floatVal))
+      self.PeriodicLogger.SandTopTempUpdate.connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.SandTopTempLabel, floatVal))
+      self.PeriodicLogger.SandMidTempUpdate.connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.SandMidTempLabel, floatVal))
+      self.PeriodicLogger.SandBotTempUpdate.connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.SandBotTempLabel, floatVal))
+    else:
+      self.ui.BoxTempLabel    .setText("---")
+      self.ui.SandTopTempLabel.setText("---")
+      self.ui.SandMidTempLabel.setText("---")
+      self.ui.SandBotTempLabel.setText("---")
+    if PROJECT_CONFIG.bHasDomeTempSensor:
+      self.PeriodicLogger.DomeTempUpdate.connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.DomeTempLabel, floatVal))
+    else:
+      self.ui.DomeTempLabel.setText("---")
+    if PROJECT_CONFIG.bHasElectronicsTempSensor:
+      self.PeriodicLogger.ElecTempUpdate.connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.ElecTempLabel, floatVal))
+    else:
+      self.ui.ElecTempLabel.setText("---")
+    if PROJECT_CONFIG.bHasOutsideTempSensor:
+      self.PeriodicLogger.StanTempUpdate.connect(lambda floatVal: self.Update4DigitIntLabel(self.ui.StanleyTempLabel, floatVal))
+    else:
+      self.ui.StanleyTempLabel.setText("---")
 
     # These are for messages about the power relays from the relay class
     #self.MotorPower.PowerRelayStateUpdate.connect(self.MotorPowerCheckboxUpdate)
@@ -310,6 +362,7 @@ class MasterControl(QMainWindow):
     self.ui.HomePushButton       .clicked.connect(lambda: [Collector.DoHome   .emit() for Collector in self.Collectors])
     self.ui.SetTimePushButton    .clicked.connect(lambda: [Collector.DoSetTime.emit() for Collector in self.Collectors])
     self.ui.StowPushButton       .clicked.connect(lambda: [Collector.DoStow   .emit() for Collector in self.Collectors])
+    self.ui.FlatPushButton       .clicked.connect(lambda: [Collector.DoFlat   .emit() for Collector in self.Collectors])
     self.ui.TrackPushButton      .clicked.connect(lambda: [Collector.DoTrack  .emit() for Collector in self.Collectors])
 
 
@@ -364,6 +417,8 @@ class MasterControl(QMainWindow):
   # UserCheckedMotorPower - Updates the checkbox based on signals from the class
 
   def UserCheckedMotorPower(self, checkstate: Qt.CheckState):
+    if self.MotorPower is None:
+      return
     bValue = (checkstate == Qt.Checked)
     self.MotorPower.SetPowerState(bValue)
     print('Turning Motor power', 'ON' if bValue else 'OFF')
@@ -379,6 +434,8 @@ class MasterControl(QMainWindow):
   # UserCheckedUsbPower - Updates the checkbox based on signals from the class
 
   def UserCheckedUsbPower(self, checkstate: Qt.CheckState):
+    if self.UsbHubPower is None:
+      return
     bValue = (checkstate == Qt.Checked)
     self.UsbHubPower.SetPowerState(bValue)
     print('Turning USB power', 'ON' if bValue else 'OFF')
@@ -487,7 +544,7 @@ class MasterControl(QMainWindow):
 
 def ValidateAGILENTSEntries():
   # Verify all AGILENT entries have the correct number of fields
-  for index, agilent in enumerate(AGILENTS):
+  for index, agilent in enumerate(PROJECT_CONFIG.Agilents):
     if len(agilent) != len(AGILENT_DESCRIPTOR_FIELDS):
       print(f"AGILENT #{index} does not match the expected number of fields, exiting.")
       sys.exit()
@@ -518,7 +575,7 @@ def ValidateAGILENTSEntries():
 def FindFirstNonNoneValueForField(CompleteChannelList, FieldName):
   # Determine which channel to use for reporting DNI to marquee
   ChannelIndex = AGILENT_DESCRIPTOR_FIELDS.index(FieldName)         # index of the DNI channel number in the AGILENT list
-  Channels = [agilent[ChannelIndex] for agilent in AGILENTS]  # Extracting all the DNI channel entries for all AGILENT's into a list
+  Channels = [agilent[ChannelIndex] for agilent in PROJECT_CONFIG.Agilents]  # Extracting all the DNI channel entries for all AGILENT's into a list
   ChannelIndex = None          
   DNI             = 0                                          
   # Loop to find the first non-None, and add 1000*(AGILENT #) to get the overall channel number
@@ -530,11 +587,28 @@ def FindFirstNonNoneValueForField(CompleteChannelList, FieldName):
   return ChannelIndex
 
 
+#################################################
+# RemoveSiteCommandLineArgs
+#
+# Removes our app-specific --site argument before Qt parses argv.
+
+def RemoveSiteCommandLineArgs():
+  i = 0
+  while i < len(sys.argv):
+    if sys.argv[i] == "--site" and i + 1 < len(sys.argv):
+      del sys.argv[i:i + 2]
+    elif sys.argv[i].startswith("--site="):
+      del sys.argv[i]
+    else:
+      i += 1
+
+
 
 if __name__ == "__main__":
   global app
   # Get some basic stuff out of the way before even trying to create a window
   ValidateAGILENTSEntries()
+  RemoveSiteCommandLineArgs()
 
   # Create the application and main window
   app = QApplication(sys.argv)

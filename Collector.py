@@ -12,7 +12,7 @@
 #
 
 # module used to talk over serial with the esp32
-from PySide6.QtCore       import QRecursiveMutex, Signal, QDateTime, QTime, QTimeZone, QThread
+from PySide6.QtCore       import QRecursiveMutex, Signal, QDateTime, QTime, QTimeZone, QThread, QTimer
 from PySide6.QtSerialPort import QSerialPort
 
 from SerialPort        import tAutoOpenSerialWholeLine
@@ -70,9 +70,9 @@ class tCollector(tActiveObject):
   DoHome                     = Signal()
   DoTrack                    = Signal()
   DoStow                     = Signal()
+  DoFlat                     = Signal()
   DoSetTime                  = Signal()
   DoMotStatus                = Signal()
-  DoUnstick                  = Signal()
   DoReboot                   = Signal()
   DoReconnect                = Signal()
 
@@ -90,7 +90,7 @@ class tCollector(tActiveObject):
   #   
   #     
 
-  def __init__(self, collectorName, portName, baud, parent=None):
+  def __init__(self, collectorName, portName, boardSerial, baud, parent=None):
     super().__init__(COLLECTOR_RETRY_TIMEOUT_SECS * 1000, parent)   # tActiveObject constructor
 
     # Mutex for controlling access to the device
@@ -98,10 +98,13 @@ class tCollector(tActiveObject):
 
     self.CollectorName  = collectorName
     self.PortName       = portName
+    self.BoardSerial    = boardSerial
     self.baud           = baud
     self.bInit          = False
     self.CollectorState = CollectorNativeStates.UNKNOWN
-    self.bUsbPowerState = False
+    self.bUsbPowerState = not PROJECT_CONFIG.bHasUsbPowerRelay
+    self.LastRebootRequestMsecs  = 0
+    self.LastRebootAcceptedMsecs = 0
 
     # These are cached values.  When they change (via a GUI event), we send a command to the collector
     self.WideAngleIllumPercent      = 0
@@ -115,9 +118,9 @@ class tCollector(tActiveObject):
     self.DoHome     .connect(self.Home     )
     self.DoTrack    .connect(self.Track    )
     self.DoStow     .connect(self.Stow     )
+    self.DoFlat     .connect(self.Flat     )
     self.DoSetTime  .connect(self.SetTimeToNow)
     self.DoMotStatus.connect(self.MotStatus)
-    self.DoUnstick  .connect(self.Unstick  )
     self.DoReboot   .connect(self.Reboot   )
     self.DoReconnect.connect(self.Reconnect)
 
@@ -172,8 +175,11 @@ class tCollector(tActiveObject):
   #
 
   def SetUsbPowerDevice(self, UsbHubPowerDevice: tPowerControl, bCurrentUsbPowerState):
-    self.bUsbPowerState = bCurrentUsbPowerState
-    UsbHubPowerDevice.PowerRelayStateUpdate.connect(self.UsbPowerStateUpdateEvent)
+    if UsbHubPowerDevice is None:
+      self.bUsbPowerState = True
+    else:
+      self.bUsbPowerState = bCurrentUsbPowerState
+      UsbHubPowerDevice.PowerRelayStateUpdate.connect(self.UsbPowerStateUpdateEvent)
 
 
   ###############################################
@@ -375,6 +381,9 @@ class tCollector(tActiveObject):
       self.ReleaseString = Line[17:]
       self.ReleaseStringReceived.emit(self.ReleaseString)
       return
+
+    if Line.startswith("Rebooting..."):
+      self.LastRebootAcceptedMsecs = QDateTime.currentMSecsSinceEpoch()
     
     if not Line.startswith("TEL:"):
       # Emit signal for non-TEL line
@@ -514,6 +523,25 @@ class tCollector(tActiveObject):
 
 
   ###############################################
+  # Flat
+  # 
+  # Comamnds the collector to Flat
+  #     
+
+  #@with_lock
+  def Flat(self):
+    result = self._SendCommand("Flat")
+
+    if result > 0:
+      print ('Flattening collector ', self.CollectorName)
+      self.bResponded = True
+      return 0
+    else:
+      print('Could not flatten ', self.CollectorName)
+      return -1  
+
+
+  ###############################################
   # Track
   # 
   # Comamnds the collector to Track
@@ -628,39 +656,40 @@ class tCollector(tActiveObject):
     self.bResponded = True
     return 0
 
-
-
   ###############################################
-  # Unstick - Sends an Unstick command
-  # 
-  #     
-
-  #@with_lock
-  def Unstick(self):
-    print('Unstick is not currently implemented for Gen3', flush=True)
-    self.bResponded = True
-    return -1
-
-
-  ###############################################
-  # Reboot - causes a reboot by using DsLite to reset the board
+  # Reboot - asks the collector to reboot, then falls back to picotool
   # 
   #     
 
   #@with_lock
   def Reboot(self):
-    shell_command = (
-      r'"C:\Users\PlanetA\Nextcloud\Engineering\Calseed Prototype\Software\TI_Tools\dslite\dslite" '
-      r'--reset 1 --config '
-      rf'"C:\Users\PlanetA\Nextcloud\Engineering\Calseed Prototype\Software\TI_Tools\dslite\{self.CollectorName}.ccxml"'
-    )
-
-    print(f'Hard resetting {self.CollectorName}')
-    #print(shell_command)
-    subprocess.run(f'cmd /c "{shell_command} > nul 2>&1"', shell=True)
-
+    print(f'Rebooting {self.CollectorName}')
+    self.LastRebootRequestMsecs = QDateTime.currentMSecsSinceEpoch()
+    self._SendCommand("Reboot")
+    QTimer.singleShot(2000, self._PicotoolRebootIfNeeded)
     self.bResponded = True
     return 0
+
+
+  ###############################################
+  # _PicotoolRebootIfNeeded
+  #
+  # Uses picotool if the embedded Reboot command did not receive an acknowledgement.
+  #
+
+  def _PicotoolRebootIfNeeded(self):
+    if self.LastRebootAcceptedMsecs >= self.LastRebootRequestMsecs:
+      return
+
+    if self.BoardSerial is None:
+      print(f'Could not reboot {self.CollectorName}: reboot serial not configured', flush=True)
+      return
+
+    print(f'Picotool rebooting {self.CollectorName} ({self.BoardSerial})', flush=True)
+    result = subprocess.run([PROJECT_CONFIG.PicotoolPath, "reboot", "--ser", self.BoardSerial, "-f"],
+                            capture_output=True, text=True)
+    if result.returncode != 0:
+      print(f'Picotool reboot failed for {self.CollectorName}: {result.stderr}', flush=True)
 
 
   ###############################################

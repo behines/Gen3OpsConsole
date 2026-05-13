@@ -32,11 +32,12 @@ class tLogFile:
   # Constructor
   #
 
-  def __init__(self, DailyFolder, ArchiveFolder, Header1, Header2, SITE_TIMEZONE):
+  def __init__(self, DailyFolder, ArchiveFolder, Header1, Header2, SITE_TIMEZONE, LogFilePrefix):
     self.DailyFolder   = DailyFolder
     self.ArchiveFolder = ArchiveFolder
     self.Header1       = Header1
     self.Header2       = Header2
+    self.LogFilePrefix = LogFilePrefix
 
     self.SiteTimezone = pytz.timezone(SITE_TIMEZONE)
 
@@ -57,7 +58,7 @@ class tLogFile:
     self.todays_day_of_month = now.day
 
     datestr = now.strftime("%Y%m%d")
-    short_filename = 'Windsor' + datestr + '.csv'
+    short_filename = self.LogFilePrefix + datestr + '.csv'
     self.LogFileName = os.path.join(self.DailyFolder, short_filename)
 
     # Move all log files that aren't for today from the Daily folder to the archive folder

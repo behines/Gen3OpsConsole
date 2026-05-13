@@ -77,8 +77,8 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
     { 'name': 'Night',        'on_enter': ['StowAll']      },
     { 'name': 'Daytime'                                    }, 
     { 'name': 'PoweredOff',   'on_enter': ['UsbPowerOff'],  'timeout': COLL_POWEROFF_TIMEOUT,  'on_timeout': 'PowerOn'   }, 
-    { 'name': 'PoweringUp',   'on_enter': ['UsbPowerOn'],   'timeout': COLL_POWERON_TIMEOUT,   'on_timeout': 'Unstick' }, 
-    { 'name': 'Unstick-stow', 'on_enter': ['UnstickAll'],   'timeout': COLL_UNSTICK_TIMEOUT,   'on_timeout': 'DoOff' }, 
+    { 'name': 'PoweringUp',   'on_enter': ['UsbPowerOn'],   'timeout': COLL_POWERON_TIMEOUT,   'on_timeout': 'StartStow' }, 
+    { 'name': 'Stow',         'on_enter': ['StowAll'],      'timeout': COLL_UNSTICK_TIMEOUT,   'on_timeout': 'DoOff' }, 
   ]
 
   # Transitions
@@ -95,17 +95,17 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
     # A PowerOn transition takes us into PoweringUp
     [ 'PowerOn',      'PoweredOff',  'PoweringUp'             ], 
 
-    # Unstick transition causes us to enter Unstick-stow, where we wait for them all to finish unsticking
-    [ 'Unstick',      'PoweringUp',  'Unstick-stow'           ], 
+    # StartStow transition causes us to enter Stow, where we wait for them all to finish stowing
+    [ 'StartStow',    'PoweringUp',  'Stow'                   ], 
 
     # DoOff transition causes us to enter off
-    [ 'DoOff',        'Unstick-stow', 'Night'                 ],
+    [ 'DoOff',        'Stow',        'Night'                  ],
 
     [ 'Disable',      'Night',        'Disabled'              ],
     [ 'Disable',      'Daytime',      'Disabled'              ],
     [ 'Disable',      'PoweredOff',   'Disabled'              ],
     [ 'Disable',      'PoweringUp',   'Disabled'              ],
-    [ 'Disable',      'Unstick-stow', 'Disabled'              ],
+    [ 'Disable',      'Stow',        'Disabled'               ],
 
     [ 'Enable',       'Disabled',     'Daytime'               ]   # When re-enabled we'll jump right into Daytime mode
   ]
@@ -116,7 +116,7 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
   def YesDNI    (self) -> bool: ...
   def DayIsDone (self) -> bool: ...
   def PowerOn   (self) -> bool: ...
-  def Unstick   (self) -> bool: ...
+  def StartStow (self) -> bool: ...
   def DoOff     (self) -> bool: ...
   '''
 
@@ -155,18 +155,17 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
     self.UsbHubPower = UsbHubPower
 
     self.CollectorStatus = {
-       key: {
-          'HoursAfterSunrise' : values[0],
-          'HoursBeforeSunset' : values[1],
+       Collector.CollectorName: {
           'HasRebootedYet'    : False,
           'IsDoneForTheDay'   : False,
        }
-       for key, values in COLLECTOR_START_AND_END_TIMES.items()
+       for Collector in Collectors
     }
 
     # Connect signals
     SunriseSunsetSignal   .connect(self.UpdateSunriseSunset)
-    NipHasDniSignal       .connect(self.YesDNI)             # Just directly connect this to the state machine transition method
+    if USE_DNI_TO_START_DAY and PROJECT_CONFIG.bHasDniSensor:
+      NipHasDniSignal.connect(self.YesDNI)             # Just directly connect this to the state machine transition method
 
     self.bFullAutomation = True
     self.SetFullAutomation.connect(self.SetAutomationLevel)
@@ -221,13 +220,7 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
     self.Sunrise = Sunrise
     self.Sunset  = Sunset
 
-    # Compute the latest time that any collector wants to be shut down
-    self.LatestEndTime = Sunrise
-    for Collector in self.Collectors:
-      status = self.CollectorStatus[Collector.CollectorName]
-      EndTime   = self.Sunset .addSecs(int(3600 * status['HoursBeforeSunset']))
-      if (EndTime > self.LatestEndTime):
-        self.LatestEndTime = EndTime
+    self.LatestEndTime = self.Sunset.addSecs(-60 * COLLECTOR_STOP_BEFORE_SUNSET_MINUTES)
 
 
   #######################################################
@@ -262,16 +255,6 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
 
 
   ###############################################
-  # UnstickAll 
-  # 
-  # Gen3 firmware does not currently implement an Unstick command.
-  #     
-
-  def UnstickAll(self): 
-    print('Unstick is not currently implemented for Gen3', flush=True)
-
-
-
   ###############################################
   # UsbPowerOff 
   # 
@@ -279,7 +262,8 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
   #     
 
   def UsbPowerOff(self): 
-    self.UsbHubPower.SetPowerState(False)
+    if self.UsbHubPower is not None:
+      self.UsbHubPower.SetPowerState(False)
 
   
   ###############################################
@@ -289,7 +273,8 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
   #     
 
   def UsbPowerOn(self): 
-    self.UsbHubPower.SetPowerState(True)
+    if self.UsbHubPower is not None:
+      self.UsbHubPower.SetPowerState(True)
 
   
 
@@ -320,6 +305,12 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
 
 
 
+    StartTime = self.Sunrise.addSecs( 60 * COLLECTOR_START_AFTER_SUNRISE_MINUTES)
+    EndTime   = self.Sunset .addSecs(-60 * COLLECTOR_STOP_BEFORE_SUNSET_MINUTES)
+
+    if self.state == 'Night' and (not USE_DNI_TO_START_DAY or not PROJECT_CONFIG.bHasDniSensor) and current_time >= StartTime and current_time < EndTime:
+      self.YesDNI()
+
     # Really the only work we have to do is if our state is 'Daytime'.  All other state transitions
     # are handled automatically by timeouts.
     if self.state != 'Daytime':
@@ -332,9 +323,6 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
       QCoreApplication.processEvents()
 
       status = self.CollectorStatus[Collector.CollectorName]
-
-      StartTime = self.Sunrise.addSecs(int( 3600 * status['HoursAfterSunrise']))
-      EndTime   = self.Sunset .addSecs(int( 3600 * status['HoursBeforeSunset']))
 
       bDontStartYet     = (current_time <  StartTime)
       bShouldBeTracking = (current_time >= StartTime) and (current_time <= EndTime)

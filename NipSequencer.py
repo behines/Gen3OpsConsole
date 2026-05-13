@@ -44,6 +44,34 @@
 # has behavior similar to prepare, but at the end of a transition, regardless of whether
 # it was taken.
 
+#######################
+# Sequencer design
+#
+# This module provides two implementations of the same operational interface.
+#
+# tNipSequencer is the hardware-aware implementation.  It owns the NIP and
+# pyranometer power controls, watches GHI/DNI updates, and emits NipHasDni
+# when measured DNI says the direct sun is available.
+#
+# tSunClockSequencer is the no-hardware implementation.  It owns no relays and
+# reads no sensors.  Its only job is to compute sunrise/sunset from the site
+# location and emit the same timing/status signals that the rest of the app
+# expects.
+#
+# Keeping both classes on the same signal surface is intentional.  MasterControl,
+# Collector, and CollectorSequencer should depend on "a source of sun timing",
+# not directly on the presence of NIP hardware.  That lets Windsor run with the
+# full sensor stack while Sandia, or any stripped-down test stand, runs from the
+# astronomical sun clock.
+#
+# DNI is therefore an optional enhancement to day-start detection, not a global
+# dependency.  If a DNI sensor exists and USE_DNI_TO_START_DAY is enabled, the
+# main collector sequencer can use NipHasDni just as the original Windsor flow
+# did.  If there is no DNI sensor, or that flag is disabled, the collector
+# sequencer starts from the configured sunrise offset instead.
+#
+
+
 
 #################################################
 
@@ -401,3 +429,59 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
       self.LastState = self.state
       
     self.NipStateUpdate.emit(self.state)
+
+
+##########################################################################################
+##########################################################################################
+##########################################################################################
+# tSunClockSequencer
+#
+# Replacement for tNipSequencer when there is no NIP or pyranometer hardware.
+#
+
+class tSunClockSequencer(QObject):
+
+  NipStateUpdate      = Signal(str)
+  SunriseSunsetUpdate = Signal(QDateTime,QDateTime)
+  ClearSkyGhiUpdate   = Signal(float)
+  NipHasDni           = Signal()
+
+  def __init__(self, Sun: tSun, parent):
+    super().__init__(parent)
+
+    self.sun       = Sun
+    self.state     = "---"
+    self.LastSunrise = None
+    self.LastSunset  = None
+
+    self.StateMachineTimer = QTimer(self)
+    self.StateMachineTimer.setSingleShot(False)
+    self.StateMachineTimer.timeout.connect(self.RunStateMachine)
+    print("Sun clock sequencer starting up...")
+    self.StateMachineTimer.start(1000 * NIP_STATE_MACHINE_PERIOD)
+
+
+  ###############################################
+  # DoShutdown - Compatibility with tNipSequencer
+  #
+
+  def DoShutdown(self):
+    print("Sun clock sequencer exiting")
+
+
+  ###############################################
+  # RunStateMachine - Emits sunrise and sunset updates
+  #
+
+  def RunStateMachine(self):
+    sunrise, sunset, GHI_clear_sky = self.sun.GetValues()
+
+    self.ClearSkyGhiUpdate.emit(GHI_clear_sky)
+    if self.LastSunrise != sunrise or self.LastSunset != sunset:
+      QSunrise = QDateTime.fromSecsSinceEpoch(int(sunrise.timestamp()), QTimeZone(SITE_TIMEZONE.encode('utf-8')))
+      QSunset  = QDateTime.fromSecsSinceEpoch(int(sunset .timestamp()), QTimeZone(SITE_TIMEZONE.encode('utf-8')))
+      self.SunriseSunsetUpdate.emit(QSunrise, QSunset)
+      self.LastSunrise = sunrise
+      self.LastSunset  = sunset
+
+    self.NipStateUpdate.emit("---")

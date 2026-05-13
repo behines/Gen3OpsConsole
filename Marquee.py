@@ -11,15 +11,22 @@
 # Modules used
 #
 
-# module used to talk over serial with the esp32
-import serial
 import sys
+from ConfigInfo     import *
+
+# module used to talk over serial with the esp32
+try:
+  import serial
+except ModuleNotFoundError:
+  if PROJECT_CONFIG.bHasMarquee:
+    raise
+  serial = None
+
 # For implementing object locking and retry timer
 from PySide6.QtCore import QRecursiveMutex, QElapsedTimer, QObject, Signal
 from Utilities      import requires_device_open, with_lock
 from Collector      import tCollector
 from typing         import List              # For pylance
-from ConfigInfo     import *
 
 
 ##########################################################################################
@@ -248,7 +255,7 @@ class tMarquee(QObject):
 
     # Look up the collector number from the array
     try:
-      CollectorNum = [port_info[0] for port_info in COLLECTOR_PORTS].index(CollectorName)
+      CollectorNum = [port_info[0] for port_info in PROJECT_CONFIG.CollectorPorts].index(CollectorName)
     except ValueError:
       print('SendCollectorState: Unrecognized Collector Name ', str)
       return

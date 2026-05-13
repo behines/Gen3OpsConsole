@@ -11,10 +11,16 @@
 # Modules used
 #
 
-# module used to talk over serial with the esp32
-import serial
 from PySide6.QtCore import QObject
 from ConfigInfo     import *
+
+# module used to talk over serial with the esp32
+try:
+  import serial
+except ModuleNotFoundError:
+  if PROJECT_CONFIG.bHasTempHumiditySensors:
+    raise
+  serial = None
 
 
 ##########################################################################################

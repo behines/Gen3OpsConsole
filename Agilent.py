@@ -11,12 +11,37 @@
 
 # module used to get the current date and time
 from datetime import datetime
-# module used to talk with the agilent devices
-import pyvisa  
 import logging
 
+from ConfigInfo       import *
+
+# module used to talk with the agilent devices
+try:
+  import pyvisa
+except ModuleNotFoundError:
+  if PROJECT_CONFIG.bHasAgilents:
+    raise
+
+  class _DummyPyVisaConstants:
+    class Parity:
+      none = None
+    class StopBits:
+      one = None
+    class ControlFlow:
+      rts_cts = None
+
+  class _DummyPyVisa:
+    constants = _DummyPyVisaConstants()
+
+  pyvisa = _DummyPyVisa()
+
 # module used to talk over serial with the esp32
-import serial
+try:
+  import serial
+except ModuleNotFoundError:
+  if PROJECT_CONFIG.bHasAgilents:
+    raise
+  serial = None
 # module used to write to csv file
 import csv
 # module used to navigate directories for csv file
@@ -27,9 +52,6 @@ import sys
 # For implementing object locking and retry timer
 from PySide6.QtCore import QRecursiveMutex, QElapsedTimer, QObject, QThread, Signal, QMutex, QWaitCondition, QMutexLocker, QCoreApplication
 from Utilities      import requires_device_open, with_lock, SignalThenWaitFor, SignalEmitter
-
-
-from ConfigInfo       import *
 
 
 ##########################################################################################

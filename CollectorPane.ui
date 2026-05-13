@@ -1086,7 +1086,7 @@
      <string>MotStatus</string>
     </property>
    </widget>
-   <widget class="QPushButton" name="UnstickPushButton">
+   <widget class="QPushButton" name="FlatPushButton">
     <property name="geometry">
      <rect>
       <x>353</x>
@@ -1102,7 +1102,7 @@
      </sizepolicy>
     </property>
     <property name="text">
-     <string>Unstick</string>
+     <string>Flat</string>
     </property>
    </widget>
    <widget class="QLabel" name="ReleaseStringLabel">

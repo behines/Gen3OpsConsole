@@ -30,10 +30,10 @@ class tThinger():
   #     
 
   def __init__(self):
-    self.ThingerURL = "https://backend.thinger.io/v3/users/" + THINGER_IO_USERNAME + "/devices/Windsor/callback/data"
+    self.ThingerURL = "https://backend.thinger.io/v3/users/" + THINGER_IO_USERNAME + "/devices/" + THINGER_IO_DEVICE_ID + "/callback/data"
     self.headers = {
       "Content-Type": "application/json;charset=UTF-8",
-      "Authorization": THINGER_IO_BEARER_TOKEN,
+      "Authorization": PROJECT_CONFIG.ThingerBearerToken,
       "Accept": "application/json, text/plain, */*"
     }
 
