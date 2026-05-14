@@ -1,5 +1,13 @@
 #######################################################
 # Script that runs on the Stanley mini pc in the Jobsite box
+#
+# USAGE:
+#   python MasterControl.py --site <sitename>
+#   where sitename is either windsor or sandia.
+#   
+#   Note that the app may be installed in a venv, in which case you should follow
+#   the instructions in the USING A VENV section below to activate the venv before
+#   running the app.
 # 
 # Application requires that you "pip install":
 #   pyside6
@@ -39,6 +47,73 @@
 #   pyside6-uic Gen3OpsConsole.ui -o Gen3OpsConsole_ui.py
 #   pyside6-uic  CollectorPane.ui -o  CollectorPane_ui.py  
 #
+
+#######################################################
+# USING A VENV
+#
+# It is recommended to install the Python packages into a project-local venv
+# rather than into the system Python installation.  This is not mainly because
+# this machine runs other Python apps, but because it makes the app setup more
+# repeatable and less vulnerable to future package changes.
+#
+# To create the venv:
+#   py -m venv .venv
+#
+# To activate the venv in PowerShell:
+#   .\.venv\Scripts\Activate.ps1
+#
+# Then install the required packages into the venv:
+#   python -m pip install --upgrade pip
+#   python -m pip install pyside6 pyvisa pyvisa-py zeroconf psutil transitions astral pytz tzlocal pyserial debugpy requests
+#
+# Once the venv is activated, "python" and "pip" refer to the copies inside
+# .venv, not the system-wide Python installation.
+#
+# To run the program with the venv activated:
+#   python YourApp.py
+#
+# To run the program without activating the venv first:
+#   .\.venv\Scripts\python.exe YourApp.py
+#
+# For shortcuts, startup scripts, or scheduled tasks, prefer the explicit form:
+#   .\.venv\Scripts\python.exe YourApp.py
+#
+# pyside6-uic is also installed inside the venv when pyside6 is installed.
+# With the venv activated, this should work:
+#   pyside6-uic Gen3OpsConsole.ui -o Gen3OpsConsole_ui.py
+#   pyside6-uic CollectorPane.ui    -o CollectorPane_ui.py
+#
+# Without activating the venv first, use:
+#   .\.venv\Scripts\pyside6-uic.exe Gen3OpsConsole.ui -o Gen3OpsConsole_ui.py
+#   .\.venv\Scripts\pyside6-uic.exe CollectorPane.ui    -o CollectorPane_ui.py
+#
+# If the Python environment ever gets corrupted or confused, the .venv
+# directory can be deleted and recreated using the commands above.
+#
+
+#######################################################
+# SAVING AND RECREATING THE PYTHON ENVIRONMENT
+#
+# The .venv directory should NOT be committed to GitHub.  It is a local,
+# machine-specific directory containing the installed Python interpreter,
+# packages, scripts, caches, and generated files.
+#
+# Instead, after the app is working correctly, save the installed package
+# versions to requirements.txt:
+#   python -m pip freeze > requirements.txt
+#
+# Commit requirements.txt to GitHub.
+#
+# Later, on a new machine, recreate the venv and reinstall the same packages:
+#   py -m venv .venv
+#   .\.venv\Scripts\Activate.ps1
+#   python -m pip install --upgrade pip
+#   python -m pip install -r requirements.txt
+#
+# This does not save the venv itself.  It saves the list of installed packages
+# and versions so pip can rebuild an equivalent environment.
+#
+
 
 #################################################
 #
