@@ -10,9 +10,7 @@
       "request": "launch",
       "program": "MasterControl.py",
       "console": "integratedTerminal",
-      //"args": [
-      //  "${command:pickArgs}"
-      //]
+      "args": ["--site", "${env:GEN3_SITE}"]
     },
     {
       "name": "PyDbg: Current File ",
