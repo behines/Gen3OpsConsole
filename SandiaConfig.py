@@ -11,24 +11,24 @@ from ProjectConfig import CollectorMapping, PICOTOOL_PATH, tProjectConfig
 
 
 SANDIA_COLLECTOR_PORTS = [
-  CollectorMapping('1A', 'COM19', 'G3V2-0015'),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('1B', 'COM20', 'G3V2-0021'),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('1C', 'COM3',  'G3V2-0005'),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('2A', 'COM21', 'G3V2-0004'),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('2B', 'COM5',  'G3V2-0008'),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('2C', 'COM6',  'G3V2-0013'),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('3A', 'COM7',  'G3V2-0003'),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('3B', 'COM8',  'G3V2-0028'),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('3C', 'COM9',  'G3V2-0012'),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('4A', 'COM10', 'G3V2-0018'),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('4B', 'COM11', 'G3V2-0023'),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('4C', 'COM22', 'G3V2-0024'),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('5A', 'COM13', 'G3V2-0016'),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('5B', 'COM14', 'G3V2-0007'),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('5C', 'COM15', 'G3V2-0020'),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('6A', 'COM16', 'G3V2-0014'),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('6B', 'COM17', 'G3V2-0022'),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('6C', 'COM18', 'G3V2-0010 '),  # TODO: assign Sandia COM port and board serial
+  CollectorMapping('3A', 'COM7',  'G3V2-0003'),
+  CollectorMapping('2A', 'COM21', 'G3V2-0004'),
+  CollectorMapping('1C', 'COM3',  'G3V2-0005'),
+  CollectorMapping('5B', 'COM14', 'G3V2-0007'),
+  CollectorMapping('2B', 'COM5',  'G3V2-0008'),
+  CollectorMapping('6C', 'COM18', 'G3V2-0010'),
+  CollectorMapping('3C', 'COM9',  'G3V2-0012'),
+  CollectorMapping('2C', 'COM6',  'G3V2-0013'),
+  CollectorMapping('6A', 'COM16', 'G3V2-0014'),
+  CollectorMapping('1A', 'COM19', 'G3V2-0015'),
+  CollectorMapping('5A', 'COM13', 'G3V2-0016'),
+  CollectorMapping('4A', 'COM10', 'G3V2-0018'),
+  CollectorMapping('5C', 'COM15', 'G3V2-0020'),
+  CollectorMapping('1B', 'COM20', 'G3V2-0021'),
+  CollectorMapping('6B', 'COM17', 'G3V2-0022'),
+  CollectorMapping('4B', 'COM11', 'G3V2-0023'),
+  CollectorMapping('4C', 'COM22', 'G3V2-0024'),
+  CollectorMapping('3B', 'COM8',  'G3V2-0028'),
 ]
 
 
