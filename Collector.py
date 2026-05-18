@@ -76,6 +76,7 @@ class tCollector(tActiveObject):
   DoMotStatus                = Signal()
   DoReboot                   = Signal()
   DoReconnect                = Signal()
+  DoDumpNvSettings           = Signal()
 
   UpdateThresholds           = Signal()
   
@@ -116,15 +117,16 @@ class tCollector(tActiveObject):
     #try:
 
     # Connect signals to methods
-    self.DoOff      .connect(self.Off      )
-    self.DoHome     .connect(self.Home     )
-    self.DoTrack    .connect(self.Track    )
-    self.DoStow     .connect(self.Stow     )
-    self.DoFlat     .connect(self.Flat     )
-    self.DoSetTime  .connect(self.SetTimeToNow)
-    self.DoMotStatus.connect(self.MotStatus)
-    self.DoReboot   .connect(self.Reboot   )
-    self.DoReconnect.connect(self.Reconnect)
+    self.DoOff            .connect(self.Off            )
+    self.DoHome           .connect(self.Home           )
+    self.DoTrack          .connect(self.Track          )
+    self.DoStow           .connect(self.Stow           )
+    self.DoFlat           .connect(self.Flat           )
+    self.DoSetTime        .connect(self.SetTimeToNow   )
+    self.DoMotStatus      .connect(self.MotStatus      )
+    self.DoReboot         .connect(self.Reboot         )
+    self.DoReconnect      .connect(self.Reconnect      )
+    self.DoDumpNvSettings .connect(self.DumpNvSettings )
 
     self.UpdateThresholds.connect(self.SendThresholdPercentages)
 
@@ -672,6 +674,14 @@ class tCollector(tActiveObject):
 
     self.bResponded = True
     return 0
+
+  ###############################################
+  # DumpNvSettings - requests the collector to dump its NV settings
+  #
+
+  def DumpNvSettings(self):
+    self._SendCommand("DumpNvSettings")
+
 
   ###############################################
   # Reboot - asks the collector to reboot, then falls back to picotool

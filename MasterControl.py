@@ -127,6 +127,7 @@ from collections import namedtuple
 # module used to control delays
 import sys
 import os
+import re
 
 from PySide6.QtWidgets  import QApplication, QMainWindow, QLabel, QButtonGroup, QMessageBox
 from PySide6.QtCore     import Qt, QThread, QDateTime, QTimeZone, QTimer, QSignalBlocker
@@ -443,12 +444,13 @@ class MasterControl(QMainWindow):
     self.SequencerModeRadioGroup.buttonClicked.connect(self.SequencerModeChangeRequest)
 
     # Connect command buttons
-    self.ui.OffPushButton        .clicked.connect(lambda: [Collector.DoOff    .emit() for Collector in self.Collectors])
-    self.ui.HomePushButton       .clicked.connect(lambda: [Collector.DoHome   .emit() for Collector in self.Collectors])
-    self.ui.SetTimePushButton    .clicked.connect(lambda: [Collector.DoSetTime.emit() for Collector in self.Collectors])
-    self.ui.StowPushButton       .clicked.connect(lambda: [Collector.DoStow   .emit() for Collector in self.Collectors])
-    self.ui.FlatPushButton       .clicked.connect(lambda: [Collector.DoFlat   .emit() for Collector in self.Collectors])
-    self.ui.TrackPushButton      .clicked.connect(lambda: [Collector.DoTrack  .emit() for Collector in self.Collectors])
+    self.ui.OffPushButton           .clicked.connect(lambda: [Collector.DoOff          .emit() for Collector in self.Collectors])
+    self.ui.HomePushButton          .clicked.connect(lambda: [Collector.DoHome         .emit() for Collector in self.Collectors])
+    self.ui.SetTimePushButton       .clicked.connect(lambda: [Collector.DoSetTime      .emit() for Collector in self.Collectors])
+    self.ui.StowPushButton          .clicked.connect(lambda: [Collector.DoStow         .emit() for Collector in self.Collectors])
+    self.ui.FlatPushButton          .clicked.connect(lambda: [Collector.DoFlat         .emit() for Collector in self.Collectors])
+    self.ui.TrackPushButton         .clicked.connect(lambda: [Collector.DoTrack        .emit() for Collector in self.Collectors])
+    self.ui.SaveNvSettingsPushButton.clicked.connect(self.DoSaveNvSettings)
 
 
 
@@ -550,12 +552,97 @@ class MasterControl(QMainWindow):
 
 
   #######################################################
-  # DoOff 
+  # DoOff
 
   def DoOff(self):
     for Collector in self.Collectors:
       Collector.DoOff.emit()
 
+
+  #######################################################
+  # DoSaveNvSettings - Sends DumpNvSettings to every board and writes captured output to files
+
+  def DoSaveNvSettings(self):
+    if hasattr(self, '_nv_capture_active') and self._nv_capture_active:
+      print('SaveNvSettings: capture already in progress, ignoring', flush=True)
+      return
+
+    timestamp     = datetime.now().strftime("%y%m%d_%H%M")
+    output_dir    = os.path.join("NvSettings", timestamp)
+    os.makedirs(output_dir, exist_ok=True)
+    print(f'SaveNvSettings: capturing to {output_dir}', flush=True)
+
+    self._nv_capture_active = True
+    self._nv_output_dir     = output_dir
+    self._nv_captures       = {}
+
+    for Collector in self.Collectors:
+      name  = Collector.CollectorName
+      lines = []
+
+      def make_slot(coll, line_list, board_name):
+        started = [False]
+        def slot(line):
+          if line.strip() == '---':
+            if not started[0]:
+              started[0] = True
+            else:
+              coll.TextLineReceived.disconnect(slot)
+              self._nv_captures[board_name]['done'] = True
+              self._WriteNvFile(board_name, line_list)
+          elif started[0]:
+            line_list.append(line)
+        return slot
+
+      if not Collector.IsInit():
+        continue
+
+      slot_fn = make_slot(Collector, lines, name)
+      self._nv_captures[name] = {'lines': lines, 'slot': slot_fn, 'done': False}
+      Collector.TextLineReceived.connect(slot_fn)
+      Collector.DoDumpNvSettings.emit()
+
+    QTimer.singleShot(5000, self._FinishSaveNvSettings)
+
+
+  #######################################################
+  # _WriteNvFile - Writes one board's captured lines to its settings file
+
+  def _WriteNvFile(self, collector_name, lines):
+    board_id = None
+    for line in lines:
+      m = re.search(r'\bG3V2-\S+', line)
+      if m:
+        board_id = m.group(0)
+        break
+
+    if board_id:
+      filename = f"{board_id}_{collector_name}_Settings.txt"
+    else:
+      filename = f"{collector_name}_Settings.txt"
+
+    output_path = os.path.join(self._nv_output_dir, filename)
+    with open(output_path, 'w') as f:
+      f.write('\n'.join(lines))
+    print(f'SaveNvSettings: wrote {output_path} ({len(lines)} lines)', flush=True)
+
+
+  #######################################################
+  # _FinishSaveNvSettings - Fallback timeout: writes files for any board that did not send ---
+
+  def _FinishSaveNvSettings(self):
+    for Collector in self.Collectors:
+      name    = Collector.CollectorName
+      capture = self._nv_captures.get(name)
+      if capture is None:
+        continue
+      if not capture['done']:
+        Collector.TextLineReceived.disconnect(capture['slot'])
+        self._WriteNvFile(name, capture['lines'])
+
+    self._nv_captures       = {}
+    self._nv_capture_active = False
+    print('SaveNvSettings: done', flush=True)
 
 
   #######################################################

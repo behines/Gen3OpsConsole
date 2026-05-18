@@ -507,6 +507,9 @@ class tCollectorControlWindow(QWidget):
   #    
 
   def ForceClose(self):
+    for pane in self.CollectorPanes:
+      if pane._consoleWindow is not None:
+        pane._consoleWindow.close()
     self.bAllowClose = True
     self.close()
 
