@@ -47,6 +47,7 @@ class tCollectorPane(QWidget):
     self.port           = None
     self.bConnected     = False
     self._consoleWindow = None
+    self.ReleaseNum     = ""
 
     # Load CollectorPane UI dynamically
     #loader = QUiLoader()
@@ -112,7 +113,9 @@ class tCollectorPane(QWidget):
   def OpenConsole(self):
     if self._consoleWindow is None or not self._consoleWindow.isVisible():
       self._consoleWindow = tCollectorConsole(
-        self.Collector.CollectorName, self.Collector, parent=None
+        self.Collector.CollectorName, self.Collector,
+        initialText=self.ui.CollectorLog.toPlainText(),
+        parent=None
       )
       self._consoleWindow.show()
     else:
@@ -244,7 +247,14 @@ class tCollectorPane(QWidget):
   #     
 
   def UpdateReleaseString(self, ReleaseString: str):
+    self.ReleaseNum = ReleaseString
     self.ui.ReleaseStringLabel.setText(ReleaseString)
+
+  def SetReleaseOutdated(self, bOutdated: bool):
+    if bOutdated:
+      self.ui.ReleaseStringLabel.setStyleSheet("QLabel { color: red; font-weight: bold; }")
+    else:
+      self.ui.ReleaseStringLabel.setStyleSheet("")
 
 
   ###############################################
@@ -463,6 +473,7 @@ class tCollectorControlWindow(QWidget):
       row = index // PROJECT_CONFIG.CollectorGridCols
       col = index %  PROJECT_CONFIG.CollectorGridCols
       layout.addWidget(CollectorPane, row, col)
+      CollectorPane.Collector.ReleaseStringReceived.connect(lambda _: self._UpdateReleaseComparison())
 
     PaneGeometry    = self.CollectorPanes[0].geometry()
     CurrentGeometry = self.geometry()
@@ -512,8 +523,22 @@ class tCollectorControlWindow(QWidget):
 
 
   ###############################################
+  # _UpdateReleaseComparison - Marks any pane with an older release number bold red
+  #
+
+  def _UpdateReleaseComparison(self):
+    known = [pane.ReleaseNum for pane in self.CollectorPanes if pane.ReleaseNum]
+    if not known:
+      return
+    newest = max(known)
+    for pane in self.CollectorPanes:
+      if pane.ReleaseNum:
+        pane.SetReleaseOutdated(pane.ReleaseNum < newest)
+
+
+  ###############################################
   # CollectorList - Returns a list of all 15 collectors
-  # 
+  #
 
   def CollectorList(self):
     CollectorList = [ CollectorPane.Collector for CollectorPane in self.CollectorPanes ]

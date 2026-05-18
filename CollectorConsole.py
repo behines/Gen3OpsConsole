@@ -72,7 +72,7 @@ class tHistoryLineEdit(QLineEdit):
 
 class tCollectorConsole(QDialog):
 
-  def __init__(self, collectorName, collector, parent=None):
+  def __init__(self, collectorName, collector, initialText="", parent=None):
     super().__init__(parent)
 
     self.setWindowTitle(f"Console - Collector {collectorName}")
@@ -95,6 +95,11 @@ class tCollectorConsole(QDialog):
     layout.setSpacing(4)
     layout.addWidget(self._output, stretch=1)
     layout.addWidget(self._input,  stretch=0)
+
+    # Pre-populate with existing CollectorPane log contents
+    if initialText:
+      self._output.setPlainText(initialText)
+      self._output.moveCursor(QTextCursor.MoveOperation.End)
 
     # Wire serial output to display - use the line-oriented TextLineReceived signal,
     # which already filters out TEL: telemetry lines in Collector.ProcessLineOfOutput

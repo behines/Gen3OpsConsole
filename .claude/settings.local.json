@@ -3,7 +3,10 @@
     "allow": [
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\PlanetA\\\\Documents\\\\GitHub\\\\Gen3OpsConsole\" -Exclude \".qtcreator\" -Recurse -Filter \"*.py\")",
       "Bash(Select-Object -ExpandProperty FullName)",
-      "Bash(pyside6-uic CollectorPane.ui -o CollectorPane_ui.py)"
+      "Bash(pyside6-uic CollectorPane.ui -o CollectorPane_ui.py)",
+      "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\PlanetA\\\\Documents\\\\GitHub\\\\Gen3OpsConsole\" -Recurse -Depth 2)",
+      "Bash(Select-Object FullName, PSIsContainer)",
+      "Bash(Format-Table -AutoSize)"
     ]
   }
 }

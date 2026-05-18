@@ -19,6 +19,7 @@ from SerialPort        import tAutoOpenSerialWholeLine
 from PowerControl      import tPowerControl
 from Utilities         import tActiveObject, with_lock
 from ConfigInfo        import *
+import re
 import subprocess
 
 
@@ -105,6 +106,7 @@ class tCollector(tActiveObject):
     self.bUsbPowerState = not PROJECT_CONFIG.bHasUsbPowerRelay
     self.LastRebootRequestMsecs  = 0
     self.LastRebootAcceptedMsecs = 0
+    self.ReleaseString           = ""
 
     # These are cached values.  When they change (via a GUI event), we send a command to the collector
     self.WideAngleIllumPercent      = 0
@@ -258,6 +260,7 @@ class tCollector(tActiveObject):
       self.FlushCommandInput()
       self.SetTimeToNow()
       self.SetTelemetryOnOff(True)
+      self.About()
     QThread.msleep(10)   # Give the output time to flush
 
 
@@ -382,10 +385,10 @@ class tCollector(tActiveObject):
       self.InitializeConnection()
       return
     
-    if Line.startswith("TRACKER4 RELEASE "):
-      self.ReleaseString = Line[17:]
+    match = re.search(r'\b(\d{6}_\d{4})\b', Line)
+    if match:
+      self.ReleaseString = match.group(1)
       self.ReleaseStringReceived.emit(self.ReleaseString)
-      return
 
     if Line.startswith("Rebooting..."):
       self.LastRebootAcceptedMsecs = QDateTime.currentMSecsSinceEpoch()
@@ -509,10 +512,18 @@ class tCollector(tActiveObject):
 
   
   ###############################################
+  # About - requests the collector to report its release string
+  #
+
+  def About(self):
+    self._SendCommand("About")
+
+
+  ###############################################
   # Stow
-  # 
+  #
   # Comamnds the collector to Stow
-  #     
+  #
 
   #@with_lock
   def Stow(self):

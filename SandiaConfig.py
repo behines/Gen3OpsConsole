@@ -28,7 +28,7 @@ SANDIA_COLLECTOR_PORTS = [
   CollectorMapping('5C', 'COM15', 'G3V2-0020'),  # TODO: assign Sandia COM port and board serial
   CollectorMapping('6A', 'COM16', 'G3V2-0014'),  # TODO: assign Sandia COM port and board serial
   CollectorMapping('6B', 'COM17', 'G3V2-0022'),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('6C', 'COM18', None),  # TODO: assign Sandia COM port and board serial
+  CollectorMapping('6C', 'COM18', 'G3V2-0010'),  # TODO: assign Sandia COM port and board serial
 ]
 
 
