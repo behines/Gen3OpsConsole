@@ -218,7 +218,7 @@ class tCollector(tActiveObject):
 
     self.MissingTelemetryCount = 0
 
-    self.SerialPort.bPrintDiag = False # (self.CollectorName == "4B")
+    self.SerialPort.bPrintDiag = False
    
     # Manually call OnlineStatusUpdate the first time, to intiialize the port and inform CollectorPane, if it is open
     self.OnlineStatusUpdate(self.SerialPort.IsOpen())
@@ -318,7 +318,7 @@ class tCollector(tActiveObject):
     # If USB power is not on, we the port won't even exist and we should not attempt to do anything
     if not self.bUsbPowerState:
       return
-    
+
     # If the port appears open but has become unresponsive for too long, re-open
     if self.SerialPort.IsOpen() and self.MissingTelemetryCount >= COLLECTOR_MISSING_TELEM_REOPEN_THRESHOLD:
       #print(f'Forcing reopen attempt for collector {self.CollectorName}',flush=True)
@@ -373,6 +373,10 @@ class tCollector(tActiveObject):
 
   def ProcessLineOfOutput(self, Line: str):
     self.MissingTelemetryCount = 0
+
+    # Strip a leading "> " prompt if present so the line below still recognizes telemetry
+    if Line.startswith("> "):
+      Line = Line[2:]
 
     if Line.startswith("***COLLECTOR ONLINE***"):
       self.InitializeConnection()

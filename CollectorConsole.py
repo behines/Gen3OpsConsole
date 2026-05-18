@@ -96,8 +96,9 @@ class tCollectorConsole(QDialog):
     layout.addWidget(self._output, stretch=1)
     layout.addWidget(self._input,  stretch=0)
 
-    # Wire serial output to display
-    collector.SerialPort.rawChars.connect(self._AppendChunk)
+    # Wire serial output to display - use the line-oriented TextLineReceived signal,
+    # which already filters out TEL: telemetry lines in Collector.ProcessLineOfOutput
+    collector.TextLineReceived.connect(self._AppendLine)
 
     # Wire input to serial port
     self._input.SendLine.connect(lambda line: collector.SerialPort.write(line + "\r\n"))
@@ -105,25 +106,9 @@ class tCollectorConsole(QDialog):
     # Give keyboard focus to the input field
     self._input.setFocus()
 
-    # Buffer for filtering complete TEL: lines before they reach the display
-    self._lineBuffer = ""
-
-  def _AppendChunk(self, text: str):
-    self._lineBuffer += text
-    # Pull out complete lines, suppress TEL: ones, display the rest
-    while "\n" in self._lineBuffer:
-      line, self._lineBuffer = self._lineBuffer.split("\n", 1)
-      if not line.startswith("TEL:"):
-        cursor = self._output.textCursor()
-        cursor.movePosition(QTextCursor.MoveOperation.End)
-        cursor.insertText(line + "\n")
-        self._output.setTextCursor(cursor)
-        self._output.ensureCursorVisible()
-    # Display any partial line that isn't (yet) a TEL: line
-    if self._lineBuffer and not "TEL:".startswith(self._lineBuffer) and not self._lineBuffer.startswith("TEL:"):
-      cursor = self._output.textCursor()
-      cursor.movePosition(QTextCursor.MoveOperation.End)
-      cursor.insertText(self._lineBuffer)
-      self._output.setTextCursor(cursor)
-      self._output.ensureCursorVisible()
-      self._lineBuffer = ""
+  def _AppendLine(self, line: str):
+    cursor = self._output.textCursor()
+    cursor.movePosition(QTextCursor.MoveOperation.End)
+    cursor.insertText(line)
+    self._output.setTextCursor(cursor)
+    self._output.ensureCursorVisible()
