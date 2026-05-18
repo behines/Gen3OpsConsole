@@ -10,7 +10,7 @@
 from collections import namedtuple
 
 from PySide6.QtGui     import QTextCursor
-from PySide6.QtWidgets import QWidget, QGridLayout, QScrollArea, QVBoxLayout, QMessageBox
+from PySide6.QtWidgets import QApplication, QWidget, QGridLayout, QScrollArea, QVBoxLayout, QMessageBox
 from PySide6.QtCore    import Qt
 
 # Import configuration of the system
@@ -478,8 +478,9 @@ class tCollectorControlWindow(QWidget):
     PaneGeometry    = self.CollectorPanes[0].geometry()
     CurrentGeometry = self.geometry()
 
+    screen        = QApplication.primaryScreen()
     self.resize(50 + PROJECT_CONFIG.CollectorGridCols * PaneGeometry.width(),
-                50 + (PROJECT_CONFIG.CollectorGridRows + 0.2) * PaneGeometry.height())
+                screen.availableGeometry().height() - 50 - 20)
 
     # Wrap the central widget with a QScrollArea
     scroll_area = QScrollArea()

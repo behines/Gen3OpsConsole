@@ -6,7 +6,8 @@
       "Bash(pyside6-uic CollectorPane.ui -o CollectorPane_ui.py)",
       "Bash(Get-ChildItem -Path \"c:\\\\Users\\\\PlanetA\\\\Documents\\\\GitHub\\\\Gen3OpsConsole\" -Recurse -Depth 2)",
       "Bash(Select-Object FullName, PSIsContainer)",
-      "Bash(Format-Table -AutoSize)"
+      "Bash(Format-Table -AutoSize)",
+      "Bash(grep -E \"\\\\.pyc$|__pycache__\")"
     ]
   }
 }
