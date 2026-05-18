@@ -622,11 +622,12 @@ class tCollector(tActiveObject):
     #  raise TypeError("timezone must be of type QTimeZone")
 
     current_time = QDateTime.currentDateTime(timezone)
-    
-    # Format to HHMMSSt (with 0.1 second resolution)
-    CurrentTimeString = current_time.toString('hhmmss') + f"{int(current_time.time().msec() / 100)}"
 
-    result = self._SendCommand("SetTime", CurrentTimeString, self.sunrise.toString('hhmm'), self.sunset.toString('hhmm'))
+    # Format to HHMMSSt (with 0.1 second resolution) and YYMMDD date
+    CurrentTimeString = current_time.toString('hhmmss') + f"{int(current_time.time().msec() / 100)}"
+    CurrentDateString = current_time.toString('yyMMdd')
+
+    result = self._SendCommand("SetTime", CurrentTimeString, CurrentDateString, self.sunrise.toString('hhmm'), self.sunset.toString('hhmm'))
 
     if result < 0:
       print ('Could not set time for ', self.CollectorName)

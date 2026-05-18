@@ -13,17 +13,17 @@ from ProjectConfig import CollectorMapping, PICOTOOL_PATH, tProjectConfig
 SANDIA_COLLECTOR_PORTS = [
   CollectorMapping('1A', 'COM1',  None),  # TODO: assign Sandia COM port and board serial
   CollectorMapping('1B', 'COM2',  None),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('1C', 'COM3',  None),  # TODO: assign Sandia COM port and board serial
+  CollectorMapping('1C', 'COM3',  'G3V2-0006'),  # TODO: assign Sandia COM port and board serial
   CollectorMapping('2A', 'COM4',  None),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('2B', 'COM5',  None),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('2C', 'COM6',  None),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('3A', 'COM7',  None),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('3B', 'COM8',  None),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('3C', 'COM9',  None),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('4A', 'COM10', None),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('4B', 'COM11', None),  # TODO: assign Sandia COM port and board serial
+  CollectorMapping('2B', 'COM5',  'G3V2-0008'),  # TODO: assign Sandia COM port and board serial
+  CollectorMapping('2C', 'COM6',  'G3V2-0013'),  # TODO: assign Sandia COM port and board serial
+  CollectorMapping('3A', 'COM7',  'G3V2-0003'),  # TODO: assign Sandia COM port and board serial
+  CollectorMapping('3B', 'COM8',  'G3V2-0028'),  # TODO: assign Sandia COM port and board serial
+  CollectorMapping('3C', 'COM9',  'G3V2-0012'),  # TODO: assign Sandia COM port and board serial
+  CollectorMapping('4A', 'COM10', 'G3V2-0018'),  # TODO: assign Sandia COM port and board serial
+  CollectorMapping('4B', 'COM11', 'G3V2-0023'),  # TODO: assign Sandia COM port and board serial
   CollectorMapping('4C', 'COM12', None),  # TODO: assign Sandia COM port and board serial
-  CollectorMapping('5A', 'COM13', None),  # TODO: assign Sandia COM port and board serial
+  CollectorMapping('5A', 'COM13', 'G3V2-0016'),  # TODO: assign Sandia COM port and board serial
   CollectorMapping('5B', 'COM14', None),  # TODO: assign Sandia COM port and board serial
   CollectorMapping('5C', 'COM15', None),  # TODO: assign Sandia COM port and board serial
   CollectorMapping('6A', 'COM16', None),  # TODO: assign Sandia COM port and board serial
