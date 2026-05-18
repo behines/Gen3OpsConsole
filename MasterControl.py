@@ -241,6 +241,16 @@ class MasterControl(QMainWindow):
 
   def StartApplication(self):
 
+    # Verify picotool is available - needed for the Reboot fallback when the embedded reboot
+    # command doesn't respond.  Better to fail fast at startup than to discover it's missing
+    # at the moment we need to reboot a wedged board.
+    if not os.path.isfile(PROJECT_CONFIG.PicotoolPath):
+      msg = (f"picotool not found at:\n  {PROJECT_CONFIG.PicotoolPath}\n\n"
+             f"Install picotool or update PICOTOOL_PATH in ProjectConfig.py.")
+      print(msg, flush=True)
+      QMessageBox.critical(self, "picotool not found", msg)
+      raise FileNotFoundError(PROJECT_CONFIG.PicotoolPath)
+
     # Construct the Agilent objects.  The '*' splats the descriptor onto the constructor arguments
     # This includes opening the devices
     # Create the objects with no parant for now, because later the PeriodicLogger will take ownership.

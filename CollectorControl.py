@@ -18,6 +18,7 @@ from CollectorPane_ui  import Ui_Form
 from ConfigInfo        import *
 from Collector         import tCollector
 from Utilities         import SignalThenWaitFor
+from CollectorConsole  import tCollectorConsole
 
 
 
@@ -40,11 +41,12 @@ class tCollectorPane(QWidget):
   def __init__(self, collectorName, portName, boardSerial, baud, parent=None):
     super().__init__(parent)   # QWidget constructor
       
-    self.bInit       = False
-    self.bResponded  = False
-    self.name        = 'Foo' #collectorName
-    self.port        = None
-    self.bConnected  = False
+    self.bInit          = False
+    self.bResponded     = False
+    self.name           = 'Foo' #collectorName
+    self.port           = None
+    self.bConnected     = False
+    self._consoleWindow = None
 
     # Load CollectorPane UI dynamically
     #loader = QUiLoader()
@@ -98,13 +100,29 @@ class tCollectorPane(QWidget):
     self.ui.FlatPushButton.       clicked.connect(self.Collector.DoFlat     )
     self.ui.SetTimePushButton.    clicked.connect(self.Collector.DoSetTime  )
     self.ui.MotorStatusPushButton.clicked.connect(self.Collector.DoMotStatus)
-    self.ui.RebootPushButton.     clicked.connect(self.Collector.DoReboot   )
+    self.ui.RebootPushButton.     clicked.connect(lambda: self.Collector.Reboot(bForced=True))
     self.ui.TimeButton.           clicked.connect(self.Collector.DoReconnect)
+    self.ui.ConsolePushButton.    clicked.connect(self.OpenConsole           )
+
+
+  ###############################################
+  # OpenConsole - Open (or raise) the interactive console window for this collector
+  #
+
+  def OpenConsole(self):
+    if self._consoleWindow is None or not self._consoleWindow.isVisible():
+      self._consoleWindow = tCollectorConsole(
+        self.Collector.CollectorName, self.Collector, parent=None
+      )
+      self._consoleWindow.show()
+    else:
+      self._consoleWindow.raise_()
+      self._consoleWindow.activateWindow()
 
 
   ###############################################
   # closeEvent - Shut down collector thread
-  # 
+  #
 
   def closeEvent(self, event):
     print("CollectorPane is closing",flush=True)

@@ -6,13 +6,15 @@
 # site configuration files.
 #
 
+import os
+
 from collections import namedtuple
 from dataclasses  import dataclass
 
 
 AGILENT_DESCRIPTOR_FIELDS = [ 'Port','Channel list','Thermocouple channels','GHI channels','DNI channels','DNI gain','Front panel channel' ]
 CollectorMapping = namedtuple('CollectorMapping', ['Name', 'Port', 'BoardSerial'])
-PICOTOOL_PATH = r"C:\Users\brad\.pico-sdk\picotool\2.0.0\picotool\picotool.exe"
+PICOTOOL_PATH = os.path.expanduser(r"~\.pico-sdk\picotool\2.0.0\picotool\picotool.exe")
 
 
 @dataclass

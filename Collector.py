@@ -272,6 +272,7 @@ class tCollector(tActiveObject):
     if self.SerialPort.IsOpen():
       self.SerialPort.close()
     self.bInit = False
+    self.SerialPort.AttemptOpenIfNeeded()
     self.InitializeConnection()
 
 
@@ -663,7 +664,11 @@ class tCollector(tActiveObject):
   #     
 
   #@with_lock
-  def Reboot(self):
+  def Reboot(self, bForced=False):
+    # Sequencer-driven reboots silently skip absent boards; user-clicked reboots
+    # always try (picotool can talk to the board even if the COM port is wedged)
+    if not bForced and not self.SerialPort.IsOpen():
+      return 0
     print(f'Rebooting {self.CollectorName}')
     self.LastRebootRequestMsecs = QDateTime.currentMSecsSinceEpoch()
     self._SendCommand("Reboot")

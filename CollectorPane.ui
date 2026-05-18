@@ -71,9 +71,9 @@
    <widget class="QPushButton" name="HomePushButton">
     <property name="geometry">
      <rect>
-      <x>60</x>
+      <x>57</x>
       <y>270</y>
-      <width>41</width>
+      <width>50</width>
       <height>24</height>
      </rect>
     </property>
@@ -90,9 +90,9 @@
    <widget class="QPushButton" name="TrackPushButton">
     <property name="geometry">
      <rect>
-      <x>110</x>
+      <x>113</x>
       <y>270</y>
-      <width>41</width>
+      <width>40</width>
       <height>24</height>
      </rect>
     </property>
@@ -1155,8 +1155,8 @@
    <widget class="QPushButton" name="ConsolePushButton">
     <property name="geometry">
      <rect>
-      <x>256</x>
-      <y>23</y>
+      <x>400</x>
+      <y>160</y>
       <width>61</width>
       <height>20</height>
      </rect>
@@ -1166,6 +1166,9 @@
       <horstretch>0</horstretch>
       <verstretch>0</verstretch>
      </sizepolicy>
+    </property>
+    <property name="autoFillBackground">
+     <bool>true</bool>
     </property>
     <property name="text">
      <string>Console</string>

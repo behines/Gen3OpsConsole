@@ -197,6 +197,7 @@ class tAutoOpenSerial(QSerialPort):
 
 class tAutoOpenSerialWholeLine(tAutoOpenSerial):
   readyLine = Signal(str)  # Signal emitted when a full line is available
+  rawChars  = Signal(str)  # Signal emitted for every decoded chunk as it arrives; zero cost when unconnected
 
 
   #######################################################
@@ -232,6 +233,7 @@ class tAutoOpenSerialWholeLine(tAutoOpenSerial):
   # 
 
   def _AssembleLine(self):
+    #print(f"_AssembleLine called, bytes={self.bytesAvailable()}", flush=True)
     if self.bytesAvailable() == 0:
       # This can happen routinely since we're using QueuedConnection - our while loop can pick up bytes before the
       # second signal arrives.
@@ -266,7 +268,10 @@ class tAutoOpenSerialWholeLine(tAutoOpenSerial):
       # Convert QByteArray to string and append to the buffer. 
       # The reason for the ignore flag is to skip all tha cruft that appears when you
       # first connect.  Without the flag, it barfs on those characters.
-      self._lineBuffer += str(data.data(), "utf-8", errors="ignore")
+      chunk = str(data.data(), "utf-8", errors="ignore")
+      self._lineBuffer += chunk
+      if chunk:
+        self.rawChars.emit(chunk)
       #except UnicodeDecodeError as e:
       #  print(f"Decoding error on port {self.portName()}: {e}. Raw bytes: {data}")
       #  break
