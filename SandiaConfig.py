@@ -11,29 +11,29 @@ from ProjectConfig import CollectorMapping, PICOTOOL_PATH, tProjectConfig
 
 
 SANDIA_COLLECTOR_PORTS = [
+  CollectorMapping('1A', 'COM22', 'G3V2-0024'),
   CollectorMapping('1B', 'COM11', 'G3V2-0023'),
-  CollectorMapping('2B', 'COM7',  'G3V2-0003'),
+  CollectorMapping('1C', 'COM21', 'G3V2-0004'),
+
+  CollectorMapping('2A', 'COM14', 'G3V2-0007'),
+  CollectorMapping('2B', 'COM7',  'G3V2-0003'),   # This is collector 26.  Board was swapped with Collector 3.
+  CollectorMapping('2C', 'COM20', 'G3V2-0021'),
+
+  CollectorMapping('3A', 'COM16', 'G3V2-0014'),
   CollectorMapping('3B', 'COM5',  'G3V2-0008'),
-  CollectorMapping('4B', 'COM24', 'G3V2-0024'),
+  CollectorMapping('3C', 'COM15', 'G3V2-0020'),
+
+  CollectorMapping('4A', 'COM9',  'G3V2-0012'),
+  CollectorMapping('4B', 'COM24', 'G3V2-0006'),   # I had this as G3V2-0024 but I think that was wrong.
+  CollectorMapping('4C', 'COM6',  'G3V2-0013'),
+
+  CollectorMapping('5A', 'COM18', 'G3V2-0010'),
   CollectorMapping('5B', 'COM23', 'G3V2-0017'),
+  CollectorMapping('5C', 'COM3',  'G3V2-0005'),
+
+  CollectorMapping('6A', 'COM13', 'G3V2-0016'),
   CollectorMapping('6B', 'COM10', 'G3V2-0018'),
-
-  CollectorMapping('1C', 'COM3',  'G3V2-0005'),
-  CollectorMapping('4A', 'COM14', 'G3V2-0007'),
-  CollectorMapping('6C', 'COM18', 'G3V2-0010'),
-  CollectorMapping('3C', 'COM9',  'G3V2-0012'),
-  CollectorMapping('2C', 'COM6',  'G3V2-0013'),
-  CollectorMapping('6A', 'COM16', 'G3V2-0014'),
-  CollectorMapping('1A', 'COM19', 'G3V2-0015'),
-  CollectorMapping('5A', 'COM13', 'G3V2-0016'),
-  CollectorMapping('5C', 'COM15', 'G3V2-0020'),
-  CollectorMapping('2A', 'COM20', 'G3V2-0021'),
-  CollectorMapping('3A', 'COM17', 'G3V2-0022'),
-  CollectorMapping('4C', 'COM8',  'G3V2-0028'),
-
-#  CollectorMapping('2A', 'COM21', 'G3V2-0004'),
-#  CollectorMapping('4C', 'COM22', 'G3V2-0024'),
-
+  CollectorMapping('6C', 'COM17', 'G3V2-0022'),
 ]
 
 
