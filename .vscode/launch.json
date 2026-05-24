@@ -10,6 +10,7 @@
       "request": "launch",
       "program": "MasterControl.py",
       "console": "integratedTerminal",
+      "python": "${workspaceFolder}/.venv/Scripts/python.exe",
       "args": ["--site", "${env:GEN3_SITE}"]
     },
     {

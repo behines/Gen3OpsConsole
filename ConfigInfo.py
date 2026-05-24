@@ -152,73 +152,75 @@ COLLECTOR_TX_BUFFER_SIZE =  2000
 
 COLLECTOR_PORTS = []
 
-class CollectorNativeStates(IntEnum): 
-  UNKNOWN                = -1
-  OFF                    =  0
-  HOME_ELEVATION_LOW     = auto()
-  HOME_ELEVATION_HIGH    = auto()
-  HOME_ELEVATION_ERROR   = auto()
-  CHECK_LIMIT_CABLE      = auto()
-  HOME_AZIMUTH_NEG       = auto()
-  HOME_AZIMUTH_POS       = auto()
-  HOME_UNSTICK           = auto()
-  HOME_AZIMUTH_NEG_RETRY = auto()
-  HOME_AZIMUTH_ERROR     = auto()
-  HOME_COMPLETE          = auto()
-  ACQ_BEGIN              = auto()
-  ACQ_ELEVATION_WAIT     = auto()
-  ACQ_AZ                 = auto()
-  ACQ_ERROR              = auto()
-  ACQUIRE                = auto()
-  WAITING_FOR_SUN        = auto()
-  TRACK                  = auto()
-  CLOUD_PAUSE            = auto()
-  STOW_AZ_HOME           = auto()
-  STOW_EL_HOME           = auto()
-  STOWING                = auto()
-  STOWED                 = auto()
-  STOW_ERROR             = auto()
-  ERROR                  = auto()
+# Mirror of the embedded TRACKER_STATE enum in Gen3_Tracker/TrackerStates.h.
+# Names match the C++ identifiers exactly (minus the TRACKER_ prefix) and
+# integer values are explicit so any future firmware drift is obvious on
+# review.  UNKNOWN = -1 is a Python-side sentinel for "no telemetry yet".
+class CollectorNativeStates(IntEnum):
+  UNKNOWN                    = -1
+  OFF                        =  0   # TRACKER_OFF
+  HOME_OFFSET                =  1   # TRACKER_HOME_OFFSET
+  HOME_AZ_NEG                =  2   # TRACKER_HOME_AZ_NEG
+  HOME_AZ_ERROR              =  3   # TRACKER_HOME_AZ_ERROR
+  HOME_ELEVATION_LOW         =  4   # TRACKER_HOME_ELEVATION_LOW
+  HOME_ELEVATION_ERROR       =  5   # TRACKER_HOME_ELEVATION_ERROR
+  HOME_COMPLETE              =  6   # TRACKER_HOME_COMPLETE
+  ACQ_BEGIN                  =  7   # TRACKER_ACQ_BEGIN
+  ACQ_INITIAL_POSITION_WAIT  =  8   # TRACKER_ACQ_INITIAL_POSITION_WAIT
+  ACQ_AZ                     =  9   # TRACKER_ACQ_AZ
+  ACQ_ERROR                  = 10   # TRACKER_ACQ_ERROR
+  ACQUIRE                    = 11   # TRACKER_ACQUIRE
+  WAITING_FOR_SUN            = 12   # TRACKER_WAITING_FOR_SUN
+  TRACK                      = 13   # TRACKER_TRACK
+  DEAD_RECKON                = 14   # TRACKER_DEAD_RECKON
+  CLOUD_PAUSE                = 15   # TRACKER_CLOUD_PAUSE
+  STOWING                    = 16   # TRACKER_STOWING
+  STOWED                     = 17   # TRACKER_STOWED
+  STOW_ERROR                 = 18   # TRACKER_STOW_ERROR
+  FLATTING                   = 19   # TRACKER_FLATTING
+  FLAT                       = 20   # TRACKER_FLAT
+  FLAT_ERROR                 = 21   # TRACKER_FLAT_ERROR
+  ERROR                      = 22   # TRACKER_ERROR
 
 class CollectorMarqueeStates(IntEnum):
   UNKNOWN      = 0
   OFF          = auto()
   HOMING       = auto()
+  HOMED        = auto()
   ACQUIRE      = auto()
   WAIT_FOR_SUN = auto()    
   TRACK        = auto()
+  DEAD_RECKON  = auto()
   CLOUD_PAUSE  = auto()
   STOWING      = auto()
   STOWED       = auto()
   ERROR        = auto()
 
 CollectorNativeStateToMarqueeState = {
-  CollectorNativeStates.UNKNOWN                : CollectorMarqueeStates.UNKNOWN,
-  CollectorNativeStates.OFF                    : CollectorMarqueeStates.OFF,
-  CollectorNativeStates.HOME_ELEVATION_LOW     : CollectorMarqueeStates.HOMING,
-  CollectorNativeStates.HOME_ELEVATION_HIGH    : CollectorMarqueeStates.HOMING,
-  CollectorNativeStates.HOME_ELEVATION_ERROR   : CollectorMarqueeStates.ERROR,
-  CollectorNativeStates.CHECK_LIMIT_CABLE      : CollectorMarqueeStates.ERROR,
-  CollectorNativeStates.HOME_AZIMUTH_NEG       : CollectorMarqueeStates.HOMING,
-  CollectorNativeStates.HOME_AZIMUTH_POS       : CollectorMarqueeStates.HOMING,
-  CollectorNativeStates.HOME_UNSTICK           : CollectorMarqueeStates.HOMING,
-  CollectorNativeStates.HOME_AZIMUTH_NEG_RETRY : CollectorMarqueeStates.HOMING,
-  CollectorNativeStates.HOME_AZIMUTH_ERROR     : CollectorMarqueeStates.ERROR,
-  CollectorNativeStates.HOME_COMPLETE          : CollectorMarqueeStates.HOMING,
-  CollectorNativeStates.ACQ_BEGIN              : CollectorMarqueeStates.ACQUIRE,
-  CollectorNativeStates.ACQ_ELEVATION_WAIT     : CollectorMarqueeStates.ACQUIRE,
-  CollectorNativeStates.ACQ_AZ                 : CollectorMarqueeStates.ACQUIRE,
-  CollectorNativeStates.ACQ_ERROR              : CollectorMarqueeStates.ERROR,
-  CollectorNativeStates.ACQUIRE                : CollectorMarqueeStates.ACQUIRE,
-  CollectorNativeStates.WAITING_FOR_SUN        : CollectorMarqueeStates.WAIT_FOR_SUN,
-  CollectorNativeStates.TRACK                  : CollectorMarqueeStates.TRACK,
-  CollectorNativeStates.CLOUD_PAUSE            : CollectorMarqueeStates.CLOUD_PAUSE,
-  CollectorNativeStates.STOWING                : CollectorMarqueeStates.STOWING,
-  CollectorNativeStates.STOW_AZ_HOME           : CollectorMarqueeStates.STOWING,
-  CollectorNativeStates.STOW_EL_HOME           : CollectorMarqueeStates.STOWING,
-  CollectorNativeStates.STOWED                 : CollectorMarqueeStates.STOWED,
-  CollectorNativeStates.STOW_ERROR             : CollectorMarqueeStates.ERROR,
-  CollectorNativeStates.ERROR                  : CollectorMarqueeStates.ERROR,
+  CollectorNativeStates.UNKNOWN                    : CollectorMarqueeStates.UNKNOWN,
+  CollectorNativeStates.OFF                        : CollectorMarqueeStates.OFF,
+  CollectorNativeStates.HOME_OFFSET                : CollectorMarqueeStates.HOMING,
+  CollectorNativeStates.HOME_AZ_NEG                : CollectorMarqueeStates.HOMING,
+  CollectorNativeStates.HOME_AZ_ERROR              : CollectorMarqueeStates.ERROR,
+  CollectorNativeStates.HOME_ELEVATION_LOW         : CollectorMarqueeStates.HOMING,
+  CollectorNativeStates.HOME_ELEVATION_ERROR       : CollectorMarqueeStates.ERROR,
+  CollectorNativeStates.HOME_COMPLETE              : CollectorMarqueeStates.HOMED,
+  CollectorNativeStates.ACQ_BEGIN                  : CollectorMarqueeStates.ACQUIRE,
+  CollectorNativeStates.ACQ_INITIAL_POSITION_WAIT  : CollectorMarqueeStates.ACQUIRE,
+  CollectorNativeStates.ACQ_AZ                     : CollectorMarqueeStates.ACQUIRE,
+  CollectorNativeStates.ACQ_ERROR                  : CollectorMarqueeStates.ERROR,
+  CollectorNativeStates.ACQUIRE                    : CollectorMarqueeStates.ACQUIRE,
+  CollectorNativeStates.WAITING_FOR_SUN            : CollectorMarqueeStates.WAIT_FOR_SUN,
+  CollectorNativeStates.TRACK                      : CollectorMarqueeStates.TRACK,
+  CollectorNativeStates.DEAD_RECKON                : CollectorMarqueeStates.DEAD_RECKON,
+  CollectorNativeStates.CLOUD_PAUSE                : CollectorMarqueeStates.CLOUD_PAUSE,
+  CollectorNativeStates.STOWING                    : CollectorMarqueeStates.STOWING,
+  CollectorNativeStates.STOWED                     : CollectorMarqueeStates.STOWED,
+  CollectorNativeStates.STOW_ERROR                 : CollectorMarqueeStates.ERROR,
+  CollectorNativeStates.FLATTING                   : CollectorMarqueeStates.STOWING,
+  CollectorNativeStates.FLAT                       : CollectorMarqueeStates.STOWED,
+  CollectorNativeStates.FLAT_ERROR                 : CollectorMarqueeStates.ERROR,
+  CollectorNativeStates.ERROR                      : CollectorMarqueeStates.ERROR,
 }
 
 COLLECTOR_LOG_MAXLINES = 200

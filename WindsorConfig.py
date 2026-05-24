@@ -38,11 +38,10 @@ WINDSOR_AGILENTS = [  [ 'ASRL4::INSTR',              # Port
 
 
 WINDSOR_COLLECTOR_PORTS = [
-  CollectorMapping('1A', 'COM8',  None),  # TODO: assign active Windsor board serial
-  CollectorMapping('1B', 'COM10', None),  # TODO: assign active Windsor board serial
-  CollectorMapping('1C', 'COM12', None),  # TODO: assign active Windsor board serial
-  CollectorMapping('2A', 'COM14', None),  # TODO: assign active Windsor board serial
-  CollectorMapping('2B', 'COM16', None),  # TODO: assign active Windsor board serial
+  CollectorMapping('1A', 'COM40',  'G3V2-0011'),
+  CollectorMapping('1B', 'COM10', None),  
+  CollectorMapping('2A', 'COM12', 'G3V2-0019'),  
+  CollectorMapping('2B', 'COM14', None), 
 ]
 
 

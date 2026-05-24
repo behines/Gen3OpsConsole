@@ -1,1 +1,12 @@
 PySide6
+pyvisa
+pyvisa-py 
+zeroconf 
+psutil  
+transitions
+astral  
+pytz    
+tzlocal
+pyserial
+debugpy
+requests

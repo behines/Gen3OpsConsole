@@ -639,13 +639,15 @@ class tCollector(tActiveObject):
     #if not isinstance(timezone, QTimeZone):
     #  raise TypeError("timezone must be of type QTimeZone")
 
-    current_time = QDateTime.currentDateTime(timezone)
+    current_time = self._ToStandardTime(QDateTime.currentDateTime(timezone), timezone)
+    sunrise      = self._ToStandardTime(self.sunrise, timezone)
+    sunset       = self._ToStandardTime(self.sunset,  timezone)
 
     # Format to HHMMSSt (with 0.1 second resolution) and YYMMDD date
     CurrentTimeString = current_time.toString('hhmmss') + f"{int(current_time.time().msec() / 100)}"
     CurrentDateString = current_time.toString('yyMMdd')
 
-    result = self._SendCommand("SetTime", CurrentTimeString, CurrentDateString, self.sunrise.toString('hhmm'), self.sunset.toString('hhmm'))
+    result = self._SendCommand("SetTime", CurrentTimeString, CurrentDateString, sunrise.toString('hhmm'), sunset.toString('hhmm'))
 
     if result < 0:
       print ('Could not set time for ', self.CollectorName)
@@ -653,6 +655,17 @@ class tCollector(tActiveObject):
       return -1
     else:
       return 0
+
+
+  ###############################################
+  # _ToStandardTime()
+  #
+  #  Converts a site-local QDateTime to standard clock time by removing any DST offset.
+  #
+
+  def _ToStandardTime(self, date_time: QDateTime, timezone: QTimeZone):
+    site_time = date_time.toTimeZone(timezone)
+    return site_time.addSecs(-timezone.daylightTimeOffset(site_time))
 
 
   ###############################################
@@ -808,21 +821,24 @@ class tCollector(tActiveObject):
   #     
 
   def IsTrackingOrAttemptingToTrack(self):
+    # In-progress homing, in-progress acquire (including the recoverable
+    # ACQ_ERROR), and any tracking sub-state.  Homing error states (HOME_*_ERROR)
+    # are intentionally excluded — those are dead ends, not active attempts.
     bIsTrackingState = self.CollectorState in [
-      CollectorNativeStates.HOME_ELEVATION_LOW    ,
-      CollectorNativeStates.HOME_ELEVATION_HIGH   ,
-      CollectorNativeStates.HOME_AZIMUTH_NEG      ,
-      CollectorNativeStates.HOME_AZIMUTH_POS      ,
-      CollectorNativeStates.HOME_AZIMUTH_NEG_RETRY,
-      CollectorNativeStates.ACQ_BEGIN             ,
-      CollectorNativeStates.ACQ_ELEVATION_WAIT    ,
-      CollectorNativeStates.ACQ_AZ                ,
-      CollectorNativeStates.ACQ_ERROR             ,
-      CollectorNativeStates.ACQUIRE               ,
-      CollectorNativeStates.WAITING_FOR_SUN       ,
-      CollectorNativeStates.TRACK                 ,
-      CollectorNativeStates.CLOUD_PAUSE ]
-    
+      CollectorNativeStates.HOME_OFFSET              ,
+      CollectorNativeStates.HOME_AZ_NEG              ,
+      CollectorNativeStates.HOME_ELEVATION_LOW       ,
+      CollectorNativeStates.ACQ_BEGIN                ,
+      CollectorNativeStates.ACQ_INITIAL_POSITION_WAIT,
+      CollectorNativeStates.ACQ_AZ                   ,
+      CollectorNativeStates.ACQ_ERROR                ,
+      CollectorNativeStates.ACQUIRE                  ,
+      CollectorNativeStates.WAITING_FOR_SUN          ,
+      CollectorNativeStates.TRACK                    ,
+      CollectorNativeStates.DEAD_RECKON              ,
+      CollectorNativeStates.CLOUD_PAUSE              ,
+    ]
+
     return bIsTrackingState
     
 
@@ -833,15 +849,20 @@ class tCollector(tActiveObject):
   #     
 
   def CanTrackIfRequested(self):
+    # Static, idle resting states from which the auto-sequencer is allowed to
+    # issue a Track command.  FLAT/FLAT_ERROR are included symmetrically with
+    # STOWED/STOW_ERROR — both represent a parked position the sequencer is
+    # free to leave when the tracking window opens.
     bCanTrackIfRequested = self.CollectorState in [
-      CollectorNativeStates.OFF                    ,
-      CollectorNativeStates.HOME_COMPLETE          ,
-      CollectorNativeStates.STOW_AZ_HOME           ,
-      CollectorNativeStates.STOW_EL_HOME           ,
-      CollectorNativeStates.STOWED                 ,
-      CollectorNativeStates.STOW_ERROR ]
+      CollectorNativeStates.OFF          ,
+      CollectorNativeStates.HOME_COMPLETE,
+      CollectorNativeStates.STOWED       ,
+      CollectorNativeStates.STOW_ERROR   ,
+      CollectorNativeStates.FLAT         ,
+      CollectorNativeStates.FLAT_ERROR   ,
+    ]
 
-    return bCanTrackIfRequested    
+    return bCanTrackIfRequested
 
 
   ###############################################
