@@ -39,9 +39,9 @@ WINDSOR_AGILENTS = [  [ 'ASRL4::INSTR',              # Port
 
 WINDSOR_COLLECTOR_PORTS = [
   CollectorMapping('1A', 'COM40',  'G3V2-0011'),
-  CollectorMapping('1B', 'COM10', None),  
-  CollectorMapping('2A', 'COM12', 'G3V2-0019'),  
-  CollectorMapping('2B', 'COM14', None), 
+  CollectorMapping('1B', 'COM42', 'G3V2-m'),  
+  CollectorMapping('2A', 'COM41', 'G3V2-0019'),  
+  CollectorMapping('2B', 'COM44', 'G3V2-n'), 
 ]
 
 
@@ -78,7 +78,7 @@ WINDSOR_CONFIG = tProjectConfig(
   Agilents = WINDSOR_AGILENTS,
   CollectorPorts = WINDSOR_COLLECTOR_PORTS,
   CollectorGridRows = 2,
-  CollectorGridCols = 3,
+  CollectorGridCols = 2,
   MarqueePort = MARQUEE_COM_PORT,
   OutsideTempSensorPort = OUTSIDE_TEMP_SENSOR_PORT,
   DomeTempSensorPort = DOME_TEMP_SENSOR_PORT,
