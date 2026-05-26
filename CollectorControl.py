@@ -478,9 +478,8 @@ class tCollectorControlWindow(QWidget):
     PaneGeometry    = self.CollectorPanes[0].geometry()
     CurrentGeometry = self.geometry()
 
-    screen        = QApplication.primaryScreen()
     self.resize(50 + PROJECT_CONFIG.CollectorGridCols * PaneGeometry.width(),
-                screen.availableGeometry().height() - 50 - 20)
+                PROJECT_CONFIG.CollectorGridRows * PaneGeometry.height() + 50)
 
     # Wrap the central widget with a QScrollArea
     scroll_area = QScrollArea()
