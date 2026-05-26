@@ -78,3 +78,4 @@ venv/
 *_ui.py
 
 *.code-workspace
+.claude/settings.local.json
