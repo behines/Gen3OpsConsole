@@ -253,12 +253,20 @@ class tMarquee(QObject):
   @with_lock
   def SendCollectorState(self, CollectorName: str, NewState: CollectorNativeStates):
 
-    # Look up the collector number from the array
-    try:
-      CollectorNum = [port_info[0] for port_info in PROJECT_CONFIG.CollectorPorts].index(CollectorName)
-    except ValueError:
-      print('SendCollectorState: Unrecognized Collector Name ', str)
-      return
+    CollectorNum = -1
+    if PROJECT_CONFIG.MarqueeDisplayOrder is not None:
+      try:
+        CollectorNum = PROJECT_CONFIG.MarqueeDisplayOrder.index(CollectorName)
+      except ValueError:
+        print('WARNING: SendCollectorState: Could not find Collector Name ', CollectorName, ' in MARQUEE_DISPLAY_ORDER list')
+
+    # Look up the collector number from the array, if still needed
+    if CollectorNum < 0:
+      try:
+        CollectorNum = [CollectorPort.Name for CollectorPort in PROJECT_CONFIG.CollectorPorts].index(CollectorName)
+      except ValueError:
+        print('SendCollectorState: Unrecognized Collector Name ', CollectorName)
+        return
 
     try:
       MarqueeStateNum = CollectorNativeStateToMarqueeState[NewState].value

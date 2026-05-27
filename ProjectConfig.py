@@ -36,6 +36,7 @@ class tProjectConfig:
   CollectorGridRows: int
   CollectorGridCols: int
   MarqueePort: str | None
+  MarqueeDisplayOrder : list | None
   OutsideTempSensorPort: str | None
   DomeTempSensorPort: str | None
   ElectronicsTempSensorPort: str | None

@@ -55,6 +55,7 @@ SANDIA_CONFIG = tProjectConfig(
   CollectorGridRows = 6,
   CollectorGridCols = 3,
   MarqueePort = None,
+  MarqueeDisplayOrder = None,
   OutsideTempSensorPort = None,
   DomeTempSensorPort = None,
   ElectronicsTempSensorPort = None,

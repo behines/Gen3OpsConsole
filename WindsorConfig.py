@@ -44,6 +44,15 @@ WINDSOR_COLLECTOR_PORTS = [
   CollectorMapping('2B', 'COM43', 'G3V2-0025'), 
 ]
 
+# The marquee displays starting from collector 0 like this:
+#    0   2
+#    1   3
+# We want to show like this:
+#   2A  1A
+#   2B  iB
+MARQUEE_DISPLAY_ORDER = [
+  '2A', '2B', '1A', '1B'
+]
 
 MARQUEE_COM_PORT                = 'COM3'
 OUTSIDE_TEMP_SENSOR_PORT        = 'COM7'   # Replace with your read serial port
@@ -80,6 +89,7 @@ WINDSOR_CONFIG = tProjectConfig(
   CollectorGridRows = 2,
   CollectorGridCols = 2,
   MarqueePort = MARQUEE_COM_PORT,
+  MarqueeDisplayOrder = MARQUEE_DISPLAY_ORDER,
   OutsideTempSensorPort = OUTSIDE_TEMP_SENSOR_PORT,
   DomeTempSensorPort = DOME_TEMP_SENSOR_PORT,
   ElectronicsTempSensorPort = ELECTRONICS_TEMP_SENSOR_PORT,
