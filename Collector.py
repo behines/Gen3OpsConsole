@@ -294,6 +294,7 @@ class tCollector(tActiveObject):
     # If the connection is offline, mark the status as unknown
     if not self.bInit:
       self.CollectorState = CollectorNativeStates.UNKNOWN
+      self.CollectorStateUpdate.emit(self.CollectorName, self.CollectorState)
 
     # If the connection has just come online, initialize it
     if self.bInit and not bOldState:

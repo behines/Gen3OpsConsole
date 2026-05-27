@@ -268,9 +268,11 @@ class tPeriodicLogger(tActiveObject):
 
     # Send data to the marquee display
     if self.Marquee is not None:
-      with self.Marquee as marquee:    
+      with self.Marquee as marquee:
         marquee.SendTemps(*DomeReadings, *OutsideReadings, BoxTemp)
         marquee.SendSun(GHI, DNI)
+        for collector in self.Collectors:
+          marquee.SendCollectorState(collector.CollectorName, collector.CollectorState)
 
     print(self.ScheduledTime.toString('yyyy-MM-dd HH:mm:ss'),': Temps: Box=', BoxTemp, 'Dome=', DomeTemp, ' Elec=', ElecTemp,' Stan=', StanTemp,' DNI=', DNI, ' GHI=', GHI, flush=True)
   
