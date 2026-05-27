@@ -644,7 +644,7 @@ class tCollector(tActiveObject):
     sunset       = self._ToStandardTime(self.sunset,  timezone)
 
     # Format to HHMMSSt (with 0.1 second resolution) and YYMMDD date
-    CurrentTimeString = current_time.toString('hhmmss') + f"{int(current_time.time().msec() / 100)}"
+    CurrentTimeString = current_time.toString('HHmmss') + f"{int(current_time.time().msec() / 100)}"
     CurrentDateString = current_time.toString('yyMMdd')
 
     result = self._SendCommand("SetTime", CurrentTimeString, CurrentDateString, sunrise.toString('hhmm'), sunset.toString('hhmm'))

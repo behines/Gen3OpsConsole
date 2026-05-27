@@ -46,6 +46,11 @@ class tSun:
 
   def GetValues(self):
     local_date = datetime.now(self.timezone)
+    # Use standard time date so the day-change trigger fires at standard-time midnight,
+    # not DST midnight (which is 1 hour early during summer).
+    dst = local_date.dst()
+    if dst:
+      local_date = local_date - dst
     s = sun(self.Location.observer, date=local_date)
 
     sunrise = s['sunrise'].astimezone(self.timezone)
