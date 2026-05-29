@@ -76,8 +76,8 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
     { 'name': 'Disabled',                                  },
     { 'name': 'Night',        'on_enter': ['StowAll']      },
     { 'name': 'Daytime'                                    }, 
-    { 'name': 'PoweredOff',   'on_enter': ['UsbPowerOff'],  'timeout': COLL_POWEROFF_TIMEOUT,  'on_timeout': 'PowerOn'   }, 
-    { 'name': 'PoweringUp',   'on_enter': ['UsbPowerOn'],   'timeout': COLL_POWERON_TIMEOUT,   'on_timeout': 'StartStow' }, 
+    { 'name': 'PoweredOff',   'on_enter': ['MotorPowerOff', 'UsbPowerOff'],  'timeout': COLL_POWEROFF_TIMEOUT,  'on_timeout': 'PowerOn'   },
+    { 'name': 'PoweringUp',   'on_enter': ['UsbPowerOn',   'MotorPowerOn'], 'timeout': COLL_POWERON_TIMEOUT,   'on_timeout': 'StartStow' },
     { 'name': 'Stow',         'on_enter': ['StowAll'],      'timeout': COLL_UNSTICK_TIMEOUT,   'on_timeout': 'DoOff' }, 
   ]
 
@@ -127,7 +127,7 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
   #   agilent - the Agilent unit with the 34903A Actuator card in it
   #   SystemState - a state dictionary (will be passed by reference)
 
-  def __init__(self, Collectors : list[tCollector], UsbHubPower : tPowerControl, SunriseSunsetSignal : Signal, NipHasDniSignal : Signal, parent):
+  def __init__(self, Collectors : list[tCollector], UsbHubPower : tPowerControl, MotorPower : tPowerControl, SunriseSunsetSignal : Signal, NipHasDniSignal : Signal, parent):
     super().__init__(parent)
 
     # Class member that is added dynamically by the transitions library.  This eliminates the Pylance warning further below.
@@ -153,6 +153,7 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
 
     self.Collectors  = Collectors
     self.UsbHubPower = UsbHubPower
+    self.MotorPower  = MotorPower
 
     self.CollectorStatus = {
        Collector.CollectorName: {
@@ -272,11 +273,27 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
   # Turn on USB Power
   #     
 
-  def UsbPowerOn(self): 
+  def UsbPowerOn(self):
     if self.UsbHubPower is not None:
       self.UsbHubPower.SetPowerState(True)
 
-  
+
+  ###############################################
+  # MotorPowerOff
+
+  def MotorPowerOff(self):
+    if self.MotorPower is not None:
+      self.MotorPower.SetPowerState(False)
+
+
+  ###############################################
+  # MotorPowerOn
+
+  def MotorPowerOn(self):
+    if self.MotorPower is not None:
+      self.MotorPower.SetPowerState(True)
+
+
 
   ###############################################
   # NotifyStateChange - Callback for state change events

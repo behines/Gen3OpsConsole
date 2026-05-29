@@ -355,7 +355,7 @@ class MasterControl(QMainWindow):
       Collector.SetUsbPowerDevice(self.UsbHubPower, bUsbPowerState)
       Collector.Start(self.NipSequencer.SunriseSunsetUpdate)   # Collector listens to NipSequencer sunrise/sunset signals
 
-    self.CollectorSequencer = tCollectorSequencer(self.Collectors, self.UsbHubPower, self.NipSequencer.SunriseSunsetUpdate, self.NipSequencer.NipHasDni, self)
+    self.CollectorSequencer = tCollectorSequencer(self.Collectors, self.UsbHubPower, self.MotorPower, self.NipSequencer.SunriseSunsetUpdate, self.NipSequencer.NipHasDni, self)
 
     # Connect to signals
     self.ConnectToSignals()
