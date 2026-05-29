@@ -100,6 +100,7 @@ class tMarquee(QObject):
   def OpenPort(self):
     try:
       self.port = serial.Serial(self.portName, MARQUEE_BAUD_RATE, timeout=1)
+      print('tMarquee: Successfully opened port ', self.portName)
     except:
       self.port = None
       self.RetryTimer.start()
@@ -120,7 +121,7 @@ class tMarquee(QObject):
     if not self.port is None:
       return True
     # If the device is not open, see if the retry timer has timed out
-    if self.RetryTimer.elapsed() >= self.RetryTimeoutMs:
+    if not self.RetryTimer.isValid() or self.RetryTimer.elapsed() >= self.RetryTimeoutMs:
       self.OpenPort()
     return not (self.port is None)
     
@@ -147,6 +148,7 @@ class tMarquee(QObject):
     except serial.SerialException:
       self.port.close()
       self.port = None
+      self.RetryTimer.start()
       print('Error writing to the marquee serial port ', self.portName, ', will attempt to reopen next time.')
    
 
