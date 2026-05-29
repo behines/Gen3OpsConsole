@@ -38,7 +38,7 @@ WINDSOR_AGILENTS = [  [ 'ASRL4::INSTR',              # Port
 
 
 WINDSOR_COLLECTOR_PORTS = [
-  CollectorMapping('1A', 'COM45', 'G3V2-0029'),
+  CollectorMapping('1A', 'COM46', 'G3V2-0002'),
   CollectorMapping('1B', 'COM42', 'G3V2-0027'),  
   CollectorMapping('2A', 'COM41', 'G3V2-0019'),  
   CollectorMapping('2B', 'COM43', 'G3V2-0025'), 
