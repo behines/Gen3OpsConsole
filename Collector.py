@@ -49,6 +49,7 @@ import subprocess
 # LimitStates          boolean[5] - az low, az high, el low, el high, home
 # PositionMode         boolean - true if in positoin mode, false if velocity mode
 #   C                  Spot coordinate x-y (float)
+#   J                  Processor temperature in degrees C
 # ModeNum              Current mode of the collector (integer)
 # ModeString           Current mode of the collecor (string)
 # Timestring           Current time as a string HH:MM:SS
@@ -422,7 +423,7 @@ class tCollector(tActiveObject):
           # Multiple signed numbers separated by commas.  "map" here simply applies the "int" function to each of the split strings
           parsed_data[FieldTag] = tuple(map(int, FieldValue.split(",")))
 
-        elif FieldTag in "G":
+        elif FieldTag in "GJ":
           # Single number fields (integer)
           parsed_data[FieldTag] = int(FieldValue)
 

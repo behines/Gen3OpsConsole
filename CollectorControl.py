@@ -70,6 +70,7 @@ class tCollectorPane(QWidget):
 
     collectorTitle = 'Collector ' + collectorName
     self.ui.CollectorGroup.setTitle(collectorTitle)
+    self.ui.CpuTempStringLabel.setText('CPU Temp: --C')
 
 
 
@@ -365,6 +366,10 @@ class tCollectorPane(QWidget):
       # Total intensity on wide-angle detector
       if "I" in telemetry:
         self.ui.WideIntensity.setText(f'{telemetry["I"][1]:3d}%  {telemetry["I"][0]:5d}')
+
+      # Processor temperature
+      if "J" in telemetry:
+        self.ui.CpuTempStringLabel.setText(f'CPU Temp: {telemetry["J"]}C')
 
       # Narrow mode status
       if "IsNarrowMode" in telemetry:

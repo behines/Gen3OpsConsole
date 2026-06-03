@@ -1174,6 +1174,31 @@
      <string>Console</string>
     </property>
    </widget>
+   <widget class="QLabel" name="CpuTempStringLabel">
+    <property name="geometry">
+     <rect>
+      <x>180</x>
+      <y>3</y>
+      <width>141</width>
+      <height>24</height>
+     </rect>
+    </property>
+    <property name="font">
+     <font>
+      <pointsize>8</pointsize>
+      <bold>false</bold>
+     </font>
+    </property>
+    <property name="autoFillBackground">
+     <bool>false</bool>
+    </property>
+    <property name="text">
+     <string>ReleaseNum</string>
+    </property>
+    <property name="alignment">
+     <set>Qt::AlignmentFlag::AlignLeading|Qt::AlignmentFlag::AlignLeft|Qt::AlignmentFlag::AlignVCenter</set>
+    </property>
+   </widget>
   </widget>
  </widget>
  <resources/>
