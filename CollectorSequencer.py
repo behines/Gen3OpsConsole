@@ -137,13 +137,13 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
     # this machine is to simply inform the machine of stimuli and have it decide whether
     # it cares about them.
     self.StateMachine   = StateMachineWithTimeouts(model       = self,
-                                  states      = tCollectorSequencer.states, 
+                                  states      = tCollectorSequencer.states,
                                   transitions = tCollectorSequencer.transitions,
-                                  initial     = 'Night',
+                                  initial     = 'Disabled',
                                   ignore_invalid_triggers = True,
                                   after_state_change = 'NotifyStateChange')
-    
-    self.LastState      = 'Night'
+
+    self.LastState      = 'Disabled'
 
     # Set sunrise and sunset to be in the future.  We will get actual values soon
     ThisTimeInTwoDays  = QDateTime.currentDateTime().addDays(2)

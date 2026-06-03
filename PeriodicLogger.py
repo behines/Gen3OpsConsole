@@ -239,13 +239,18 @@ class tPeriodicLogger(tActiveObject):
         OutputLine += ','
       OutputLine += ','.join(map(str, TempHumidityFields))
 
+    CpuTempFields = []
+    for Collector in self.Collectors:
+      CpuTempFields.append(str(Collector.CpuTemp) if Collector.CpuTemp is not None else '')
+    if OutputLine != '':
+      OutputLine += ','
+    OutputLine += ','.join(CpuTempFields)
+
     CollectorSnapshotFields = []
     for Collector in self.Collectors:
       CollectorSnapshotFields.append(str(Collector.CollectorState.value))
       CollectorSnapshotFields.append(Collector.CollectorState.name)
-    if OutputLine != '':
-      OutputLine += ','
-    OutputLine += ','.join(CollectorSnapshotFields)
+    OutputLine += ',' + ','.join(CollectorSnapshotFields)
 
     self.DniUpdate        .emit(DNI)
     self.GhiUpdate        .emit(GHI)

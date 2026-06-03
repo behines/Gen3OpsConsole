@@ -105,6 +105,7 @@ class tCollector(tActiveObject):
     self.baud           = baud
     self.bInit          = False
     self.CollectorState = CollectorNativeStates.UNKNOWN
+    self.CpuTemp        = None
     self.bUsbPowerState = not PROJECT_CONFIG.bHasUsbPowerRelay
     self.LastRebootRequestMsecs  = 0
     self.LastRebootAcceptedMsecs = 0
@@ -426,6 +427,8 @@ class tCollector(tActiveObject):
         elif FieldTag in "GJ":
           # Single number fields (integer)
           parsed_data[FieldTag] = int(FieldValue)
+          if FieldTag == "J":
+            self.CpuTemp = int(FieldValue)
 
         elif FieldTag == "H":
           # First character is 'N' or 'W', followed by a 5-digit integer

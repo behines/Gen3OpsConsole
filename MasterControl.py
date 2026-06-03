@@ -320,6 +320,8 @@ class MasterControl(QMainWindow):
     if PROJECT_CONFIG.bHasElectronicsTempSensor:
       Header2Fields.extend(['"Elec T"', '"Elec H"'])
     for CollectorInfo in PROJECT_CONFIG.CollectorPorts:
+      Header2Fields.append(f'"{CollectorInfo.Name} CPU Temp"')
+    for CollectorInfo in PROJECT_CONFIG.CollectorPorts:
       Header2Fields.append(f'"{CollectorInfo.Name} ModeNum"')
       Header2Fields.append(f'"{CollectorInfo.Name} ModeString"')
     Header2 = ','.join(Header2Fields)
@@ -438,7 +440,7 @@ class MasterControl(QMainWindow):
     self.SequencerModeRadioGroup.addButton(self.ui.FullAutoRadioButton)
     self.SequencerModeRadioGroup.addButton(self.ui.SemiAutoRadioButton)
     self.SequencerModeRadioGroup.addButton(self.ui.SequencerOffRadioButton)
-    self.ui.FullAutoRadioButton.setChecked(True)
+    self.ui.SequencerOffRadioButton.setChecked(True)
 
     # Connect the group signal
     self.SequencerModeRadioGroup.buttonClicked.connect(self.SequencerModeChangeRequest)
