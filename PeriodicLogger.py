@@ -53,7 +53,8 @@ class tPeriodicLogger(tActiveObject):
 
   def __init__(self, Agilents : list[tAgilent], GhiChannelIndex, DniChannelIndex, BoxMeasurementIndex,
                SandTopMeasurementIndex, SandMidMeasurementIndex, SandBotMeasurementIndex,
-               DomeTempSensor, OutsideTempSensor, ElectronicsTempSensor, Collectors, LogFile: tLogFile, CollectorLogFiles=None, parent=None):
+               DomeTempSensor, OutsideTempSensor, ElectronicsTempSensor, Collectors, LogFile: tLogFile,
+               CollectorLogFiles=None, MasterConsoleLog=None, parent=None):
     super().__init__(LOG_INTERVAL_SECONDS * 1000, parent)   # # tActiveObject constructor
 
     self.Agilents = Agilents
@@ -73,6 +74,7 @@ class tPeriodicLogger(tActiveObject):
     self.Collectors            = Collectors
     self.LogFile               = LogFile
     self.CollectorLogFiles     = CollectorLogFiles
+    self.MasterConsoleLog      = MasterConsoleLog
 
     # Marquee display
     self.Marquee               = tMarquee(PROJECT_CONFIG.MarqueePort, Collectors, self) if PROJECT_CONFIG.bHasMarquee else None
@@ -270,6 +272,8 @@ class tPeriodicLogger(tActiveObject):
     # Pass the timestamp into the logger
     if self.LogFile.LogRecord(self.ScheduledTime, OutputLine):
     # If True, we've just crossed midnight - tell the sequencer
+      if self.MasterConsoleLog is not None:
+        self.MasterConsoleLog.StartNewFile()
       if self.CollectorLogFiles is not None:
         self.CollectorLogFiles.StartNewFiles()
       pass #Sequencer.StartNewDay()

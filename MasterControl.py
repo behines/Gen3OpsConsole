@@ -139,6 +139,7 @@ from CollectorControl   import tCollectorControlWindow
 from CollectorLogFiles  import tCollectorLogFiles
 from TempHumSensor      import tTempHumSensor
 from Agilent            import tAgilent
+from MasterConsoleLog   import tMasterConsoleLog
 from PeriodicLogger     import tPeriodicLogger
 from PowerControl       import tPowerControl
 from Sun                import tSun
@@ -242,6 +243,10 @@ class MasterControl(QMainWindow):
   # initialization can be reported to the log and to relevant widgets
 
   def StartApplication(self):
+    DailyFolder   = os.path.join(os.path.expanduser("~"), "Documents", DAILY_FOLDER)
+    ArchiveFolder = os.path.join(os.path.expanduser("~"), ARCHIVE_FOLDER)
+
+    self.MasterConsoleLog = tMasterConsoleLog(DailyFolder)
 
     # Verify picotool is available - needed for the Reboot fallback when the embedded reboot
     # command doesn't respond.  Better to fail fast at startup than to discover it's missing
@@ -305,8 +310,6 @@ class MasterControl(QMainWindow):
     # Write comma-separated headers  
     # Header line 1 will capture the version info and raw configuration of the Agilent units
     # Header line 2 is  field/channel names
-    DailyFolder   = os.path.join(os.path.expanduser("~"), "Documents", DAILY_FOLDER)
-    ArchiveFolder = os.path.join(os.path.expanduser("~"), ARCHIVE_FOLDER)
     Header1Parts = [HEADER1]
     if len(PROJECT_CONFIG.Agilents) > 0:
       Header1Parts.append(','.join([f'"{element}"' if element is not None else '""' for sublist in PROJECT_CONFIG.Agilents for element in sublist]))
@@ -336,7 +339,7 @@ class MasterControl(QMainWindow):
     self.PeriodicLogger = tPeriodicLogger(self.Agilents, GhiChannelIndex, DniChannelIndex, BoxMeasurementIndex, 
                                           SandTopMeasurementIndex, SandMidMeasurementIndex, SandBotMeasurementIndex,
                                           self.DomeTempSensor, self.OutsideTempSensor, self.ElectronicsTempSensor,
-                                          self.Collectors, self.LogFile, self.CollectorLogFiles, self)
+                                          self.Collectors, self.LogFile, self.CollectorLogFiles, self.MasterConsoleLog, self)
 
 
 
@@ -687,6 +690,9 @@ class MasterControl(QMainWindow):
 
     # Shut down the collector window
     self.CollectorControlWindow.ForceClose()
+
+    if hasattr(self, 'MasterConsoleLog'):
+      self.MasterConsoleLog.Restore()
 
     # Allows for any dummy threads to finish cleanup
     #app.processEvents()

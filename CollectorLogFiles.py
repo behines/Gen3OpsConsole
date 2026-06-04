@@ -5,10 +5,9 @@
 # daily-folder log files named after the configured collectors.
 #
 
-import os
-from datetime import datetime
+from PySide6.QtCore import QObject
 
-from PySide6.QtCore import QObject, QFile
+from DailyTextLogFile import tDailyTextLogFile
 
 
 ##########################################################################################
@@ -27,11 +26,9 @@ class tCollectorLogFiles(QObject):
   def __init__(self, DailyFolder, Collectors, parent=None):
     super().__init__(parent)
 
-    self.DailyFolder  = DailyFolder
-    self.Collectors   = Collectors
-    self.LogFileNames = {}
-
-    os.makedirs(self.DailyFolder, exist_ok=True)
+    self.DailyFolder = DailyFolder
+    self.Collectors  = Collectors
+    self.LogFiles    = {}
 
     self.StartNewFiles()
     self._ConnectCollectors()
@@ -42,19 +39,9 @@ class tCollectorLogFiles(QObject):
   #
 
   def StartNewFiles(self):
-    os.makedirs(self.DailyFolder, exist_ok=True)
-
     for Collector in self.Collectors:
       CollectorName = Collector.CollectorName
-      LogFileName   = os.path.join(self.DailyFolder, CollectorName + ".log")
-
-      self.LogFileNames[CollectorName] = LogFileName
-
-      if not self._MoveExistingLogFile(LogFileName):
-        continue
-
-      with open(LogFileName, "w", encoding="utf-8", newline="") as file:
-        pass
+      self.LogFiles[CollectorName] = tDailyTextLogFile(self.DailyFolder, CollectorName + ".log")
 
 
   ###############################################
@@ -62,15 +49,11 @@ class tCollectorLogFiles(QObject):
   #
 
   def AppendLine(self, CollectorName, Line):
-    LogFileName = self.LogFileNames.get(CollectorName)
-    if LogFileName is None:
+    LogFile = self.LogFiles.get(CollectorName)
+    if LogFile is None:
       return
 
-    try:
-      with open(LogFileName, "a", encoding="utf-8", newline="") as file:
-        file.write(Line)
-    except OSError as e:
-      print(f"CollectorLogFiles: could not write {LogFileName}: {e}", flush=True)
+    LogFile.WriteText(Line)
 
 
   ###############################################
@@ -80,41 +63,3 @@ class tCollectorLogFiles(QObject):
   def _ConnectCollectors(self):
     for Collector in self.Collectors:
       Collector.TextLineReceived.connect(lambda Line, CollectorName=Collector.CollectorName: self.AppendLine(CollectorName, Line))
-
-
-  ###############################################
-  # _MoveExistingLogFile - Move an existing log to trash, with rename fallback
-  #
-
-  def _MoveExistingLogFile(self, LogFileName):
-    if not os.path.exists(LogFileName):
-      return True
-
-    if QFile.moveToTrash(LogFileName):
-      return True
-
-    BackupFileName = self._BackupFileName(LogFileName)
-    try:
-      os.replace(LogFileName, BackupFileName)
-      print(f"CollectorLogFiles: could not move {LogFileName} to recycle bin; renamed it to {BackupFileName}", flush=True)
-      return True
-    except OSError as e:
-      print(f"CollectorLogFiles: could not rotate {LogFileName}: {e}", flush=True)
-      return False
-
-
-  ###############################################
-  # _BackupFileName - Build a unique timestamped backup name
-  #
-
-  def _BackupFileName(self, LogFileName):
-    Timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    BackupFileName = f"{LogFileName}.{Timestamp}.bak"
-    Index = 1
-
-    while os.path.exists(BackupFileName):
-      BackupFileName = f"{LogFileName}.{Timestamp}_{Index}.bak"
-      Index += 1
-
-    return BackupFileName
-
