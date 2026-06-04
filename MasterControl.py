@@ -136,6 +136,7 @@ from PySide6.QtCore     import Qt, QThread, QDateTime, QTimeZone, QTimer, QSigna
 from Gen3OpsConsole_ui  import Ui_MasterControl
 from ConfigInfo         import *
 from CollectorControl   import tCollectorControlWindow
+from CollectorLogFiles  import tCollectorLogFiles
 from TempHumSensor      import tTempHumSensor
 from Agilent            import tAgilent
 from PeriodicLogger     import tPeriodicLogger
@@ -331,10 +332,11 @@ class MasterControl(QMainWindow):
     # The parent of the object has to be None or it can't be moved to a thread.  The Logger needs to be passed the
     # collector list just so that it can pass it on to the Marquee object, which it creates.
     self.Collectors = self.CollectorControlWindow.CollectorList()
+    self.CollectorLogFiles = tCollectorLogFiles(self.LogFile.DailyFolder, self.Collectors, self)
     self.PeriodicLogger = tPeriodicLogger(self.Agilents, GhiChannelIndex, DniChannelIndex, BoxMeasurementIndex, 
                                           SandTopMeasurementIndex, SandMidMeasurementIndex, SandBotMeasurementIndex,
                                           self.DomeTempSensor, self.OutsideTempSensor, self.ElectronicsTempSensor,
-                                          self.Collectors, self.LogFile, self)
+                                          self.Collectors, self.LogFile, self.CollectorLogFiles, self)
 
 
 
