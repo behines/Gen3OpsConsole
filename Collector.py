@@ -46,7 +46,8 @@ import subprocess
 #   I                  Tuple of Total intensity on wide-angle detector in counts, and as a percentage
 # IsNarrowMode         True if in narrow-angle mode, else wide
 # NarrowAngleThreshold Threshold for switching to narrow angle
-# LimitStates          boolean[5] - az low, az high, el low, el high, home
+# LimitStates          integer[5] - az low, az high, el low, el high, home
+#                      0 none, 1 soft, 2 hard, 3 soft+hard
 # PositionMode         boolean - true if in positoin mode, false if velocity mode
 #   C                  Spot coordinate x-y (float)
 #   J                  Processor temperature in degrees C
@@ -438,8 +439,8 @@ class tCollector(tActiveObject):
           parsed_data["NarrowAngleThreshold"] = NarrowAngleThreshold
 
         elif FieldTag == "L":
-          # Five characters are '0' or '1', converted to a boolean array
-          LimitStates = [char == "1" for char in FieldValue]
+          # Five characters are 0-3 limit states: 0 none, 1 soft, 2 hard, 3 both
+          LimitStates = [int(char) for char in FieldValue]
           parsed_data["LimitStates"] = LimitStates
 
         elif FieldTag == "S":

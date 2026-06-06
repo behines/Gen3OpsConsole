@@ -21,6 +21,18 @@ from Utilities         import SignalThenWaitFor
 from CollectorConsole  import tCollectorConsole
 
 
+LIMIT_SWITCH_NORMAL_STYLE = "background: none;"
+LIMIT_SWITCH_HARD_STYLE   = (
+  "QRadioButton { background: none; } "
+  "QRadioButton::indicator:checked { "
+  "background-color: red; "
+  "border: 1px solid red; "
+  "border-radius: 6px; "
+  "height: 13px; "
+  "width: 13px; "
+  "}"
+)
+
 
 ##########################################################################################
 ##########################################################################################
@@ -280,6 +292,22 @@ class tCollectorPane(QWidget):
 
 
   ###############################################
+  # _SetLimitIndicator - Update one limit switch indicator
+  #
+  # INPUTS:
+  #   Indicator  - the radio button used as a limit indicator
+  #   LimitState - 0 none, 1 soft, 2 hard, 3 soft+hard
+  #
+
+  def _SetLimitIndicator(self, Indicator, LimitState):
+    Indicator.setChecked(LimitState != 0)
+    if LimitState & 0x2:
+      Indicator.setStyleSheet(LIMIT_SWITCH_HARD_STYLE)
+    else:
+      Indicator.setStyleSheet(LIMIT_SWITCH_NORMAL_STYLE)
+
+
+  ###############################################
   # UpdateTelemetry - Update GUI with new info from collector
   # 
   # INPUTS:
@@ -389,10 +417,10 @@ class tCollectorPane(QWidget):
 
       # Limit states
       if "LimitStates" in telemetry:
-        self.ui.AzLimLowButton .setChecked(telemetry["LimitStates"][0])
-        self.ui.AzLimHighButton.setChecked(telemetry["LimitStates"][1])
-        self.ui.ElLimLowButton .setChecked(telemetry["LimitStates"][2])
-        self.ui.ElLimHighButton.setChecked(telemetry["LimitStates"][3])
+        self._SetLimitIndicator(self.ui.AzLimLowButton,  telemetry["LimitStates"][0])
+        self._SetLimitIndicator(self.ui.AzLimHighButton, telemetry["LimitStates"][1])
+        self._SetLimitIndicator(self.ui.ElLimLowButton,  telemetry["LimitStates"][2])
+        self._SetLimitIndicator(self.ui.ElLimHighButton, telemetry["LimitStates"][3])
         # Home is element 4, not shown on GUI
 
       # Servo mode
@@ -440,7 +468,8 @@ class tCollectorPane(QWidget):
 #   I                  Tuple of Total intensity on detector in counts, and as a percentage
 # IsNarrowMode         True if in narrow-angle mode, else wide
 # NarrowAngleThreshold Threshold for switching to narrow angle
-# LimitStates          boolean[5] - az low, az high, el low, el high, home
+# LimitStates          integer[5] - az low, az high, el low, el high, home
+#                      0 none, 1 soft, 2 hard, 3 soft+hard
 # PositionMode         boolean - true if in positoin mode, false if velocity mode
 #   C                  Spot coordinate x-y (float)
 # ModeNum              Current mode of the collector (integer)
