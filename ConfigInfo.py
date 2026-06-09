@@ -166,11 +166,11 @@ class CollectorNativeStates(IntEnum):
   HOME_ELEVATION_ERROR       =  5   # TRACKER_HOME_ELEVATION_ERROR
   HOME_COMPLETE              =  6   # TRACKER_HOME_COMPLETE
   ACQ_BEGIN                  =  7   # TRACKER_ACQ_BEGIN
-  ACQ_INITIAL_POSITION_WAIT  =  8   # TRACKER_ACQ_INITIAL_POSITION_WAIT
-  ACQ_AZ                     =  9   # TRACKER_ACQ_AZ
-  ACQ_ERROR                  = 10   # TRACKER_ACQ_ERROR
-  ACQUIRE                    = 11   # TRACKER_ACQUIRE
-  WAITING_FOR_SUN            = 12   # TRACKER_WAITING_FOR_SUN
+  MODEL_PRE_ACQ              =  8   # TRACKER_MODEL_PRE_ACQ
+  SENSOR_PRE_ACQ             =  9   # TRACKER_SENSOR_PRE_ACQ
+  ACQUIRE                    = 10   # TRACKER_ACQUIRE
+  WAITING_FOR_SUN            = 11   # TRACKER_WAITING_FOR_SUN
+  ACQ_ERROR                  = 12   # TRACKER_ACQ_ERROR
   TRACK                      = 13   # TRACKER_TRACK
   DEAD_RECKON                = 14   # TRACKER_DEAD_RECKON
   CLOUD_PAUSE                = 15   # TRACKER_CLOUD_PAUSE
@@ -188,7 +188,7 @@ class CollectorMarqueeStates(IntEnum):
   HOMING       = auto()
   HOMED        = auto()
   ACQUIRE      = auto()
-  WAIT_FOR_SUN = auto()    
+  WAIT_FOR_SUN = auto()
   TRACK        = auto()
   DEAD_RECKON  = auto()
   CLOUD_PAUSE  = auto()
@@ -206,11 +206,11 @@ CollectorNativeStateToMarqueeState = {
   CollectorNativeStates.HOME_ELEVATION_ERROR       : CollectorMarqueeStates.ERROR,
   CollectorNativeStates.HOME_COMPLETE              : CollectorMarqueeStates.HOMED,
   CollectorNativeStates.ACQ_BEGIN                  : CollectorMarqueeStates.ACQUIRE,
-  CollectorNativeStates.ACQ_INITIAL_POSITION_WAIT  : CollectorMarqueeStates.ACQUIRE,
-  CollectorNativeStates.ACQ_AZ                     : CollectorMarqueeStates.ACQUIRE,
-  CollectorNativeStates.ACQ_ERROR                  : CollectorMarqueeStates.ERROR,
+  CollectorNativeStates.MODEL_PRE_ACQ              : CollectorMarqueeStates.WAIT_FOR_SUN,  # In model pre-acquire, we are blind pointing where the sun should be, essentially waiting for it.
+  CollectorNativeStates.SENSOR_PRE_ACQ             : CollectorMarqueeStates.ACQUIRE,
   CollectorNativeStates.ACQUIRE                    : CollectorMarqueeStates.ACQUIRE,
   CollectorNativeStates.WAITING_FOR_SUN            : CollectorMarqueeStates.WAIT_FOR_SUN,
+  CollectorNativeStates.ACQ_ERROR                  : CollectorMarqueeStates.WAIT_FOR_SUN,  # Acq Error is not completely fatal - it will retry.  Eventually it might fail but will go to TRACKER_ERROR and that will show as an error
   CollectorNativeStates.TRACK                      : CollectorMarqueeStates.TRACK,
   CollectorNativeStates.DEAD_RECKON                : CollectorMarqueeStates.DEAD_RECKON,
   CollectorNativeStates.CLOUD_PAUSE                : CollectorMarqueeStates.CLOUD_PAUSE,
