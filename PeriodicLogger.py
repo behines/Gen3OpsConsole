@@ -98,6 +98,12 @@ class tPeriodicLogger(tActiveObject):
     # Create the Thinger.io object for logging to the cloud
     self.Thinger = tThinger() if PROJECT_CONFIG.bHasThinger else None
 
+    # Guards against initiating a new scan cycle while the previous cycle's read is still
+    # in progress.  That can only happen if a read runs long (e.g. a wedged scan hitting
+    # the AGILENT_SCAN_COMPLETE_TIMEOUT_SECS backstop); without the guard we could re-INIT
+    # an Agilent mid-FETCH and scramble its serial conversation.
+    self._bLogInProgress = False
+
     # Create the timer to awaken and read the scanned thermocouples after half a period
     self.ReadScannedResultsTimer = QTimer(self)
     self.ReadScannedResultsTimer.setSingleShot(True)
@@ -124,6 +130,14 @@ class tPeriodicLogger(tActiveObject):
   # 
 
   def PeriodicMethod(self):
+    # Belt-and-suspenders: never start a new scan while the previous cycle's read is still
+    # running, or we'd re-INIT an Agilent mid-FETCH and scramble its serial conversation.
+    # This only occurs if a read runs long; skip this cycle (the next one will try again).
+    if self._bLogInProgress:
+      print('tPeriodicLogger: WARNING - previous scan/log cycle still running; '
+            'skipping this cycle to avoid overlapping scans', flush=True)
+      return
+
     if len(self.Agilents) > 0:
       self.InitiateScansOnAllAgilents()
 
@@ -143,16 +157,32 @@ class tPeriodicLogger(tActiveObject):
 
 
   ###############################################
-  # LogTemperatureData
-  # 
+  # LogTemperatureData - reentrancy-guarded entry point called by ReadScannedResultsTimer
+  #
+  # Holds _bLogInProgress for the duration so PeriodicMethod won't kick off an overlapping
+  # scan cycle if this read ever runs long.  try/finally guarantees the flag clears even if
+  # the read raises, so a one-off error can't permanently wedge all future logging.
+  #
+
+  def LogTemperatureData(self):
+    self._bLogInProgress = True
+    try:
+      self._LogTemperatureData()
+    finally:
+      self._bLogInProgress = False
+
+
+  ###############################################
+  # _LogTemperatureData
+  #
   # Note that for the Agilents and Temp sensors and the marquee display, it's okay
-  # to use "with" and read directly rather than signaling, because those objects 
+  # to use "with" and read directly rather than signaling, because those objects
   # are in the same thread with us.
   #
   # INPUTS:
   #   ScheduledTime - the QDateTime that the method was scheduled to run, in the current time zone
 
-  def LogTemperatureData(self):
+  def _LogTemperatureData(self):
     ###
     # Collect all data
     #

@@ -146,6 +146,7 @@ from Sun                import tSun
 from NipSequencer       import tNipSequencer, tSunClockSequencer
 from CollectorSequencer import tCollectorSequencer
 from LogFile            import tLogFile
+from HangWatchdog       import tHangWatchdog
 
 
 
@@ -386,6 +387,11 @@ class MasterControl(QMainWindow):
     QThread.msleep(milliseconds_until_next_interval)
 
     self.OneSecondTimer.start(1000)
+
+    # Arm the hang watchdog now that startup is complete and the event loop is about to
+    # run.  If the GUI event loop ever freezes (e.g. a blocking native call we can't even
+    # pause in the debugger), it dumps every thread's stack to the hang log.
+    self.HangWatchdog = tHangWatchdog(DailyFolder, self)
 
 
 
@@ -675,6 +681,10 @@ class MasterControl(QMainWindow):
   def CleanUp(self):
     # Stop the 1-second tick
     self.OneSecondTimer.stop()
+
+    # Disarm the hang watchdog so its pending dump doesn't fire during shutdown
+    if hasattr(self, 'HangWatchdog'):
+      self.HangWatchdog.Stop()
 
     # Shut down the NIP.  
     # We can call directly because the NIP sequencer is in the master GUI thread

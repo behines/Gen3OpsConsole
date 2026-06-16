@@ -12,7 +12,7 @@
 #
 
 # module used to talk over serial with the esp32
-from PySide6.QtCore       import QRecursiveMutex, Signal, QDateTime, QTime, QTimeZone, QThread, QTimer
+from PySide6.QtCore       import QRecursiveMutex, Signal, QDateTime, QTime, QTimeZone, QThread, QTimer, QProcess
 from PySide6.QtSerialPort import QSerialPort
 
 from SerialPort        import tAutoOpenSerialWholeLine
@@ -20,7 +20,6 @@ from PowerControl      import tPowerControl
 from Utilities         import tActiveObject, with_lock
 from ConfigInfo        import *
 import re
-import subprocess
 
 
 ##########################################################################################
@@ -111,6 +110,10 @@ class tCollector(tActiveObject):
     self.LastRebootRequestMsecs  = 0
     self.LastRebootAcceptedMsecs = 0
     self.ReleaseString           = ""
+
+    # In-flight async picotool reboot processes (QProcess).  Tracked so the kill timer can
+    # tell a still-running process from one that already finished and was cleaned up.
+    self._PicotoolProcesses      = set()
 
     # These are cached values.  When they change (via a GUI event), we send a command to the collector
     self.WideAngleIllumPercent      = 0
@@ -736,10 +739,85 @@ class tCollector(tActiveObject):
       return
 
     print(f'Picotool rebooting {self.CollectorName} ({self.BoardSerial})', flush=True)
-    result = subprocess.run([PROJECT_CONFIG.PicotoolPath, "reboot", "--ser", self.BoardSerial, "-f"],
-                            capture_output=True, text=True)
-    if result.returncode != 0:
-      print(f'Picotool reboot failed for {self.CollectorName}: {result.stderr}', flush=True)
+
+    # Launch picotool asynchronously via QProcess.  A blocking subprocess.run() would park
+    # this (GUI) thread until picotool exits, and picotool can wait indefinitely on a flaky
+    # or half-enumerated board, freezing the entire app with no way to even pause it.
+    # QProcess.start() returns immediately and reports completion through a signal, so a
+    # wedged picotool just sits harmlessly in the background.  This stays on the GUI event
+    # loop - no worker thread - so it does not disturb Qt's single-threaded serial model.
+    PicotoolProcess = QProcess(self)
+    self._PicotoolProcesses.add(PicotoolProcess)
+    PicotoolProcess.finished.connect(
+      lambda exitCode, exitStatus, proc=PicotoolProcess: self._PicotoolRebootFinished(proc, exitCode))
+    # If picotool can't even launch, finished() never fires - reap it on errorOccurred so
+    # the QProcess can't linger in the set forever.
+    PicotoolProcess.errorOccurred.connect(
+      lambda error, proc=PicotoolProcess: self._PicotoolRebootError(proc, error))
+    PicotoolProcess.start(PROJECT_CONFIG.PicotoolPath, ["reboot", "--ser", self.BoardSerial, "-f"])
+
+    # Hygiene backstop (not the freeze fix - QProcess already prevents that): if picotool
+    # wedges on a bad board, reap it after a generous timeout so stuck processes don't
+    # accumulate holding that board's USB handle.
+    QTimer.singleShot(1000 * PICOTOOL_REBOOT_TIMEOUT_SECS,
+                      lambda proc=PicotoolProcess: self._PicotoolRebootKillIfRunning(proc))
+
+
+  ###############################################
+  # _PicotoolRebootFinished - Logs the result of an async picotool reboot and cleans up
+  #
+  # INPUTS:
+  #   PicotoolProcess - the QProcess that finished
+  #   exitCode        - picotool's exit code (0 on success)
+  #
+
+  def _PicotoolRebootFinished(self, PicotoolProcess, exitCode):
+    # Idempotent: errorOccurred may have already cleaned this one up.
+    if PicotoolProcess not in self._PicotoolProcesses:
+      return
+    if exitCode != 0:
+      errorText = bytes(PicotoolProcess.readAllStandardError()).decode('utf-8', errors='ignore').strip()
+      print(f'Picotool reboot failed for {self.CollectorName}: {errorText}', flush=True)
+    self._PicotoolProcesses.discard(PicotoolProcess)
+    PicotoolProcess.deleteLater()
+
+
+  ###############################################
+  # _PicotoolRebootError - Reaps a picotool process that failed to launch
+  #
+  # finished() does not fire when the process never starts, so we clean up here.  Other
+  # errors (e.g. a crash after a normal start) are left to finished().
+  #
+  # INPUTS:
+  #   PicotoolProcess - the QProcess that reported an error
+  #   error           - QProcess.ProcessError
+  #
+
+  def _PicotoolRebootError(self, PicotoolProcess, error):
+    if PicotoolProcess not in self._PicotoolProcesses:
+      return
+    if error == QProcess.ProcessError.FailedToStart:
+      print(f'Picotool could not be launched for {self.CollectorName}', flush=True)
+      self._PicotoolProcesses.discard(PicotoolProcess)
+      PicotoolProcess.deleteLater()
+
+
+  ###############################################
+  # _PicotoolRebootKillIfRunning - Reaps a picotool process that wedged on a flaky board
+  #
+  # INPUTS:
+  #   PicotoolProcess - the QProcess to check and possibly kill
+  #
+
+  def _PicotoolRebootKillIfRunning(self, PicotoolProcess):
+    # If it already finished, it has been removed from the set and cleaned up; do not touch
+    # the (possibly deleted) object.
+    if PicotoolProcess not in self._PicotoolProcesses:
+      return
+
+    print(f'Picotool reboot for {self.CollectorName} timed out after '
+          f'{PICOTOOL_REBOOT_TIMEOUT_SECS}s, killing', flush=True)
+    PicotoolProcess.kill()
 
 
   ###############################################

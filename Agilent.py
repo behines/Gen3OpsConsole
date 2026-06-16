@@ -457,8 +457,13 @@ class tAgilent(QObject):
   @requires_device_open()
   @with_lock
   def FlushInputBuffer(self):
-    curTimeout          = self.device.timeout 
+    curTimeout          = self.device.timeout
     self.device.timeout = 0
+
+    # Bound the drain so a device that streams continuously (e.g. after a desync) cannot
+    # spin here forever and wedge the GUI thread.
+    FlushBudget = QElapsedTimer()
+    FlushBudget.start()
 
     while True:
       try:
@@ -466,6 +471,11 @@ class tAgilent(QObject):
         if not data:
           break
       except pyvisa.errors.VisaIOError:
+        break
+
+      if FlushBudget.elapsed() > 1000 * AGILENT_FLUSH_TIMEOUT_SECS:
+        print(f'Agilent {self.DeviceName}: input buffer still draining after '
+              f'{AGILENT_FLUSH_TIMEOUT_SECS}s, giving up', flush=True)
         break
 
     self.device.timeout = curTimeout
@@ -504,14 +514,40 @@ class tAgilent(QObject):
   #@with_lock
   def RetrieveScanResults(self, bTrimCrLf):
 
-    # Poll for operation completion
+    # Poll for operation completion.  We pump the event loop while waiting so the GUI
+    # stays responsive during the scan.  ScanBudget is a generous backstop: a healthy scan
+    # clears the Scanning bit well within it, but if the instrument ever wedges (e.g. a
+    # desynced serial conversation that never clears the bit) we log the unit and bail with
+    # a sentinel rather than spinning forever and freezing the GUI thread.
+    ScanBudget = QElapsedTimer()
+    ScanBudget.start()
+
     IsBusyOrScanning = True
     while IsBusyOrScanning:
       QCoreApplication.processEvents()
-      with QMutexLocker(self._lock):
-        # Flush any characters in the port.  This is defensive, in case the last read timed out and then actually returned something later.
-        self.FlushInputBuffer()
-        StatusReg = int(self.device.query('STAT:OPER:COND?').strip())
+
+      if ScanBudget.elapsed() > 1000 * AGILENT_SCAN_COMPLETE_TIMEOUT_SECS:
+        print(f'Agilent {self.DeviceName}: scan did not complete within '
+              f'{AGILENT_SCAN_COMPLETE_TIMEOUT_SECS}s, abandoning this reading', flush=True)
+        minus_ones = [-1] * len(self.ChannelList)
+        return ','.join(str(num) for num in minus_ones)
+
+      try:
+        # _lock is a QRecursiveMutex, so the @with_lock FlushInputBuffer() call below can
+        # re-acquire it on this same thread without deadlocking.
+        with QMutexLocker(self._lock):
+          # Flush any characters in the port.  This is defensive, in case the last read timed out and then actually returned something later.
+          self.FlushInputBuffer()
+          StatusReg = int(self.device.query('STAT:OPER:COND?').strip())
+      except (pyvisa.errors.VisaIOError, ValueError) as e:
+        # A transient timeout or a garbled status response: treat as "not done yet" and
+        # keep waiting (up to the budget) rather than crashing the whole log cycle.  Pause
+        # briefly so a repeatedly-garbled (immediately-returning) response can't peg the
+        # CPU or flood the log.
+        print(f'Agilent {self.DeviceName}: transient error polling scan status ({e}), retrying', flush=True)
+        QThread.msleep(100)
+        continue
+
       IsBusyOrScanning = (StatusReg & tAgilent.STATUS_Scanning) != 0
 
     with QMutexLocker(self._lock):

@@ -130,6 +130,17 @@ COLLECTOR_RETRY_TIMEOUT_SECS = 8
 COLLECTOR_MISSING_TELEM_REOPEN_THRESHOLD = 2
 
 ##########
+# Agilent operation backstops
+#
+# These are generous wall-clock budgets, NOT normal timeouts.  The hardware is solid and
+# operations complete well within these.  They exist only so that if an operation ever
+# truly wedges (e.g. a desynced serial conversation that never reports scan-complete) we
+# log which unit and bail with a sentinel reading, instead of spinning forever and
+# freezing the single GUI thread.
+AGILENT_SCAN_COMPLETE_TIMEOUT_SECS = 60   # max wait for a scan's Scanning bit to clear
+AGILENT_FLUSH_TIMEOUT_SECS         =  5   # max time spent draining the input buffer
+
+##########
 # COM ports for temperature sensors and Marquee display
 #
 
@@ -147,8 +158,19 @@ TEMP_HUM_RX_BUFFER_SIZE      = 15 * 30 * 11
 #
 
 COLLECTOR_BAUD_RATE      = 38400
-COLLECTOR_RX_BUFFER_SIZE =  2000
+# Per-port receive buffer.  The target now sends telemetry in larger bursts; at 38400 baud
+# the old 2000 bytes was only ~0.5 s of cushion, and since one GUI thread drains all the
+# collector ports, a busy patch on one port could overrun the others and drop bytes
+# (corrupted telemetry).  This is a dynamic cap, not a preallocation, so the larger value
+# only uses memory when data is actually backed up.  (0 would mean unlimited.)
+COLLECTOR_RX_BUFFER_SIZE = 32768
 COLLECTOR_TX_BUFFER_SIZE =  2000
+
+# How long to let an async picotool reboot run before reaping it.  The reboot is launched
+# via QProcess (non-blocking), so this is hygiene, not the freeze fix: it kills a picotool
+# that wedges on a flaky board so stuck processes don't accumulate holding the board's USB
+# handle.
+PICOTOOL_REBOOT_TIMEOUT_SECS = 45
 
 COLLECTOR_PORTS = []
 
@@ -224,6 +246,20 @@ CollectorNativeStateToMarqueeState = {
 }
 
 COLLECTOR_LOG_MAXLINES = 200
+
+#########
+# Hang watchdog
+#
+# A faulthandler-based watchdog dumps every thread's stack to a log if the GUI event loop
+# stalls for longer than this.  It is meant to catch a genuine freeze (e.g. a blocking
+# native call) that a debugger cannot even pause.
+#
+# INVARIANT: keep this comfortably LARGER than the longest deliberate same-thread wait
+# that still pumps the event loop - in particular AGILENT_SCAN_COMPLETE_TIMEOUT_SECS - so
+# a slow-but-healthy scan never trips it.  Only a true freeze (event loop not turning at
+# all) should fire the dump.
+HANG_WATCHDOG_TIMEOUT_SECS = 90
+HANG_WATCHDOG_LOG_NAME     = "HangWatchdog.log"
 
 #########
 # Logging - daily folder is not in Nextcloud, to avoid constant thrashing
