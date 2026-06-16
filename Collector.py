@@ -12,12 +12,12 @@
 #
 
 # module used to talk over serial with the esp32
-from PySide6.QtCore       import QRecursiveMutex, Signal, QDateTime, QTime, QTimeZone, QThread, QTimer, QProcess
+from PySide6.QtCore       import Signal, QDateTime, QTime, QTimeZone, QThread, QTimer, QProcess
 from PySide6.QtSerialPort import QSerialPort
 
 from SerialPort        import tAutoOpenSerialWholeLine
 from PowerControl      import tPowerControl
-from Utilities         import tActiveObject, with_lock
+from Utilities         import tActiveObject
 from ConfigInfo        import *
 import re
 
@@ -27,9 +27,9 @@ import re
 ##########################################################################################
 # tCollector  - Class that implements collector I/O
 #
-# At construction, the AutoOpenSerial device is created but is not yet moved to its own thread,
-# and not started.  This is so that other objects can connect to its signals prior to it starting
-# up.
+# At construction, the AutoOpenSerial device is created but not yet started.  This gives other
+# objects a chance to connect to its signals before it starts up.  (The app is single-threaded;
+# the device is not moved to a worker thread.)
 # 
 #
 # When telemetry is emitted as a dictionary, it takes on this form
@@ -96,8 +96,8 @@ class tCollector(tActiveObject):
   def __init__(self, collectorName, portName, boardSerial, baud, parent=None):
     super().__init__(COLLECTOR_RETRY_TIMEOUT_SECS * 1000, parent)   # tActiveObject constructor
 
-    # Mutex for controlling access to the device
-    self._lock = QRecursiveMutex()
+    # NOTE: single-threaded app - the recursive mutex that used to guard this device is
+    # removed (see the fuller note in tAgilent.__init__).
 
     self.CollectorName  = collectorName
     self.PortName       = portName
@@ -207,7 +207,6 @@ class tCollector(tActiveObject):
   # This also includes opening the serial port.
   #     
   
-  #@with_lock
   def Start(self, SunriseSunsetUpdateSignal):
 
     # Connect to sunrise and sunset updates
@@ -258,7 +257,6 @@ class tCollector(tActiveObject):
   # This method simply sends the "Telemetry on" command
   #
 
-  #@with_lock
   def InitializeConnection(self):
     if not self.SerialPort.IsOpen():
       print(f'tCollector: ERROR: Collector {self.CollectorName} offline in InitializeConnection', flush=True)
@@ -278,7 +276,6 @@ class tCollector(tActiveObject):
   # 
   #
 
-  #@with_lock
   def Reconnect(self):
     if self.SerialPort.IsOpen():
       self.SerialPort.close()
@@ -316,7 +313,6 @@ class tCollector(tActiveObject):
   # This method just attempts to periodically reopen the port if it's not open
   #
 
-  #@with_lock
   def PeriodicMethod(self):
     #if self.SerialPort.bPrintDiag: 
     #  #print(f"Periodic task Current thread: {QThread.currentThread()}", f"Collector thread: {self.thread()}")
@@ -351,17 +347,7 @@ class tCollector(tActiveObject):
   
   
   ###############################################
-  # __enter__ and __exit__ for use with "with"
-  # 
-  # Acquire and release the lock
-  #     
-     
-  def __enter__(self):
-    self._lock.lock()
-    return self
-
-  def __exit__(self, exc_type, exc_val, exc_tb):
-    self._lock.unlock()
+  # (Removed __enter__/__exit__ context-manager locking - single-threaded app, see __init__.)
 
 
   ###############################################
@@ -509,7 +495,6 @@ class tCollector(tActiveObject):
   # Cancels any pending line-editor input and submits a blank line to get back in sync.
   #     
 
-  #@with_lock
   def FlushCommandInput(self):
     # Ctrl-C clears any partial command without executing it; CR then submits a blank line.
     FlushString = "\x03\r"
@@ -536,7 +521,6 @@ class tCollector(tActiveObject):
   # Comamnds the collector to Stow
   #
 
-  #@with_lock
   def Stow(self):
     result = self._SendCommand("Stow")
 
@@ -555,7 +539,6 @@ class tCollector(tActiveObject):
   # Comamnds the collector to Flat
   #     
 
-  #@with_lock
   def Flat(self):
     result = self._SendCommand("Flat")
 
@@ -574,7 +557,6 @@ class tCollector(tActiveObject):
   # Comamnds the collector to Track
   #     
 
-  #@with_lock
   def Track(self):
     result = self._SendCommand("TrackOn")
 
@@ -593,7 +575,6 @@ class tCollector(tActiveObject):
   # Comamnds the collector to Home
   #     
 
-  #@with_lock
   def Home(self):
     result = self._SendCommand("Home")
 
@@ -612,7 +593,6 @@ class tCollector(tActiveObject):
   # Comamnds the collector to turn off
   #     
 
-  #@with_lock
   def Off(self):
     print('Sending Off command')
     result = self._SendCommand("TrackOff")
@@ -642,7 +622,6 @@ class tCollector(tActiveObject):
   #  Sets the time on the collector
   #     
 
-  #@with_lock
   def SetTimeToNow(self):
     timezone = QTimeZone(SITE_TIMEZONE.encode('utf-8'))
     #if not isinstance(timezone, QTimeZone):
@@ -682,7 +661,6 @@ class tCollector(tActiveObject):
   # 
   #     
 
-  #@with_lock
   def MotStatus(self):
     result = self._SendCommand("Status")
 
@@ -710,7 +688,6 @@ class tCollector(tActiveObject):
   # 
   #     
 
-  #@with_lock
   def Reboot(self, bForced=False):
     # Sequencer-driven reboots silently skip absent boards; user-clicked reboots
     # always try (picotool can talk to the board even if the COM port is wedged)
@@ -829,7 +806,6 @@ class tCollector(tActiveObject):
   #   bTelemetryOn - desired state
   #     
 
-  #@with_lock
   def SetTelemetryOnOff(self, bTelemetryOn : bool):
     cmd = "TelOn" if bTelemetryOn else "TelOff"
 
@@ -850,7 +826,6 @@ class tCollector(tActiveObject):
   # Sends the three tracking threshold percentages
   #     
 
-  #@with_lock
   def SendThresholdPercentages(self):
     result = self._SendCommand("Thresh",
                                self.WideAngleIllumPercent,

@@ -80,12 +80,10 @@ class tPeriodicLogger(tActiveObject):
     self.Marquee               = tMarquee(PROJECT_CONFIG.MarqueePort, Collectors, self) if PROJECT_CONFIG.bHasMarquee else None
 
 
-    # moveToThread() to changes the thread affinity of a QObject (and its children). This means that the object's
-    # slots and event handlers will be executed in the thread to which it's moved.
-
-    # Take ownership of the Agilents and temp sensor objects
+    # Take ownership of the Agilents and temp sensor objects.  This app is single-threaded
+    # (no QObject is moved to a worker thread); setParent just establishes ownership for
+    # lifetime/cleanup.
     for agilent in self.Agilents:
-      #agilent.moveToThread(self)
       agilent.setParent(self)
 
     if self.DomeTempSensor is not None:
@@ -152,8 +150,7 @@ class tPeriodicLogger(tActiveObject):
 
   def InitiateScansOnAllAgilents(self):
     for agilent in self.Agilents:
-      with agilent:  # Acquire the lock
-        agilent.DoScan()
+      agilent.DoScan()
 
 
   ###############################################
@@ -190,8 +187,7 @@ class tPeriodicLogger(tActiveObject):
     # Read the Agilents and build out a string
     OutputLine = ''
     for agilent in self.Agilents:
-      with agilent:  # Acquire the lock
-        OutputLine = OutputLine + agilent.RetrieveScanResults(True) + ','
+      OutputLine = OutputLine + agilent.RetrieveScanResults(True) + ','
     # Remove the final extra comma
     OutputLine = OutputLine.rstrip(',')  # Remove trailing comma
 
@@ -310,11 +306,11 @@ class tPeriodicLogger(tActiveObject):
 
     # Send data to the marquee display
     if self.Marquee is not None:
-      with self.Marquee as marquee:
-        marquee.SendTemps(*DomeReadings, *OutsideReadings, BoxTemp)
-        marquee.SendSun(GHI, DNI)
-        for collector in self.Collectors:
-          marquee.SendCollectorState(collector.CollectorName, collector.CollectorState)
+      marquee = self.Marquee
+      marquee.SendTemps(*DomeReadings, *OutsideReadings, BoxTemp)
+      marquee.SendSun(GHI, DNI)
+      for collector in self.Collectors:
+        marquee.SendCollectorState(collector.CollectorName, collector.CollectorState)
 
     print(self.ScheduledTime.toString('yyyy-MM-dd HH:mm:ss'),': Temps: Box=', BoxTemp, 'Dome=', DomeTemp, ' Elec=', ElecTemp,' Stan=', StanTemp,' DNI=', DNI, ' GHI=', GHI, flush=True)
   

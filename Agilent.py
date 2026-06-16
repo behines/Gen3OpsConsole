@@ -50,8 +50,8 @@ import os
 import sys
 
 # For implementing object locking and retry timer
-from PySide6.QtCore import QRecursiveMutex, QElapsedTimer, QObject, QThread, Signal, QMutex, QWaitCondition, QMutexLocker, QCoreApplication
-from Utilities      import requires_device_open, with_lock, SignalThenWaitFor, SignalEmitter
+from PySide6.QtCore import QElapsedTimer, QObject, QThread, QCoreApplication
+from Utilities      import requires_device_open
 
 
 ##########################################################################################
@@ -59,10 +59,7 @@ from Utilities      import requires_device_open, with_lock, SignalThenWaitFor, S
 ##########################################################################################
 # tAgilent 
 #
-# Manages info about the COM Port connection 
-#
-# Includes __enter__ and __exit__ methods for use with a "with" statement that provide for
-# mutually exclusive access to the serial port.
+# Manages info about the COM Port connection
 #
 
 class tAgilent(QObject):
@@ -115,12 +112,9 @@ class tAgilent(QObject):
   # Signals
   #
 
-  # Incoming
-  DoSetRelayState   = Signal(str,int)     # ChannelList e.g. '218:220', and 0 or 1 (tAgilent.ON or OFF)
-  DoGetRelayState   = Signal(str, bool)   # ChannelList, bUseThreadInterlocks (must always be true when calling via this signal)
-
-  # Outbound
-  # RelayStateInfo    = Signal(dict)         # Dictionary of channel, value
+  # Relay control is performed by direct method calls.  (The Do*RelayState signals and the
+  # cross-thread condition-variable machinery were part of an abandoned design that ran each
+  # instrument in its own thread; removed for the current single-threaded app.)
 
 
   #################################################
@@ -169,8 +163,12 @@ class tAgilent(QObject):
         pyvisa_logger.addHandler(console_handler)
 
 
-    # Mutex for controlling access to the device
-    self._lock          = QRecursiveMutex()
+    # NOTE: This app is single-threaded - every instrument access runs on the GUI event
+    # loop (no QObject is moved to a worker thread).  The recursive mutex that used to guard
+    # this device was scaffolding for an abandoned design in which each instrument ran in its
+    # own thread; in single-threaded operation it was a no-op (no contention) that, being
+    # recursive, could not even prevent same-thread re-entrancy.  Re-entrancy that matters is
+    # handled cooperatively instead - see tPeriodicLogger's _bLogInProgress flag.
     self.RetryTimer     = QElapsedTimer()
     self.RetryTimeoutMs = AGILENT_RETRY_TIMEOUT_SECS * 1000  # Convert minutes to milliseconds
 
@@ -188,15 +186,6 @@ class tAgilent(QObject):
     # We can do this in the constructor becuase it doesn't require the device to be open
     self.ChannelList = tAgilent.AgilentChannelListToPythonList(FullScanChannelList)
 
-    # Stuff to support condition variable comms for GetRelayStata
-    self.GetRelayState_Mutex     = QMutex()
-    self.GetRelayState_Condition = QWaitCondition()
-    self.GetRelayState_Result    = []
-
-    # Connect signals
-    self.DoSetRelayState.connect(self._SetRelayState)
-    self.DoGetRelayState.connect(self._GetRelayState)
-
     self.OpenAndConfigureDevice()
 
 
@@ -212,17 +201,7 @@ class tAgilent(QObject):
 
 
   ###############################################
-  # __enter__ and __exit__ for use with "with"
-  # 
-  # Acquire and release the lock
-  #     
-     
-  def __enter__(self):
-    self._lock.lock()
-    return self
-
-  def __exit__(self, exc_type, exc_val, exc_tb):
-    self._lock.unlock()
+  # (Removed __enter__/__exit__ context-manager locking - single-threaded app, see __init__.)
 
 
   ###############################################
@@ -288,7 +267,6 @@ class tAgilent(QObject):
   # 
 
   @requires_device_open()
-  @with_lock
   def Reset(self):
     # Clear the Agilent of any data stored in memory from previous scans
     self.device.write('*CLS')     
@@ -325,7 +303,6 @@ class tAgilent(QObject):
   #   NipCalibrationFactorInMicrovolts - Microvolts per W/m^2 from the nameplate on the NIP 
 
   @requires_device_open()
-  @with_lock
   def ConfigureChannelsforDNI(self,ChannelList,NipCalibrationFactorInMicrovolts):
     scanlist = '(@' + str(ChannelList) + ')'
     # Configure channel list for DC voltage reading, 10 mV range
@@ -353,7 +330,6 @@ class tAgilent(QObject):
   #   Agilent channel number - e.g. 101, 304, etc.
 
   @requires_device_open()
-  @with_lock
   def SelectChannelToDisplayOnFrontPanel(self,Channel):
     # Convert to string in case the channel was passed in as an int
     Channel = str(Channel)
@@ -372,7 +348,6 @@ class tAgilent(QObject):
   # 
 
   @requires_device_open()
-  @with_lock
   def ConfigureChannelsforGHI(self,ChannelList):
     scanlist = '(@' + str(ChannelList) + ')'
     # Configure channel list for DC voltage reading, 0-10V range
@@ -397,7 +372,6 @@ class tAgilent(QObject):
   # 
 
   @requires_device_open()
-  @with_lock
   def ConfigureChannelsAsThermocouple(self,ChannelList,TCType):
     scanlist = '(@' + ChannelList + ')'
 
@@ -428,7 +402,6 @@ class tAgilent(QObject):
   # 
 
   @requires_device_open()
-  @with_lock    
   def ConfigureScanList(self, FullScanChannelList):
     scanlist = '(@' + FullScanChannelList + ')'
     self.device.write("ROUTE:SCAN " + scanlist) 
@@ -455,7 +428,6 @@ class tAgilent(QObject):
   # timeout back
 
   @requires_device_open()
-  @with_lock
   def FlushInputBuffer(self):
     curTimeout          = self.device.timeout
     self.device.timeout = 0
@@ -493,7 +465,6 @@ class tAgilent(QObject):
   #   Nothing.  The values will be saved in memory for FETCh?'ing later
 
   @requires_device_open()
-  @with_lock
   def DoScan(self):
     # Flush any characters in the port.  This is defensive, in case the last read timed out and then actually returned something later.
     self.FlushInputBuffer()
@@ -511,7 +482,6 @@ class tAgilent(QObject):
   #   A comma-separated list of values.  If the reading times out, it will return -1 for all readings
 
   @requires_device_open()
-  #@with_lock
   def RetrieveScanResults(self, bTrimCrLf):
 
     # Poll for operation completion.  We pump the event loop while waiting so the GUI
@@ -533,12 +503,9 @@ class tAgilent(QObject):
         return ','.join(str(num) for num in minus_ones)
 
       try:
-        # _lock is a QRecursiveMutex, so the @with_lock FlushInputBuffer() call below can
-        # re-acquire it on this same thread without deadlocking.
-        with QMutexLocker(self._lock):
-          # Flush any characters in the port.  This is defensive, in case the last read timed out and then actually returned something later.
-          self.FlushInputBuffer()
-          StatusReg = int(self.device.query('STAT:OPER:COND?').strip())
+        # Flush any characters in the port.  This is defensive, in case the last read timed out and then actually returned something later.
+        self.FlushInputBuffer()
+        StatusReg = int(self.device.query('STAT:OPER:COND?').strip())
       except (pyvisa.errors.VisaIOError, ValueError) as e:
         # A transient timeout or a garbled status response: treat as "not done yet" and
         # keep waiting (up to the budget) rather than crashing the whole log cycle.  Pause
@@ -550,28 +517,27 @@ class tAgilent(QObject):
 
       IsBusyOrScanning = (StatusReg & tAgilent.STATUS_Scanning) != 0
 
-    with QMutexLocker(self._lock):
-      # Flush any characters in the port.  This is defensive, in case the last read timed out and then actually returned something later.
-      self.FlushInputBuffer()
-      # Retrieve the results.  This does not remove them from memory, but memory will be cleared at the next INIT call.
-      self.device.write('FETCH?')
+    # Flush any characters in the port.  This is defensive, in case the last read timed out and then actually returned something later.
+    self.FlushInputBuffer()
+    # Retrieve the results.  This does not remove them from memory, but memory will be cleared at the next INIT call.
+    self.device.write('FETCH?')
 
-      # This doesn't seem to work.  It seems that we can't read anything because the read itself
-      # is tying up the output buffer
-      #if self.WaitForScanToComplete() < 0:
-      #  return [-1]*len(self.ChannelList)
-      # Instead, simply insert a delay
+    # This doesn't seem to work.  It seems that we can't read anything because the read itself
+    # is tying up the output buffer
+    #if self.WaitForScanToComplete() < 0:
+    #  return [-1]*len(self.ChannelList)
+    # Instead, simply insert a delay
 
+    try:
+      response = self.device.read()
+    except pyvisa.errors.VisaIOError:
+      print('Agilent timeout, Retrying...')
       try:
         response = self.device.read()
       except pyvisa.errors.VisaIOError:
-        print('Agilent timeout, Retrying...')
-        try:
-          response = self.device.read()
-        except pyvisa.errors.VisaIOError:
-          print('Agilent 2nd Timeout, bailing out')
-          minus_ones = [-1]*len(self.ChannelList)
-          return ','.join(str(num) for num in minus_ones)
+        print('Agilent 2nd Timeout, bailing out')
+        minus_ones = [-1]*len(self.ChannelList)
+        return ','.join(str(num) for num in minus_ones)
 
     if bTrimCrLf:
       response = response.strip()  #[:-2]
@@ -591,7 +557,6 @@ class tAgilent(QObject):
   #   A comma-separated list of values.  If the reading times out, it will return -1 for all readings
 
   @requires_device_open()
-  #@with_lock
   def Read(self, bTrimCrLf):
     self.DoScan()
     return self.RetrieveScanResults(bTrimCrLf)
@@ -606,7 +571,6 @@ class tAgilent(QObject):
   #   0 after a successful wait, -1 if timed out
 
   @requires_device_open()
-  @with_lock
   def _WaitForScanToComplete(self, timeout = 3):
     IsBusyOrScanning = True
     while IsBusyOrScanning:
@@ -633,7 +597,6 @@ class tAgilent(QObject):
   # 
 
   @requires_device_open()
-  @with_lock    
   def _SetRelayState(self, ChannelList, State):
     if State == self.OPEN:
       Command = 'ROUTE:OPEN '
@@ -651,13 +614,11 @@ class tAgilent(QObject):
   #
   # INPUTS:
   #   channel list - channel list (string) of relays to read
-  #   bUseThreadInterlocks - If true, use mutex and condition variable to guard the result
   # RETURNS:
   #   RelayStateList - A list of relay readings, as 0's and 1's
   
   @requires_device_open()
-  @with_lock    
-  def _GetRelayState(self, ChannelList, bUseThreadInterlocks=False):
+  def _GetRelayState(self, ChannelList):
     RelayStateList = []
 
     # print('In _GetRelayState')
@@ -673,14 +634,6 @@ class tAgilent(QObject):
 
 
     # print('_GetRelayState: ', response)
-    # If no mutexes or whatnot, it's a simple function call
-    if bUseThreadInterlocks:
-      with QMutexLocker(self.GetRelayState_Mutex):
-        self.GetRelayState_Result = RelayStateList  # Set the access-controlled variable
-        # Post the result
-        # print('_GetRelayState: Sending wakeup: ', RelayStateList)
-        self.GetRelayState_Condition.wakeAll()  # Notify the waiting thread
-
     return RelayStateList
   
 
@@ -701,7 +654,7 @@ class tAgilent(QObject):
     else:
       NewRelayState = tAgilent.OFF if RelayType == tAgilent.RELAY_NORMALLY_OPEN else tAgilent.ON
 
-    self.DoSetRelayState.emit(RelayChannels, NewRelayState)
+    self._SetRelayState(RelayChannels, NewRelayState)
 
 
   ###############################################
@@ -710,11 +663,6 @@ class tAgilent(QObject):
   # If you provide a list of relays, this assumes they all have the same state and just
   # returns the first one.
   #
-  # If not in the same thread as the Agilent, we use a mutex and condition variable. 
-  # There is a special piece of stat self.GetRelayState_Result that is guarded by these
-  # constructs.  In that case, we 
-
-  # 
   # INPUTS:
   #   RelayChannels - a relaychannel string like '218:220'
   # RETURNS:
@@ -723,25 +671,10 @@ class tAgilent(QObject):
   #   TimeoutError if the operation times out
 
   def GetRelayState(self, RelayChannels, RelayType) -> bool:
-    ####
-    # We take different approaches based on whether we are in the same thread as the Agilent object
-    # If in the same thread, it's a simple function call.  If in a different thread we use a condition
-    # variable
-    if QThread.currentThread() == self.thread():
-        RelayStateList = self._GetRelayState(RelayChannels)
-        if not RelayStateList:
-          raise TimeoutError("Timed out waiting for relay state")
-
-    else:
-      with QMutexLocker(self.GetRelayState_Mutex):
-        # Emit signal to self.GetRelayState_Mutex thread
-        self.DoGetRelayState.emit(RelayChannels, True)
-        # Wait for the _GetRelayState worker to complete
-        if not self.GetRelayState_Condition.wait(self.GetRelayState_Mutex, 30000):  # 5-second timeout
-          raise TimeoutError("Timed out waiting for relay state")
-        else:
-          RelayStateList = self.GetRelayState_Result
-          # print('wait succeeded, RelayStates = ',RelayStateList)
+    # Single-threaded: the relay read is a direct call on the GUI (and Agilent's own) thread.
+    RelayStateList = self._GetRelayState(RelayChannels)
+    if not RelayStateList:
+      raise TimeoutError("Timed out waiting for relay state")
 
     FirstRelayValue = RelayStateList[0]
 

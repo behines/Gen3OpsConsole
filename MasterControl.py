@@ -355,8 +355,8 @@ class MasterControl(QMainWindow):
       self.NipSequencer = tSunClockSequencer(self.Sun, self)
       
 
-    # Now that everything is going, we can start the collector monitoring threads.  At this point, the 
-    # Collectors are still in this thread that created them, but they will now move to their own threads
+    # Now that everything is constructed, start each collector's periodic monitoring.  The
+    # collectors run on this (the GUI) thread - they are NOT moved to worker threads.
     for Collector in self.Collectors:
       # Connect the collector to the USB Hub Power signal
       # Also tell it the current USB hub power state

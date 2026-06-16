@@ -23,8 +23,8 @@ except ModuleNotFoundError:
   serial = None
 
 # For implementing object locking and retry timer
-from PySide6.QtCore import QRecursiveMutex, QElapsedTimer, QObject, Signal
-from Utilities      import requires_device_open, with_lock
+from PySide6.QtCore import QElapsedTimer, QObject
+from Utilities      import requires_device_open
 from Collector      import tCollector
 from typing         import List              # For pylance
 
@@ -34,10 +34,10 @@ from typing         import List              # For pylance
 ##########################################################################################
 # tMarquee 
 #
-# The Marquee object is owned by the PeriodicLogger so shares its thread, so it can call methods
-# of tMarquee directly.  That means that there is no need to provide signals to tell the Marquee
-# to update GHI, DNI, or temperatures.  The only signals required are for collector updates, which
-# come from other threads. 
+# The Marquee object is owned by the PeriodicLogger, and the whole app is single-threaded, so
+# callers invoke tMarquee methods directly - there is no need for signals to update GHI, DNI, or
+# temperatures.  Collector state still arrives via the CollectorStateUpdate signal, but on the
+# same thread.
 #
 
 class tMarquee(QObject):
@@ -60,9 +60,9 @@ class tMarquee(QObject):
   def __init__(self, portName, CollectorList: List[tCollector], parent=None):
     super().__init__(parent)
 
-    # Mutex for controlling access to the device
-    self._lock = QRecursiveMutex()
-
+    # NOTE: single-threaded app - the recursive mutex that used to guard this device was
+    # scaffolding for an abandoned per-instrument-thread design, and is removed (see the
+    # fuller note in tAgilent.__init__).
     self.port     = None
     self.portName = portName
 
@@ -80,17 +80,7 @@ class tMarquee(QObject):
 
 
   ###############################################
-  # __enter__ and __exit__ for use with "with"
-  # 
-  # Acquire and release the lock
-  #     
-     
-  def __enter__(self):
-    self._lock.lock()
-    return self
-
-  def __exit__(self, exc_type, exc_val, exc_tb):
-    self._lock.unlock()
+  # (Removed __enter__/__exit__ context-manager locking - single-threaded app, see __init__.)
 
 
   ###############################################
@@ -132,7 +122,6 @@ class tMarquee(QObject):
   #     
   
   @requires_device_open()
-  @with_lock
   def SendMessage(self, line):
     # If the port is closed, try to reopen it
     if self.port is None:
@@ -158,7 +147,6 @@ class tMarquee(QObject):
   #     
   
   @requires_device_open()
-  @with_lock
   def SendOutsideData(self, TempInC, Humidity):
     TempInF = TempInC * 9/5 + 32
     self.SendMessage(f"T{TempInF}\n")
@@ -170,7 +158,6 @@ class tMarquee(QObject):
   #     
   
   @requires_device_open()
-  @with_lock
   def SendDomeData(self, TempInC, Humidity):
     TempInF = TempInC * 9/5 + 32
     self.SendMessage(f"t{TempInF}\n")
@@ -182,7 +169,6 @@ class tMarquee(QObject):
   #     
   
   @requires_device_open()
-  @with_lock
   def SendBoxData(self, TempInC):
     self.SendMessage(f"B{TempInC}\n")
 
@@ -200,7 +186,6 @@ class tMarquee(QObject):
   #     
   
   @requires_device_open()
-  @with_lock
   def SendDNI(self, DNI):
     self.SendMessage(f"D{int(DNI)}\n")
 
@@ -213,7 +198,6 @@ class tMarquee(QObject):
   #     
 
   @requires_device_open()
-  @with_lock
   def SendAll(self, DomeTempInC, DomeHumidity, OutsideTempInC, OutsideHumidity, BoxTempInC, GHI, DNI): #, CollectorStates):
     self.SendDomeData(DomeTempInC, DomeHumidity)
     self.SendOutsideData(OutsideTempInC, OutsideHumidity)
@@ -228,7 +212,6 @@ class tMarquee(QObject):
   #     
 
   @requires_device_open()
-  @with_lock
   def SendTemps(self, DomeTempInC, DomeHumidity, OutsideTempInC, OutsideHumidity, BoxTempInC):
     self.SendDomeData(DomeTempInC, DomeHumidity)
     self.SendOutsideData(OutsideTempInC, OutsideHumidity)
@@ -240,7 +223,6 @@ class tMarquee(QObject):
   #     
 
   @requires_device_open()
-  @with_lock
   def SendSun(self, GHI, DNI):
     self.SendGHI(GHI)
     self.SendDNI(DNI)
@@ -252,7 +234,6 @@ class tMarquee(QObject):
   # Called when 
 
   @requires_device_open()
-  @with_lock
   def SendCollectorState(self, CollectorName: str, NewState: CollectorNativeStates):
 
     CollectorNum = -1
