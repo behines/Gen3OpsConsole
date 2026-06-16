@@ -715,6 +715,14 @@ class tCollector(tActiveObject):
       print(f'Could not reboot {self.CollectorName}: reboot serial not configured', flush=True)
       return
 
+    # Don't stack a second picotool on this board if one is still in flight (e.g. the user
+    # mashes Reboot) - concurrent picotools would contend for the same USB device.  Each
+    # tCollector only ever reboots its own board, so any in-flight process means a reboot is
+    # already running.
+    if self._PicotoolProcesses:
+      print(f'Picotool reboot for {self.CollectorName} skipped: a reboot is already in progress', flush=True)
+      return
+
     print(f'Picotool rebooting {self.CollectorName} ({self.BoardSerial})', flush=True)
 
     # Launch picotool asynchronously via QProcess.  A blocking subprocess.run() would park
@@ -726,7 +734,7 @@ class tCollector(tActiveObject):
     PicotoolProcess = QProcess(self)
     self._PicotoolProcesses.add(PicotoolProcess)
     PicotoolProcess.finished.connect(
-      lambda exitCode, exitStatus, proc=PicotoolProcess: self._PicotoolRebootFinished(proc, exitCode))
+      lambda exitCode, exitStatus, proc=PicotoolProcess: self._PicotoolRebootFinished(proc, exitCode, exitStatus))
     # If picotool can't even launch, finished() never fires - reap it on errorOccurred so
     # the QProcess can't linger in the set forever.
     PicotoolProcess.errorOccurred.connect(
@@ -746,15 +754,21 @@ class tCollector(tActiveObject):
   # INPUTS:
   #   PicotoolProcess - the QProcess that finished
   #   exitCode        - picotool's exit code (0 on success)
+  #   exitStatus      - QProcess.ExitStatus (CrashExit if we killed it or it crashed)
   #
 
-  def _PicotoolRebootFinished(self, PicotoolProcess, exitCode):
+  def _PicotoolRebootFinished(self, PicotoolProcess, exitCode, exitStatus):
     # Idempotent: errorOccurred may have already cleaned this one up.
     if PicotoolProcess not in self._PicotoolProcesses:
       return
-    if exitCode != 0:
-      errorText = bytes(PicotoolProcess.readAllStandardError()).decode('utf-8', errors='ignore').strip()
-      print(f'Picotool reboot failed for {self.CollectorName}: {errorText}', flush=True)
+    if exitStatus == QProcess.ExitStatus.CrashExit:
+      # We killed it (timeout backstop) or it crashed; the exit code is meaningless here.
+      print(f'Picotool reboot for {self.CollectorName} did not exit cleanly (killed or crashed)', flush=True)
+    elif exitCode != 0:
+      errText = bytes(PicotoolProcess.readAllStandardError()).decode('utf-8', errors='ignore').strip()
+      outText = bytes(PicotoolProcess.readAllStandardOutput()).decode('utf-8', errors='ignore').strip()
+      detail  = ' '.join(t for t in (errText, outText) if t)
+      print(f'Picotool reboot failed for {self.CollectorName} (exit {exitCode}): {detail}', flush=True)
     self._PicotoolProcesses.discard(PicotoolProcess)
     PicotoolProcess.deleteLater()
 

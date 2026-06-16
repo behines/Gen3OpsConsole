@@ -95,3 +95,8 @@ class tHangWatchdog(QObject):
   def Stop(self):
     self._PetTimer.stop()
     faulthandler.cancel_dump_traceback_later()
+    # We intentionally leave faulthandler.enable() active and the log file open: Stop() runs
+    # at app shutdown, and we still want a hard-crash traceback if the teardown itself
+    # crashes.  The OS releases the file when the process exits.  (The watchdog is
+    # single-instance, so this never leaks; were it ever reconstructed mid-run, Stop would
+    # need to faulthandler.disable() and close the file here.)
