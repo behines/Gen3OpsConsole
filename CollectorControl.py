@@ -197,10 +197,10 @@ class tCollectorPane(QWidget):
   ###############################################
   # OnConnectionStateUpdate - Show a red HUNG indicator when the serial port is wedged
   #
-  # 'hung' means the guarded connect-probe timed out: QSerialPort.open()/close() is blocking on a
-  # wedged/half-powered board, so the GUI deliberately refuses to touch it.  Recover the board
-  # with a USB power-cycle.  Other states clear the red (the normal state text is set by
-  # telemetry / ConnectionEvent).
+  # 'hung' means the worker-thread serial open timed out on a wedged/half-powered board, so the
+  # GUI deliberately refuses to touch the native handle.  Recover the board with a USB
+  # power-cycle.  Other states clear the red (the normal state text is set by telemetry /
+  # ConnectionEvent).
   #
 
   def OnConnectionStateUpdate(self, name, state):
@@ -208,7 +208,11 @@ class tCollectorPane(QWidget):
       self.ui.State.setText('State: HUNG (serial wedged)')
       self.ui.State.setStyleSheet("QLabel { color: red; font-weight: bold; }")
     elif state == 'connected':
+      self.ui.State.setText('State: Connected')
       self.ui.State.setStyleSheet("")
+    elif state == 'offline':
+      self.ui.State.setText('State: Offline')
+      self.ui.State.setStyleSheet("QLabel { color: gray; }")
 
 
   ###############################################

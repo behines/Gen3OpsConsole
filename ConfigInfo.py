@@ -13,9 +13,9 @@ from ProjectConfig import AGILENT_DESCRIPTOR_FIELDS, CollectorMapping, PICOTOOL_
 
 # Safe-start mode (launch with --safe): the collector serial ports are NOT opened, so the GUI
 # and the Agilent power relays come up even when boards are wedged.  A blocking
-# QSerialPort.open()/close() on a sick/half-powered USB-CDC device would otherwise freeze the
-# single-threaded app; safe mode keeps all collectors offline so the relays can be driven to
-# power-cycle/recover boards remotely.
+# native serial open/close on a sick/half-powered USB-CDC device would otherwise freeze the app
+# if it ran on the GUI thread; safe mode keeps all collectors offline so the relays can be
+# driven to power-cycle/recover boards remotely.
 SAFE_MODE = ('--safe' in sys.argv)
 
 #################################################
@@ -179,15 +179,22 @@ COLLECTOR_TX_BUFFER_SIZE =  2000
 # handle.
 PICOTOOL_REBOOT_TIMEOUT_SECS = 45
 
-# How long the guarded serial connect-probe is allowed to open+close a port before we declare
-# the collector HUNG.  QSerialPort.open()/close() can block forever in the Windows driver on a
-# wedged/half-powered USB-CDC board; we run the open+close on a throw-away worker thread and a
-# GUI timer gives up after this long (see tSerialConnectProbe in SerialPort.py).  Generous, but
-# far shorter than the "forever" it would otherwise hang.
+# How long the worker-thread serial open is allowed to run before we declare the collector HUNG.
+# Native serial open can block forever in the Windows driver on a wedged/half-powered USB-CDC
+# board; the GUI timer gives up after this long while the daemon worker remains parked.
 SERIAL_CONNECT_PROBE_TIMEOUT_SECS = 5
 
-# How many consecutive "port is present but we still can't open it" probe failures before we
-# show HUNG (red).  Keeps a brief mid-reboot blip from flashing red.
+# How often to abandon a timed-out worker and try a fresh worker while a collector remains HUNG.
+# This gives automatic recovery after a USB power-cycle without spawning a new zombie every
+# collector timer tick while the device is still wedged.
+SERIAL_HUNG_RETRY_TIMEOUT_SECS = 60
+
+# Each timed-out retry can leave one daemon worker parked in native open until the USB stack
+# recovers.  Bound unattended retries; manual Reconnect and USB power on reset this budget.
+SERIAL_HUNG_MAX_RETRY_ATTEMPTS = 3
+
+# How many consecutive busy/error open failures before we show HUNG (red).  Keeps a brief
+# mid-reboot blip from flashing red.
 SERIAL_HUNG_FAIL_THRESHOLD = 3
 
 COLLECTOR_PORTS = []

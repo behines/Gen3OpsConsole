@@ -2,34 +2,29 @@
 # SerialPort.py
 #
 # Defines:
-#   tSerialConnectProbe      - Non-blocking "can this port be opened?" health-probe.
-#   tAutoOpenSerial          - A QSerialPort whose blocking open/close is driven by the owner
-#                              through the probe, so a sick board can never freeze the GUI.
+#   tAutoOpenSerial          - QObject facade for a collector serial port.  Native open/read/write/
+#                              close calls run only on a daemon pyserial worker thread.
 #   tAutoOpenSerialWholeLine - Same, plus line assembly (emits readyLine per complete line).
 #
 #
 # WHY THIS FILE LOOKS THE WAY IT DOES  (read this before changing the connect logic)
 # ----------------------------------------------------------------------------------
-# This whole app is SINGLE-THREADED: all serial I/O runs on the Qt GUI event loop.  We learned
-# the hard way (multiple unpausable freezes, captured by the hang watchdog) that BOTH
-# QSerialPort.open() AND QSerialPort.close() make synchronous native Windows driver calls that
-# can block FOREVER when the USB-CDC board behind the port is wedged, half-powered, or
-# mid-power-cycle - the pending overlapped I/O never completes and never cancels.  On a
-# single-threaded app that freezes the entire GUI, in native code, where not even the debugger
-# can pause it.
+# The Qt GUI remains single-threaded: widgets, timers, telemetry parsing, and collector state
+# updates all run on the GUI event loop.  Native Windows serial calls do NOT.  USB-CDC devices
+# can wedge such that open(), close(), and sometimes write/read never return.  If those calls run
+# on the GUI thread, the app freezes in native code.
 #
-# There is no in-thread timeout for a native open()/close().  So the design here is:
-#   * The data path (read/write on an already-open port) stays on the GUI thread - QSerialPort
-#     wants all its traffic serialized through one event loop, and reads/writes don't block.
-#   * The DANGEROUS calls - opening a port, or recovering a dead one - are guarded.  Before the
-#     GUI thread ever opens a real QSerialPort, we PROBE the port on a throw-away worker thread
-#     (open it, close it) and a GUI timer (never a blocking join) decides ok / fail / timed-out.
-#   * We NEVER call the blocking close() to recover a wedged port.  Instead the owner abandons
-#     the QSerialPort object (see tCollector) and brings up a fresh one; the abandoned OS handle
-#     is freed for free when the device de-enumerates (a USB power-cycle / reset).
+# The rule here is therefore simple:
+#   * The GUI thread never calls a native serial open/close/read/write for collector ports.
+#   * Each collector port owns a throw-away daemon worker thread that uses pyserial.
+#   * If a worker blocks forever in a native call, the GUI abandons it and carries on.  The worker
+#     and OS handle are freed when the USB device de-enumerates or the process exits.
+#   * Worker events are drained by a QTimer on the GUI thread, so Qt signals and UI work still
+#     happen in the normal Qt thread.
 #
-# So this class no longer auto-opens itself.  The owner (tCollector) drives the connect through
-# the probe and only calls AttemptOpenIfNeeded() once a probe has proven the port opens fast.
+# This deliberately avoids QSerialPort and QSerialPortInfo for collector recovery.  We already
+# know the configured COM port; asking the OS to enumerate serial devices from the GUI thread is
+# just another native serial path that can block.
 
 
 
@@ -37,21 +32,17 @@
 # Modules used
 #
 
+import queue
 import threading
 
 try:
-  # pyserial - used ONLY by the throw-away connect-probe.  We deliberately do NOT use QSerialPort
-  # for the probe: QSerialPort is a QObject with Qt thread-affinity and must not be touched from a
-  # worker thread, whereas a pyserial Serial is a plain object that is safe to open/close on any
-  # thread.
   import serial
 except ModuleNotFoundError:
   serial = None
 
-from PySide6.QtSerialPort import QSerialPort
-from PySide6.QtCore       import Signal, QTimer, QByteArray, QThread, QObject, QElapsedTimer, Qt
+from PySide6.QtCore import QByteArray, QObject, QTimer, Signal
 
-from ConfigInfo import SAFE_MODE
+from ConfigInfo import SAFE_MODE, SERIAL_CONNECT_PROBE_TIMEOUT_SECS
 
 
 
@@ -59,106 +50,175 @@ from ConfigInfo import SAFE_MODE
 #######################################################
 #######################################################
 #
-# tSerialConnectProbe - Non-blocking probe: can this COM port be opened (and closed) quickly?
+# tPySerialWorker - Worker-thread owner of the native serial handle
 #
 
-class tSerialConnectProbe(QObject):
-  """
-  Tests whether a COM port can be opened AND closed within a timeout, WITHOUT ever blocking the
-  GUI thread.
-
-  How it works:
-    * Start() spawns a daemon worker thread that does pyserial open() then close().  If the
-      device is healthy this finishes in milliseconds; if it is wedged the native open()/close()
-      blocks and the worker simply parks there forever (harmless - it's off the GUI thread).
-    * A GUI-thread QTimer (NOT a blocking join) polls the worker's result and the elapsed time,
-      then emits finished() with one of:
-        'ok'      - opened and closed cleanly  -> the device is healthy; the owner may now open
-                    its real QSerialPort (which will also be fast).
-        'fail'    - open/close raised quickly (port absent, or busy because another handle holds
-                    it)                          -> not connectable right now; retry later.  NOT a hang.
-        'timeout' - neither happened within the budget -> open()/close() is BLOCKED, i.e. the
-                    board is wedged-but-present  -> the collector is HUNG.
-
-  A worker stuck in a native call cannot be killed (you can't kill a Python thread blocked in a
-  syscall, and QThread.terminate on a serial handle is unsafe).  So we just abandon it as a
-  daemon zombie.  That is actually correct: while it is stuck it keeps the COM port busy, so the
-  collector stays HUNG until the device truly recovers (e.g. a USB power-cycle), at which point
-  the next probe opens+closes cleanly and we reconnect.
-  """
-
-  finished = Signal(str)   # 'ok' | 'fail' | 'timeout'
-
+class tPySerialWorker:
 
   ###############################################
   # Constructor
   #
-  # INPUTS:
-  #   portName    - e.g. 'COM46'
-  #   baudrate    - the collector baud rate (matters little for an open/close test)
-  #   timeoutSecs - how long to wait before declaring 'timeout' (HUNG)
-  #
 
-  def __init__(self, portName, baudrate, timeoutSecs, parent=None):
-    super().__init__(parent)
-    self._portName  = portName
-    self._baudrate  = baudrate
-    self._timeoutMs = int(timeoutSecs * 1000)
-    self._result    = None                 # written by the worker thread: 'ok' / 'fail'
-    self._elapsed   = QElapsedTimer()
-
-    # GUI-thread poll timer.  We poll a flag rather than join() the worker so the GUI never blocks.
-    self._pollTimer = QTimer(self)
-    self._pollTimer.setSingleShot(False)
-    self._pollTimer.timeout.connect(self._Poll)
+  def __init__(self, portName, baudrate, readChunkSize, eventQueue, queuedDataBytes,
+               queuedDataLock):
+    self._portName        = portName
+    self._baudrate        = baudrate
+    self._readChunkSize   = max(1, readChunkSize)
+    self._readBufferLimit = max(1, readChunkSize)
+    self._EventQueue      = eventQueue
+    self._QueuedDataBytes = queuedDataBytes
+    self._QueuedDataLock  = queuedDataLock
+    self._WriteQueue     = queue.Queue()
+    self._bStopRequested = threading.Event()
+    self._bOpened        = False
+    self._Thread         = threading.Thread(target=self._Run,
+                                            name=f'serial-{self._portName}',
+                                            daemon=True)
 
 
   ###############################################
-  # Start - Launch the probe (returns immediately)
+  # Start - Start the daemon worker
   #
 
   def Start(self):
-    self._result = None
-    self._elapsed.start()
-    # daemon=True so a wedged (un-killable) probe thread never holds up app exit.
-    threading.Thread(target=self._Worker, name=f'probe-{self._portName}', daemon=True).start()
-    self._pollTimer.start(200)             # poll 5x/sec on the GUI thread
+    self._Thread.start()
 
 
   ###############################################
-  # _Worker - Runs on the daemon worker thread: open then close, never on the GUI thread
-  #
-  # If open() or close() BLOCKS on a wedged device, this thread parks here forever.  That is
-  # fine - the GUI keeps running and _Poll() will time us out.  We never set _result in that
-  # case, which is exactly how the timeout is detected.
+  # Stop - Ask the worker to close and exit without waiting for it
   #
 
-  def _Worker(self):
+  def Stop(self):
+    self._bStopRequested.set()
+    self._WriteQueue.put(None)
+
+
+  ###############################################
+  # QueueWrite - Queue bytes for the worker to write
+  #
+
+  def QueueWrite(self, data):
+    self._WriteQueue.put(data)
+
+
+  ###############################################
+  # _Run - Open the port and service reads/writes on the worker thread
+  #
+
+  def _Run(self):
+    SerialDevice = None
     try:
       if serial is None:
         raise RuntimeError('pyserial not available')
-      s = serial.Serial(self._portName, self._baudrate, timeout=0.2)
-      s.close()
-      self._result = 'ok'
-    except Exception:
-      # Port absent (file-not-found), busy (access-denied), or any other fast failure.
-      self._result = 'fail'
+
+      SerialDevice = serial.Serial()
+      SerialDevice.port          = self._portName
+      SerialDevice.baudrate      = self._baudrate
+      SerialDevice.timeout       = 0.05
+      SerialDevice.write_timeout = 0.5
+      SerialDevice.rtscts        = False
+      SerialDevice.dsrdtr        = False
+      SerialDevice.xonxoff       = False
+      SerialDevice.open()
+
+      self._bOpened = True
+      try:
+        SerialDevice.setDTR(True)
+        SerialDevice.setRTS(True)
+      except Exception:
+        pass
+
+      self._EventQueue.put(('open', 'open', ''))
+
+      while not self._bStopRequested.is_set():
+        self._DrainWriteQueue(SerialDevice)
+        if self._bStopRequested.is_set():
+          break
+
+        nBytesToRead = 1
+        nBytesWaiting = SerialDevice.in_waiting
+        if nBytesWaiting > 0:
+          nBytesToRead = min(nBytesWaiting, self._readChunkSize)
+
+        Data = SerialDevice.read(nBytesToRead)
+        if Data:
+          self._QueueData(Data)
+
+      self._CloseSerialDevice(SerialDevice)
+      self._EventQueue.put(('closed', 'closed', ''))
+
+    except Exception as e:
+      Detail = str(e)
+      if self._bOpened:
+        self._EventQueue.put(('error', 'error', Detail))
+        self._CloseSerialDevice(SerialDevice)
+      else:
+        self._EventQueue.put(('open_failed', self._ClassifyOpenException(e), Detail))
 
 
   ###############################################
-  # _Poll - Runs on the GUI thread; decides ok / fail / timeout without ever blocking
+  # _DrainWriteQueue - Write all pending output to the serial device
   #
 
-  def _Poll(self):
-    result = self._result                  # atomic read of a single flag (safe under the GIL)
-    if result is not None:
-      self._pollTimer.stop()
-      self.finished.emit(result)
-    elif self._elapsed.elapsed() > self._timeoutMs:
-      # Worker is still stuck in a native open()/close() -> the device is wedged.  Abandon the
-      # worker (daemon zombie) and report the timeout so the owner can declare HUNG.
-      self._pollTimer.stop()
-      self.finished.emit('timeout')
+  def _DrainWriteQueue(self, SerialDevice):
+    while True:
+      try:
+        Data = self._WriteQueue.get_nowait()
+      except queue.Empty:
+        return
+
+      if Data is None:
+        self._bStopRequested.set()
+        return
+
+      SerialDevice.write(Data)
+
+
+  ###############################################
+  # _QueueData - Queue received bytes without exceeding the facade receive buffer cap
+  #
+
+  def _QueueData(self, Data):
+    with self._QueuedDataLock:
+      nBytesAvailable = self._readBufferLimit - self._QueuedDataBytes[0]
+      if nBytesAvailable <= 0:
+        return
+      if len(Data) > nBytesAvailable:
+        Data = Data[:nBytesAvailable]
+      self._QueuedDataBytes[0] += len(Data)
+
+    self._EventQueue.put(('data', Data, ''))
+
+
+  ###############################################
+  # _CloseSerialDevice - Close the native handle on the worker thread
+  #
+
+  def _CloseSerialDevice(self, SerialDevice):
+    if SerialDevice is not None and SerialDevice.is_open:
+      SerialDevice.close()
+
+
+  ###############################################
+  # _ClassifyOpenException - Turn pyserial/Windows open failures into collector states
+  #
+
+  def _ClassifyOpenException(self, ExceptionObject):
+    ErrorText = str(ExceptionObject).lower()
+
+    if ('file not found' in ErrorText or
+        'cannot find'    in ErrorText or
+        'does not exist' in ErrorText):
+      return 'absent'
+
+    if ('access is denied' in ErrorText or
+        'permission'       in ErrorText or
+        'denied'           in ErrorText or
+        'busy'             in ErrorText or
+        'in use'           in ErrorText):
+      return 'busy'
+
+    return 'error'
 
 
 
@@ -166,17 +226,14 @@ class tSerialConnectProbe(QObject):
 #######################################################
 #######################################################
 #
-# tAutoOpenSerial    - Serial port whose (blocking) open/close is driven by the owner
-#
-# STATE INVARIANT:
-#   bIsOpen always reflects whether WE consider the port open and usable.  Note that, by design,
-#   bIsOpen can be set False WITHOUT calling the native close() (close() can block on a wedged
-#   device) - in that case the OS handle is still held until the owner abandons this object.
+# tAutoOpenSerial - GUI-thread facade for a worker-owned serial port
 #
 
-class tAutoOpenSerial(QSerialPort):
-  PortOpenStateChange = Signal(bool)  # Emitted when the port becomes open or goes offline
-  ReaderWakeUp        = Signal()
+class tAutoOpenSerial(QObject):
+  PortOpenStateChange       = Signal(bool)      # Emitted when the port becomes open/offline
+  ReaderWakeUp              = Signal()
+  ConnectionAttemptFinished = Signal(str, str) # result, detail: open/timeout/absent/busy/error
+  errorOccurred             = Signal(str)
 
 
   #######################################################
@@ -190,32 +247,34 @@ class tAutoOpenSerial(QSerialPort):
     self.bWakingUp  = False
     self.bPrintDiag = False
 
-    self.setPortName(portName)
-    self.setBaudRate(baudrate)
-    if readBufSize != 0:
-      self.setReadBufferSize(readBufSize)
+    self._portName                 = portName
+    self._baudrate                 = baudrate
+    self._readBufSize              = readBufSize if readBufSize != 0 else 4096
+    self._EventQueue               = queue.Queue()
+    self._QueuedDataBytes          = [0]
+    self._QueuedDataLock           = threading.Lock()
+    self._Worker                   = None
+    self._bAbandoned               = False
+    self._bOpenAttemptInProgress   = False
+    self._bOpenAttemptTimedOut     = False
+    self._connectTimeoutMs         = int(SERIAL_CONNECT_PROBE_TIMEOUT_SECS * 1000)
 
-    self.setDataBits(QSerialPort.Data8)
-    self.setParity(QSerialPort.NoParity)
-    self.setStopBits(QSerialPort.OneStop)
-    self.setFlowControl(QSerialPort.NoFlowControl)
+    self._DrainTimer = QTimer(self)
+    self._DrainTimer.setSingleShot(False)
+    self._DrainTimer.timeout.connect(self._DrainWorkerEvents)
 
-    # NOTE: we deliberately do NOT open the port here.  Opening is driven by the owner
-    # (tCollector) AFTER a guarded probe (tSerialConnectProbe) has shown the port opens fast, so
-    # a wedged board can never block the GUI thread inside QSerialPort.open().  The port starts
-    # closed.
+    self._ConnectTimeoutTimer = QTimer(self)
+    self._ConnectTimeoutTimer.setSingleShot(True)
+    self._ConnectTimeoutTimer.timeout.connect(self._OpenAttemptTimedOut)
 
 
   #######################################################
-  # Destructor - Closes the port if we still think it is open
-  #
-  # This is the one place a (potentially blocking) close() can still happen, at GC / shutdown.
-  # ABANDONED ports are kept referenced by their owner so this never runs on them.
+  # Destructor - Request worker shutdown without blocking
   #
 
   def __del__(self):
-    if self.bIsOpen:
-      self.close()
+    if hasattr(self, '_bAbandoned'):
+      self.Abandon()
 
 
   #######################################################
@@ -227,114 +286,239 @@ class tAutoOpenSerial(QSerialPort):
 
 
   #######################################################
-  # AttemptOpenIfNeeded - The real GUI-thread open.  Call this ONLY after a probe said 'ok'.
-  #
-  # Because a successful probe just proved this exact port opens+closes quickly, the open()
-  # below is expected to be fast.  (In --safe mode we never open at all.)
+  # IsConnectInProgress
   #
 
-  def AttemptOpenIfNeeded(self):
-    # Safe-start (--safe): never open the port.  Keeps all collectors offline so the GUI +
-    # Agilent power relays stay usable for remote recovery when boards are wedged.
-    if SAFE_MODE:
-      return
-
-    if not self.bIsOpen:
-      if self.open(QSerialPort.ReadWrite) and self.error() == QSerialPort.NoError:
-        # Many USB CDC devices (e.g. TinyUSB on the Pico) gate outbound data on DTR being
-        # asserted.  QSerialPort does not assert DTR/RTS automatically on open; PuTTY does.
-        self.setDataTerminalReady(True)
-        self.setRequestToSend(True)
-        self.bIsOpen   = True
-        self.bWakingUp = False
-        self.PortOpenStateChange.emit(self.bIsOpen)
-      else:
-        # Open failed (or opened with an error).  Do NOT call the native close() - it can block
-        # on a wedged device.  Just mark ourselves offline; the owner will abandon this object.
-        self._HandleClose()
+  def IsConnectInProgress(self):
+    return self._bOpenAttemptInProgress
 
 
   #######################################################
-  # _HandleClose - Mark the port offline WITHOUT a native close (close() can block)
+  # portName
   #
-  # This sets bIsOpen False and notifies listeners, but does NOT release the OS handle.  The
-  # owner is expected to abandon this object and bring up a fresh one; the leaked handle is
-  # released when the device de-enumerates.
+
+  def portName(self):
+    return self._portName
+
+
+  #######################################################
+  # AttemptOpenIfNeeded - Start the real open on a daemon worker thread
+  #
+
+  def AttemptOpenIfNeeded(self):
+    if SAFE_MODE or self.bIsOpen or self._bOpenAttemptInProgress or self._bAbandoned:
+      return
+
+    self._bOpenAttemptInProgress = True
+    self._bOpenAttemptTimedOut   = False
+    self._Worker = tPySerialWorker(self._portName, self._baudrate, self._readBufSize,
+                                   self._EventQueue, self._QueuedDataBytes,
+                                   self._QueuedDataLock)
+    self._Worker.Start()
+    self._DrainTimer.start(50)
+    self._ConnectTimeoutTimer.start(self._connectTimeoutMs)
+
+
+  #######################################################
+  # Abandon - Mark this facade stale and ask the worker to stop without waiting
+  #
+
+  def Abandon(self):
+    if self._bAbandoned:
+      return
+
+    self._bAbandoned             = True
+    self.bIsOpen                 = False
+    self._bOpenAttemptInProgress = False
+    self._ConnectTimeoutTimer.stop()
+    self._DrainTimer.stop()
+    self._RequestWorkerStop()
+
+
+  #######################################################
+  # close - Compatibility wrapper; never blocks the GUI thread
+  #
+
+  def close(self):
+    self.Abandon()
+
+
+  #######################################################
+  # read - Compatibility wrapper for old QSerialPort-style callers
+  #
+
+  def read(self):
+    return QByteArray()
+
+
+  #######################################################
+  # readString - Compatibility wrapper for old QSerialPort-style callers
+  #
+
+  def readString(self):
+    return ""
+
+
+  #######################################################
+  # write - Queue a str/bytes/QByteArray for worker-thread output
+  #
+  # RETURNS:
+  #   Number of bytes accepted for queueing, or -1 if offline.
+  #
+
+  def write(self, data):
+    if not self.bIsOpen or self._Worker is None or self._bAbandoned:
+      return -1
+
+    if isinstance(data, str):
+      Data = data.encode("utf-8")
+    elif isinstance(data, QByteArray):
+      Data = bytes(data.data())
+    else:
+      Data = bytes(data)
+
+    self._Worker.QueueWrite(Data)
+    return len(Data)
+
+
+  #######################################################
+  # WakeUp - Compatibility hook used by ReaderWakeUp
+  #
+
+  def WakeUp(self):
+    self.bWakingUp = True
+
+
+  #######################################################
+  # _DrainWorkerEvents - Deliver worker events on the Qt GUI thread
+  #
+
+  def _DrainWorkerEvents(self):
+    if self._bAbandoned:
+      return
+
+    for _ in range(100):
+      try:
+        Event, Result, Detail = self._EventQueue.get_nowait()
+      except queue.Empty:
+        break
+
+      if Event == 'open':
+        self._HandleOpen()
+      elif Event == 'open_failed':
+        self._HandleOpenFailed(Result, Detail)
+      elif Event == 'data':
+        self._RemoveQueuedDataBytes(len(Result))
+        self._HandleReceivedBytes(Result)
+      elif Event == 'error':
+        self._HandleWorkerError(Detail)
+      elif Event == 'closed':
+        self._HandleWorkerClosed()
+
+    self._StopDrainTimerIfIdle()
+
+
+  #######################################################
+  # _OpenAttemptTimedOut - Declare HUNG while leaving the worker alive
+  #
+
+  def _OpenAttemptTimedOut(self):
+    if self._bOpenAttemptInProgress and not self._bOpenAttemptTimedOut:
+      self._bOpenAttemptInProgress = False
+      self._bOpenAttemptTimedOut   = True
+      Detail = f'{self._portName} open did not return within {SERIAL_CONNECT_PROBE_TIMEOUT_SECS}s'
+      self.ConnectionAttemptFinished.emit('timeout', Detail)
+
+
+  #######################################################
+  # _HandleOpen - Worker opened the port successfully
+  #
+
+  def _HandleOpen(self):
+    self._ConnectTimeoutTimer.stop()
+    self._bOpenAttemptInProgress = False
+    self._bOpenAttemptTimedOut   = False
+    self.bIsOpen                 = True
+    self.ConnectionAttemptFinished.emit('open', '')
+    self.PortOpenStateChange.emit(True)
+
+
+  #######################################################
+  # _HandleOpenFailed - Worker could not open the port
+  #
+
+  def _HandleOpenFailed(self, result, detail):
+    self._ConnectTimeoutTimer.stop()
+    self._bOpenAttemptInProgress = False
+    self._bOpenAttemptTimedOut   = False
+    self._Worker                 = None
+    self.ConnectionAttemptFinished.emit(result, detail)
+
+
+  #######################################################
+  # _HandleWorkerError - Worker hit a serial error after the port was open
+  #
+
+  def _HandleWorkerError(self, detail):
+    self._Worker = None
+    self.errorOccurred.emit(detail)
+    self._HandleClose()
+
+
+  #######################################################
+  # _HandleWorkerClosed - Worker closed after a requested stop
+  #
+
+  def _HandleWorkerClosed(self):
+    self._Worker = None
+    self._HandleClose()
+
+
+  #######################################################
+  # _HandleClose - Mark this facade offline and notify listeners
   #
 
   def _HandleClose(self):
     if self.bIsOpen:
       self.bIsOpen = False
-      self.PortOpenStateChange.emit(self.bIsOpen)
+      self.PortOpenStateChange.emit(False)
 
 
   #######################################################
-  # read - Read whatever bytes are buffered (does NOT auto-open; that could block)
-  #
-  # RETURNS:
-  #   Retrieved data as a QByteArray (empty if not open or on error)
+  # _HandleReceivedBytes - Subclasses consume incoming bytes
   #
 
-  def read(self):
-    if not self.bIsOpen:
-      return QByteArray()
-
-    data = self.readAll()
-    self.flush()
-
-    if self.error() != QSerialPort.NoError:
-      # Device errored mid-stream (unplugged / reset / wedged).  Do NOT close() here - a native
-      # close() on a wedged device blocks the GUI thread.  Mark offline and let the owner abandon
-      # this port and probe-reconnect a fresh one.
-      self._HandleClose()
-      return QByteArray()
-
-    return data
+  def _HandleReceivedBytes(self, Data):
+    pass
 
 
   #######################################################
-  # readString - read() but as a str
+  # _RequestWorkerStop - Ask the current worker to stop and forget it
   #
 
-  def readString(self):
-    data = self.read()
-    return str(data.data(), "utf-8") if not data.isEmpty() else ""
+  def _RequestWorkerStop(self):
+    Worker = self._Worker
+    self._Worker = None
+    if Worker is not None:
+      Worker.Stop()
 
 
   #######################################################
-  # write - Write a str or QByteArray (does NOT auto-open; dropped if offline)
-  #
-  # RETURNS:
-  #   Number of bytes written, or -1 if not open / on error
+  # _StopDrainTimerIfIdle - Stop polling when there is no live worker
   #
 
-  def write(self, data):
-    if not self.bIsOpen:
-      return -1
-
-    if isinstance(data, str):
-      data = data.encode("utf-8")
-
-    bytes_written = super().write(data)
-    if bytes_written == -1 or self.error() != QSerialPort.NoError:
-      # Write error - mark offline (no blocking close()); the owner will abandon + reconnect.
-      self._HandleClose()
-      return -1
-
-    return bytes_written
+  def _StopDrainTimerIfIdle(self):
+    if self._Worker is None and not self._bOpenAttemptInProgress and not self.bIsOpen:
+      self._DrainTimer.stop()
 
 
   #######################################################
-  # close - Real (blocking) close.  Used only at intentional shutdown, NOT for recovery.
-  #
-  # Recovery from a wedged port is done by the owner abandoning this object (see tCollector),
-  # precisely because this close() can block on a sick device.
+  # _RemoveQueuedDataBytes - Release worker receive-buffer budget after draining bytes
   #
 
-  def close(self):
-    if self.isOpen():
-      super().close()
-    self._HandleClose()
+  def _RemoveQueuedDataBytes(self, nBytes):
+    with self._QueuedDataLock:
+      self._QueuedDataBytes[0] = max(0, self._QueuedDataBytes[0] - nBytes)
 
 
 
@@ -342,7 +526,7 @@ class tAutoOpenSerial(QSerialPort):
 #######################################################
 #######################################################
 #
-# tAutoOpenSerialWholeLine - tAutoOpenSerial that emits readyLine for each complete '\n' line
+# tAutoOpenSerialWholeLine - tAutoOpenSerial that emits complete '\n' terminated lines
 #
 
 class tAutoOpenSerialWholeLine(tAutoOpenSerial):
@@ -356,56 +540,23 @@ class tAutoOpenSerialWholeLine(tAutoOpenSerial):
   def __init__(self, *args, **kwargs):
     super().__init__(*args, **kwargs)
 
-    self._lineBuffer = ""  # Buffer for assembling partial lines
-
-    # Assemble lines as bytes arrive.  QueuedConnection (intra-thread) so our drain loop can
-    # consume bytes before a duplicate readyRead is dispatched.
-    self.readyRead   .connect(self._AssembleLine, Qt.QueuedConnection)
-    self.ReaderWakeUp.connect(self.WakeUp,        Qt.QueuedConnection)
+    self._lineBuffer = ""
+    self.ReaderWakeUp.connect(self.WakeUp)
 
 
   #######################################################
-  # WakeUp - Nudge the line assembler (used when telemetry seems to have stalled)
+  # _HandleReceivedBytes - Assemble complete lines from worker bytes
   #
 
-  def WakeUp(self):
-    self.bWakingUp = True
-    self._AssembleLine()
+  def _HandleReceivedBytes(self, Data):
+    if self.bWakingUp:
+      print(f'*****{self.portName()}: Waking up worked*****')
+    self.bWakingUp = False
 
+    if self.bPrintDiag:
+      print(Data.decode("utf-8", errors="ignore"), end="")
 
-  #######################################################
-  # _AssembleLine - Drain buffered bytes and emit readyLine for each complete line
-  #
-
-  def _AssembleLine(self):
-    if self.bytesAvailable() == 0:
-      # Routine with QueuedConnection - our while loop can pick up bytes before the second
-      # signal arrives.
-      self.bWakingUp = False
-      return
-
-    while self.bytesAvailable() > 0:
-      if self.bWakingUp:
-        print(f'*****{self.portName()}: Waking up worked*****')
-      self.bWakingUp = False
-      data = self.read()  # Read available bytes as a QByteArray
-
-      if self.error() != QSerialPort.NoError:
-        # Device errored - mark offline (NO blocking close); the owner abandons + reconnects.
-        print(f"Serial port error on port {self.portName()}: {self.error()}", flush=True)
-        self._HandleClose()
-        return
-
-      if data.isEmpty():
-        break  # No more data available to read
-
-      if self.bPrintDiag:
-        print(str(data.data(), "utf-8", errors="ignore"), end="")
-
-      # The errors="ignore" skips the binary cruft some devices emit right after connecting.
-      self._lineBuffer += str(data.data(), "utf-8", errors="ignore")
-
-      # Emit each complete line (handles more than one full line in the buffer).
-      while "\n" in self._lineBuffer:
-        line, self._lineBuffer = self._lineBuffer.split("\n", 1)
-        self.readyLine.emit(line + "\n")
+    self._lineBuffer += Data.decode("utf-8", errors="ignore")
+    while "\n" in self._lineBuffer:
+      line, self._lineBuffer = self._lineBuffer.split("\n", 1)
+      self.readyLine.emit(line + "\n")
