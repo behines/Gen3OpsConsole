@@ -195,7 +195,7 @@ class MasterControl(QMainWindow):
     self.ui = Ui_MasterControl()
     self.ui.setupUi(self)
     
-    self.setWindowTitle(PROJECT_CONFIG.WindowTitle)
+    self.setWindowTitle(PROJECT_CONFIG.WindowTitle + ('   *** SAFE MODE - collector serial disabled ***' if SAFE_MODE else ''))
     self.ui.label.setText(PROJECT_CONFIG.DisplayName + ' Master Control Panel')
     self.ui.menuWindsorOps.setTitle(PROJECT_CONFIG.MenuTitle)
 
@@ -791,6 +791,8 @@ def RemoveSiteCommandLineArgs():
       del sys.argv[i:i + 2]
     elif sys.argv[i].startswith("--site="):
       del sys.argv[i]
+    elif sys.argv[i] == "--safe":
+      del sys.argv[i]
     else:
       i += 1
 
@@ -801,6 +803,10 @@ if __name__ == "__main__":
   # Get some basic stuff out of the way before even trying to create a window
   ValidateAGILENTSEntries()
   RemoveSiteCommandLineArgs()
+
+  if SAFE_MODE:
+    print('*** SAFE MODE: collector serial ports will NOT be opened.  Use this to drive the '
+          'Agilent USB/motor power relays when boards are wedged. ***', flush=True)
 
   # Create the application and main window
   app = QApplication(sys.argv)

@@ -21,6 +21,8 @@
 from PySide6.QtSerialPort import QSerialPort
 from PySide6.QtCore import Signal, QTimer, QByteArray, QThread, Qt
 
+from ConfigInfo import SAFE_MODE
+
 
 
 #######################################################
@@ -86,6 +88,12 @@ class tAutoOpenSerial(QSerialPort):
   # If the open is not successful, will arm the reopen timer
 
   def AttemptOpenIfNeeded(self):
+    # Safe-start (--safe): never open the port.  A blocking QSerialPort.open()/close() on a
+    # wedged/half-powered USB-CDC device would freeze the single-threaded app; in safe mode we
+    # keep all collectors offline so the GUI + Agilent power relays stay usable for recovery.
+    if SAFE_MODE:
+      return
+
     # I write this line but don't know why.
     #if self.errorOccurred() == QSerialPort.SerialPortError.TimeoutError:
     #  pass

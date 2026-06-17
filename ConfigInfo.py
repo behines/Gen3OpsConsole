@@ -11,6 +11,13 @@ from enum        import IntEnum, auto
 
 from ProjectConfig import AGILENT_DESCRIPTOR_FIELDS, CollectorMapping, PICOTOOL_PATH, tProjectConfig
 
+# Safe-start mode (launch with --safe): the collector serial ports are NOT opened, so the GUI
+# and the Agilent power relays come up even when boards are wedged.  A blocking
+# QSerialPort.open()/close() on a sick/half-powered USB-CDC device would otherwise freeze the
+# single-threaded app; safe mode keeps all collectors offline so the relays can be driven to
+# power-cycle/recover boards remotely.
+SAFE_MODE = ('--safe' in sys.argv)
+
 #################################################
 #
 # CONFIGURATION SOURCE OF TRUTH
