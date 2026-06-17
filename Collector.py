@@ -13,9 +13,9 @@
 
 # module used to talk over serial with the esp32
 from PySide6.QtCore       import Signal, QDateTime, QTime, QTimeZone, QThread, QTimer, QProcess
-from PySide6.QtSerialPort import QSerialPort
+from PySide6.QtSerialPort import QSerialPort, QSerialPortInfo
 
-from SerialPort        import tAutoOpenSerialWholeLine
+from SerialPort        import tAutoOpenSerialWholeLine, tSerialConnectProbe
 from PowerControl      import tPowerControl
 from Utilities         import tActiveObject
 from ConfigInfo        import *
@@ -59,6 +59,10 @@ class tCollector(tActiveObject):
   
   # CollectorOnlineStateUpdate = Signal(bool)
   PortOpenStateChange        = Signal(bool)
+  # Host-side serial connection state for the pane: 'connected' | 'offline' | 'hung'.
+  # 'hung' = the guarded connect-probe timed out, i.e. QSerialPort.open()/close() is blocking on
+  # a wedged/half-powered board (recover with a USB power-cycle).
+  ConnectionStateUpdate      = Signal(str, str)
 
   # Telemetry signals
   ReleaseStringReceived      = Signal(str)
@@ -114,6 +118,16 @@ class tCollector(tActiveObject):
     # In-flight async picotool reboot processes (QProcess).  Tracked so the kill timer can
     # tell a still-running process from one that already finished and was cleaned up.
     self._PicotoolProcesses      = set()
+
+    # ----- Guarded serial-connect state machine (see SerialPort.py header for WHY) -----
+    # All serial open/close is guarded by a probe thread so a wedged board can't freeze the GUI.
+    self._probe          = None    # in-flight tSerialConnectProbe, or None
+    self._portWentBad    = False   # a connected port went offline -> abandon it + reconnect
+    self._connHung       = False   # last probe timed out (board wedged) -> red HUNG annunciator
+    self._probeFailCount = 0       # consecutive "port present but can't open" probe failures
+    self._abandonedPorts = []      # wedged port objects we keep referenced so their (blocking)
+                                   # close() never runs; the OS handle frees when the device
+                                   # de-enumerates (USB power-cycle / reset)
 
     # These are cached values.  When they change (via a GUI event), we send a command to the collector
     self.WideAngleIllumPercent      = 0
@@ -212,30 +226,151 @@ class tCollector(tActiveObject):
     # Connect to sunrise and sunset updates
     SunriseSunsetUpdateSignal.connect(self.UpdateSunriseSunset)
 
+    self.MissingTelemetryCount = 0
 
-    # We set rtscts and dsrdtr even though this is a virtual COM Port.  This provides a way for 
-    # the virtual port driver to inform when it isn't yet initialized or otherwise ready for
-    # data, which can happen.
-    self.SerialPort  = tAutoOpenSerialWholeLine(self.PortName, baudrate=self.baud, readBufSize=COLLECTOR_RX_BUFFER_SIZE,
-                                                parent=self)
-    # Monitor the port for open/close state changes
+    # Create the (initially closed) serial port and wire its signals.  The port is NOT opened
+    # here - opening is driven by the guarded connect-probe (see _BeginConnect) so a wedged board
+    # can never block the GUI thread inside QSerialPort.open().
+    self._CreateAndWireFreshPort()
+
+    # Inform the CollectorPane of the initial (offline) state.
+    self.OnlineStatusUpdate(self.SerialPort.IsOpen())
+
+    # Kick off the guarded connect right away (a no-op in --safe mode).
+    self._BeginConnect()
+
+    # And start the periodic task running (drives reconnects / health checks).
+    super().Start()
+
+
+  ###############################################
+  # _CreateAndWireFreshPort - Make a brand-new serial-port object and connect its signals
+  #
+  # Used at startup and whenever we abandon a wedged port and reconnect.  Each fresh object
+  # self-wires its own readyRead->line-assembly; here we wire the collector-level signals.
+  #
+
+  def _CreateAndWireFreshPort(self):
+    self.SerialPort = tAutoOpenSerialWholeLine(self.PortName, baudrate=self.baud,
+                                               readBufSize=COLLECTOR_RX_BUFFER_SIZE, parent=self)
+    self.SerialPort.bPrintDiag = False
     self.SerialPort.PortOpenStateChange.connect(self.OnlineStatusUpdate)
-
-    # And for text strings
     self.SerialPort.readyLine          .connect(self.ProcessLineOfOutput)
     self.SerialPort.errorOccurred      .connect(self.HandleSerialPortError)
 
-    self.MissingTelemetryCount = 0
 
-    self.SerialPort.bPrintDiag = False
-   
-    # Manually call OnlineStatusUpdate the first time, to intiialize the port and inform CollectorPane, if it is open
-    self.OnlineStatusUpdate(self.SerialPort.IsOpen())
-    if not self.bInit:
-      print('tCollector: Could not open collector',self.CollectorName,'on port', self.PortName, flush=True)
+  ###############################################
+  # _BeginConnect - Start a guarded (non-blocking) connect via the probe
+  #
+  # We never open the real port directly from the GUI thread (open() can block on a wedged
+  # board).  Instead we probe the port on a worker thread; _OnProbeFinished opens the real port
+  # only if the probe proved it opens+closes fast.  No-op in --safe mode, while a probe is
+  # already running, or if we're already connected.
+  #
 
-    # And start the periodic task running
-    super().Start()
+  def _BeginConnect(self):
+    if SAFE_MODE or self._probe is not None or self.SerialPort.IsOpen():
+      return
+    self._probe = tSerialConnectProbe(self.PortName, self.baud, SERIAL_CONNECT_PROBE_TIMEOUT_SECS, parent=self)
+    self._probe.finished.connect(self._OnProbeFinished)
+    self._probe.Start()
+
+
+  ###############################################
+  # _OnProbeFinished - Act on the probe result: 'ok' / 'fail' / 'timeout'
+  #
+
+  def _OnProbeFinished(self, result):
+    probe = self._probe
+    self._probe = None
+    if probe is not None:
+      probe.deleteLater()
+
+    if result == 'ok':
+      # Device opened+closed fast on the probe -> safe to open the real port on the GUI thread
+      # (it will be fast too).  AttemptOpenIfNeeded emits PortOpenStateChange(True) on success ->
+      # OnlineStatusUpdate -> bInit True + InitializeConnection.
+      self._probeFailCount = 0
+      self._SetHung(False)
+      self.SerialPort.AttemptOpenIfNeeded()
+
+    elif result == 'timeout':
+      # open()/close() is BLOCKED on the worker thread -> the board is wedged-but-present.
+      # Declare HUNG (red); recovery is a USB power-cycle.  We retry on later cycles, and once the
+      # device finally recovers the next probe returns 'ok' and we reconnect.
+      self._SetHung(True)
+
+    else:  # 'fail'
+      # Couldn't open quickly.  If the COM port isn't even present, the board is rebooting /
+      # unplugged - normal, stay quietly offline.  If it IS present but we still can't open it
+      # (held by an abandoned wedged handle, or wedged), call it HUNG after a few tries so a brief
+      # mid-reboot blip doesn't flash red.
+      if self._PortIsPresent():
+        self._probeFailCount += 1
+        self._SetHung(self._probeFailCount >= SERIAL_HUNG_FAIL_THRESHOLD)
+      else:
+        self._probeFailCount = 0
+        self._SetHung(False)
+
+
+  ###############################################
+  # _PortIsPresent - True if this collector's COM port currently exists in the OS
+  #
+  # Absent  -> the device is rebooting / unplugged (normal, will reconnect).
+  # Present -> the device is enumerated; if we still can't open it, it's wedged.
+  #
+
+  def _PortIsPresent(self):
+    return self.PortName in [p.portName() for p in QSerialPortInfo.availablePorts()]
+
+
+  ###############################################
+  # _AbandonAndConnectFresh - Drop a stale/wedged port (without closing it) and reconnect fresh
+  #
+  # The current port object went offline/errored, and its OS handle may still be held by a wedged
+  # device.  A native close() to recover it would block the GUI thread - so we do NOT close it.
+  # We ABANDON it: stop listening to it, and keep a reference so its destructor (which would call
+  # the blocking close()) never runs.  Then we bring up a brand-new port object and probe-connect
+  # through it.  The abandoned handle is released for free when the device de-enumerates (USB
+  # power-cycle / reset).  Cost: a tiny intentional leak per wedge - it can't hang, which is the
+  # whole point.
+  #
+
+  def _AbandonAndConnectFresh(self):
+    old = self.SerialPort
+    if old is not None:
+      old.blockSignals(True)
+      try:
+        old.PortOpenStateChange.disconnect(self.OnlineStatusUpdate)
+        old.readyLine          .disconnect(self.ProcessLineOfOutput)
+        old.errorOccurred      .disconnect(self.HandleSerialPortError)
+      except (RuntimeError, TypeError):
+        pass
+      self._abandonedPorts.append(old)
+
+    # We're offline now; grey the pane.
+    self.bInit = False
+    self.PortOpenStateChange.emit(False)
+
+    self._CreateAndWireFreshPort()
+    self._BeginConnect()
+
+
+  ###############################################
+  # _SetHung - Set/clear the HUNG (red) connection state, announcing changes to the pane
+  #
+
+  def _SetHung(self, bHung):
+    if bHung == self._connHung:
+      return
+    self._connHung = bHung
+    if bHung:
+      print(f'tCollector: Collector {self.CollectorName} appears HUNG (serial port wedged - '
+            f'open/close blocked).  Recover with a USB power-cycle.', flush=True)
+      self.ConnectionStateUpdate.emit(self.CollectorName, 'hung')
+    else:
+      # Clear the HUNG indication; reflect current connectivity.
+      self.ConnectionStateUpdate.emit(self.CollectorName, 'connected' if self.bInit else 'offline')
 
 
   ###############################################
@@ -277,11 +412,9 @@ class tCollector(tActiveObject):
   #
 
   def Reconnect(self):
-    if self.SerialPort.IsOpen():
-      self.SerialPort.close()
-    self.bInit = False
-    self.SerialPort.AttemptOpenIfNeeded()
-    self.InitializeConnection()
+    # User-requested reconnect (Reconnect button).  Abandon the current port and probe-reconnect
+    # a fresh one - we never call the blocking close() to recover (it can hang on a wedged board).
+    self._AbandonAndConnectFresh()
 
 
   ###############################################
@@ -294,13 +427,24 @@ class tCollector(tActiveObject):
     bOldState  = self.bInit
     self.bInit = self.SerialPort.IsOpen()
 
-    # If the connection is offline, mark the status as unknown
+    # If we were connected and just went offline, this port object is now stale: its OS handle
+    # may still be held by a wedged device, and a native close() would block the GUI thread.
+    # Flag it so PeriodicMethod abandons it and probe-reconnects a fresh port (instead of ever
+    # calling the blocking close()).
+    if bOldState and not self.bInit:
+      self._portWentBad = True
+
+    # If the connection is offline, mark the collector state unknown
     if not self.bInit:
       self.CollectorState = CollectorNativeStates.UNKNOWN
       self.CollectorStateUpdate.emit(self.CollectorName, self.CollectorState)
+      if not self._connHung:
+        self.ConnectionStateUpdate.emit(self.CollectorName, 'offline')
 
     # If the connection has just come online, initialize it
     if self.bInit and not bOldState:
+      self._SetHung(False)
+      self.ConnectionStateUpdate.emit(self.CollectorName, 'connected')
       self.InitializeConnection()
 
     # Inform the CollectorPane
@@ -314,35 +458,27 @@ class tCollector(tActiveObject):
   #
 
   def PeriodicMethod(self):
-    #if self.SerialPort.bPrintDiag: 
-    #  #print(f"Periodic task Current thread: {QThread.currentThread()}", f"Collector thread: {self.thread()}")
-    #  nBytesAvailable = self.SerialPort.bytesAvailable()
-    #  if nBytesAvailable > 0:
-    #    print(f'Periodic taks ***FOUND {nBytesAvailable} bytes***')
-    #    self.SerialPort.readyRead.emit()
-    #  else:
-    #    print('Periodic task')
-
-    # If USB power is not on, we the port won't even exist and we should not attempt to do anything
+    # If USB power is off, the ports don't even exist - do nothing.
     if not self.bUsbPowerState:
       return
 
-    # If the port appears open but has become unresponsive for too long, re-open
+    # If we're connected but telemetry has stopped for too long, the board has either rebooted/
+    # reset (we must reconnect) or wedged (-> HUNG).  We do NOT pre-judge which: we abandon this
+    # port and probe-reconnect a fresh one, and the guarded probe sorts it out.  (Closing the
+    # current open port to "reopen" it - the old behaviour - is exactly what hung the app, so we
+    # never do that.)
     if self.SerialPort.IsOpen() and self.MissingTelemetryCount >= COLLECTOR_MISSING_TELEM_REOPEN_THRESHOLD:
-      #print(f'Forcing reopen attempt for collector {self.CollectorName}',flush=True)
-      self.SerialPort.Reopen()
-      self.MissingTelemetryCount = 0  # Just so we don't introduce a reopen loop
-    # If it's been unresponsive at all, try to goose the receiver thread with a signal
-    elif self.SerialPort.IsOpen() and self.MissingTelemetryCount > 0:
-      #print(f'Attempting wakeup for collector {self.CollectorName}',flush=True)
-      self.SerialPort.ReaderWakeUp.emit()
-    else:
-      self.SerialPort.AttemptOpenIfNeeded()  # Will be a no-op if the port is open
-    if not self.SerialPort.IsOpen():
-      #print('tCollector: Collector ' + self.CollectorName + ' on port ' + self.PortName + ' offline', flush=True)
-      pass
+      self._portWentBad = True
 
-    # Increment the missing telemetry counter.  ProcessOutputLine will re-zero it 
+    if self._probe is None:
+      # No probe in flight - advance the connection.
+      if self._portWentBad:
+        self._portWentBad = False
+        self._AbandonAndConnectFresh()       # abandon the stale/wedged port, then fresh + probe
+      elif not self.SerialPort.IsOpen():
+        self._BeginConnect()                 # initial connect, or retry of an absent/wedged port
+
+    # Count the missing-telemetry interval.  ProcessLineOfOutput re-zeros it on any received line.
     self.MissingTelemetryCount = self.MissingTelemetryCount + 1
   
   

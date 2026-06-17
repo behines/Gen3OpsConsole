@@ -179,6 +179,17 @@ COLLECTOR_TX_BUFFER_SIZE =  2000
 # handle.
 PICOTOOL_REBOOT_TIMEOUT_SECS = 45
 
+# How long the guarded serial connect-probe is allowed to open+close a port before we declare
+# the collector HUNG.  QSerialPort.open()/close() can block forever in the Windows driver on a
+# wedged/half-powered USB-CDC board; we run the open+close on a throw-away worker thread and a
+# GUI timer gives up after this long (see tSerialConnectProbe in SerialPort.py).  Generous, but
+# far shorter than the "forever" it would otherwise hang.
+SERIAL_CONNECT_PROBE_TIMEOUT_SECS = 5
+
+# How many consecutive "port is present but we still can't open it" probe failures before we
+# show HUNG (red).  Keeps a brief mid-reboot blip from flashing red.
+SERIAL_HUNG_FAIL_THRESHOLD = 3
+
 COLLECTOR_PORTS = []
 
 # Mirror of the embedded TRACKER_STATE enum in Gen3_Tracker/TrackerStates.h.
