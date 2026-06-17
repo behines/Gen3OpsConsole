@@ -58,7 +58,11 @@ class tThinger():
     }
 
     try:
-      response = requests.post(self.ThingerURL, headers=self.headers, json=data)
+      # IMPORTANT: requests has NO default timeout - without this, a slow/unreachable Thinger
+      # server blocks the GUI thread indefinitely (this runs in the once-a-minute logger cycle,
+      # on the single GUI thread).  Bound both the connect and read so a network hiccup can't
+      # freeze the whole app.  The except below already handles the resulting Timeout.
+      response = requests.post(self.ThingerURL, headers=self.headers, json=data, timeout=(4, 4))
 
       if response.status_code == 200:
         # print("Data sent to Thinger.io bucket:", data)
