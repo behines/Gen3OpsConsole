@@ -381,7 +381,7 @@ class tCollector(tActiveObject):
   def UpdateSunriseSunset(self, Sunrise: QDateTime, Sunset: QDateTime):
     self.sunrise = Sunrise
     self.sunset  = Sunset
-    self.SetTimeToNow()          # Inform the collector
+    self.SetTimeToNow(bQuietIfOffline=True)  # Inform the collector, if it is connected.
 
 
   ###############################################
@@ -763,7 +763,13 @@ class tCollector(tActiveObject):
   #  Sets the time on the collector
   #     
 
-  def SetTimeToNow(self):
+  def SetTimeToNow(self, bQuietIfOffline=False):
+    if not hasattr(self, 'SerialPort') or not self.SerialPort.IsOpen():
+      if not bQuietIfOffline:
+        print ('Could not set time for ', self.CollectorName)
+      self.bResponded = True
+      return -1
+
     timezone = QTimeZone(SITE_TIMEZONE.encode('utf-8'))
     #if not isinstance(timezone, QTimeZone):
     #  raise TypeError("timezone must be of type QTimeZone")

@@ -360,10 +360,12 @@ THINGER_IO_BEARER_TOKEN = None
 
 from WindsorConfig import WINDSOR_CONFIG
 from SandiaConfig  import SANDIA_CONFIG
+from BradConfig    import BRAD_CONFIG
 
 PROJECT_CONFIGS = {
   "windsor": WINDSOR_CONFIG,
   "sandia" : SANDIA_CONFIG,
+  "brad"   : BRAD_CONFIG,
 }
 
 

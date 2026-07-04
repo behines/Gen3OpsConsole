@@ -1,7 +1,7 @@
 if (-not $env:GEN3_SITE) {
   Add-Type -AssemblyName PresentationFramework
   [System.Windows.MessageBox]::Show(
-    "GEN3_SITE is not set. Set it to 'sandia' or 'windsor' before launching.",
+    "GEN3_SITE is not set. Set it to 'sandia', 'windsor', or 'brad' before launching.",
     "Gen3 Ops Console Startup Error",
     "OK",
     "Error"

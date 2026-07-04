@@ -3,7 +3,7 @@
 #
 # USAGE:
 #   python MasterControl.py --site <sitename>
-#   where sitename is either windsor or sandia.
+#   where sitename is windsor, sandia, or brad.
 #   
 #   Note that the app may be installed in a venv, in which case you should follow
 #   the instructions in the USING A VENV section below to activate the venv before
