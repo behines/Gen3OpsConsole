@@ -130,7 +130,7 @@ import os
 import re
 
 from PySide6.QtWidgets  import QApplication, QMainWindow, QLabel, QButtonGroup, QMessageBox
-from PySide6.QtCore     import Qt, QThread, QDateTime, QTimeZone, QTimer, QSignalBlocker
+from PySide6.QtCore     import Qt, QThread, QDateTime, QTimeZone, QTimer, QSignalBlocker, QElapsedTimer, QCoreApplication
 
 # Import configuration of the system
 from Gen3OpsConsole_ui  import Ui_MasterControl
@@ -514,38 +514,85 @@ class MasterControl(QMainWindow):
 
 
   #######################################################
-  # UserCheckedMotorPower - Updates the checkbox based on signals from the class
+  # _PausePumpingEvents - Waits the given time without freezing the GUI
+  #
+
+  def _PausePumpingEvents(self, nSeconds):
+    PauseBudget = QElapsedTimer()
+    PauseBudget.start()
+
+    while PauseBudget.elapsed() < 1000 * nSeconds:
+      QCoreApplication.processEvents()
+      QThread.msleep(50)
+
+
+  #######################################################
+  # _CommandPowerRelayWithRetry - Commands a power relay and verifies it responded
+  #
+  # Sends the state, verifies by readback, and if the relay did not move, waits briefly
+  # and re-sends once.  The retry covers the window at the top of each minute where the
+  # relay Agilent is mid-scan and rejects relay commands.
+  #
+  # RETURNS:
+  #   True if the readback confirmed the commanded state
+
+  def _CommandPowerRelayWithRetry(self, PowerControl: tPowerControl, bValue, sName):
+    for nAttempt in range(2):
+      PowerControl.SetPowerState(bValue)
+      try:
+        if PowerControl.GetPowerState() == bValue:
+          return True
+      except TimeoutError:
+        pass
+
+      if nAttempt == 0:
+        print(f'{sName} power relay readback does not match; retrying in {POWER_RELAY_RETRY_DELAY_SECS} s', flush=True)
+        self._PausePumpingEvents(POWER_RELAY_RETRY_DELAY_SECS)
+
+    return False
+
+
+  #######################################################
+  # UserCheckedMotorPower - Commands the motor power relay when the user clicks the checkbox
+  #
+  # The checkbox is disabled for the duration so that a click during the retry pause
+  # (which pumps the event loop) cannot re-enter this handler.
 
   def UserCheckedMotorPower(self, checkstate: Qt.CheckState):
     if self.MotorPower is None:
       return
+
     bValue = (checkstate == Qt.Checked)
-    self.MotorPower.SetPowerState(bValue)
-    print('Turning Motor power', 'ON' if bValue else 'OFF')
+    print('Turning Motor power', 'ON' if bValue else 'OFF', flush=True)
+    self.ui.MotorPowerCheckBox.setEnabled(False)
     try:
-      bSuccess = (self.MotorPower.GetPowerState() == bValue)
-    except TimeoutError:
-      bSuccess = False
+      bSuccess = self._CommandPowerRelayWithRetry(self.MotorPower, bValue, 'Motor')
+    finally:
+      self.ui.MotorPowerCheckBox.setEnabled(True)
     if not bSuccess:
       QMessageBox.critical(self, "Error", "Motor Power Relay did not respond", QMessageBox.Ok)
 
 
   #######################################################
-  # UserCheckedUsbPower - Updates the checkbox based on signals from the class
+  # UserCheckedUsbPower - Commands the USB hub power relay when the user clicks the checkbox
+  #
+  # The checkbox is disabled for the duration so that a click during the retry pause
+  # (which pumps the event loop) cannot re-enter this handler.
 
   def UserCheckedUsbPower(self, checkstate: Qt.CheckState):
     if self.UsbHubPower is None:
       return
+
     bValue = (checkstate == Qt.Checked)
-    self.UsbHubPower.SetPowerState(bValue)
-    print('Turning USB power', 'ON' if bValue else 'OFF')
+    print('Turning USB power', 'ON' if bValue else 'OFF', flush=True)
+    self.ui.UsbPowerCheckBox.setEnabled(False)
     try:
-      bSuccess = (self.UsbHubPower.GetPowerState() == bValue)
-    except TimeoutError:
-      bSuccess = False
+      bSuccess = self._CommandPowerRelayWithRetry(self.UsbHubPower, bValue, 'USB')
+    finally:
+      self.ui.UsbPowerCheckBox.setEnabled(True)
     if not bSuccess:
       QMessageBox.critical(self, "Error", "USB Power Relay did not respond", QMessageBox.Ok)
-   
+
 
   #######################################################
   # UpdateNipStateMessage

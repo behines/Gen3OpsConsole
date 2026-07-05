@@ -147,6 +147,12 @@ COLLECTOR_MISSING_TELEM_REOPEN_THRESHOLD = 2
 AGILENT_SCAN_COMPLETE_TIMEOUT_SECS = 60   # max wait for a scan's Scanning bit to clear
 AGILENT_FLUSH_TIMEOUT_SECS         =  5   # max time spent draining the input buffer
 
+# How long to wait before re-sending a power relay command whose readback shows the relay
+# did not move.  The Agilent rejects ROUT:CLOS/OPEN while a scan is in progress, and the
+# relay unit scans for a few seconds at the top of each minute, so a single retry after
+# this pause clears that window.
+POWER_RELAY_RETRY_DELAY_SECS       =  4
+
 ##########
 # COM ports for temperature sensors and Marquee display
 #

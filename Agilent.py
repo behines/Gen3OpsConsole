@@ -454,6 +454,29 @@ class tAgilent(QObject):
 
 
   ###############################################
+  # DrainErrorQueue - Reads and reports any errors queued on the instrument
+  #
+  # The 34970A holds up to 10 errors in its error queue, and nothing else in the app ever
+  # reads them, so a rejected command (e.g. ROUT:CLOS while a scan is in progress) is
+  # otherwise completely silent.  Call this after operations whose failure we care about;
+  # any errors found are printed (and thus captured in MasterConsole.log).
+  #
+  # INPUTS:
+  #   sContext - short description of the operation just performed, for the log
+
+  @requires_device_open()
+  def DrainErrorQueue(self, sContext):
+    try:
+      for _ in range(12):        # Queue depth is 10; bounded in case of garbled responses
+        response = self.device.query('SYST:ERR?').strip()
+        if response.startswith('+0,') or response.startswith('0,'):
+          break
+        print(f'Agilent {self.DeviceName}: instrument error after {sContext}: {response}', flush=True)
+    except pyvisa.errors.VisaIOError:
+      print(f'Agilent {self.DeviceName}: timed out reading error queue after {sContext}', flush=True)
+
+
+  ###############################################
   # DoScan - Initiate a scan, for fetching later
   #
   # Runs a scan of the defined channel list.
@@ -621,19 +644,25 @@ class tAgilent(QObject):
   def _GetRelayState(self, ChannelList):
     RelayStateList = []
 
-    # print('In _GetRelayState')
+    # Flush any stale characters first, in case an earlier exchange timed out and its
+    # response arrived later.  Without this, that stale line would be returned as the
+    # "current" relay state.
+    self.FlushInputBuffer()
+
     Command = 'ROUTE:CLOS? '
     scanlist = '(@' + ChannelList + ')'
     self.device.write(Command + scanlist)
     try:
       response = self.device.read()
       response = response.strip()  #[:-2]
-      RelayStateList.extend(map(int,response.split(',')))
+      RelayStateList = [int(field) for field in response.split(',')]
     except pyvisa.errors.VisaIOError:
       pass
+    except ValueError:
+      # Garbled or interleaved response - report a failed read rather than nonsense
+      print(f'Agilent {self.DeviceName}: garbled relay state response: {response!r}', flush=True)
+      RelayStateList = []
 
-
-    # print('_GetRelayState: ', response)
     return RelayStateList
   
 
@@ -656,6 +685,10 @@ class tAgilent(QObject):
 
     self._SetRelayState(RelayChannels, NewRelayState)
 
+    # A rejected relay command (e.g. sent while the unit is mid-scan) only shows up in the
+    # instrument's error queue - surface it in the log rather than letting it vanish
+    self.DrainErrorQueue('setting relays ' + RelayChannels)
+
 
   ###############################################
   # GetRelayState
@@ -673,6 +706,10 @@ class tAgilent(QObject):
   def GetRelayState(self, RelayChannels, RelayType) -> bool:
     # Single-threaded: the relay read is a direct call on the GUI (and Agilent's own) thread.
     RelayStateList = self._GetRelayState(RelayChannels)
+
+    # Drain before raising so that instrument-side errors get logged even on a failed read
+    self.DrainErrorQueue('reading relays ' + RelayChannels)
+
     if not RelayStateList:
       raise TimeoutError("Timed out waiting for relay state")
 

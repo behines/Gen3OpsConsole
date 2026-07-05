@@ -55,16 +55,18 @@ class tPowerControl(QObject):
   # 
   
   def PowerOn(self):
-    print('Powering on', self.Name)
+    sChannelAction = 'opening' if self.RelayType == tAgilent.RELAY_NORMALLY_CLOSED else 'closing'
+    print(f'Powering on {self.Name} ({sChannelAction} Agilent channels {self.RelayChannels})', flush=True)
     self.agilent.SetRelayState(self.RelayChannels, self.RelayType, True)
 
 
   ###############################################
   # PowerOff
-  # 
-  
+  #
+
   def PowerOff(self):
-    print('Powering off', self.Name)
+    sChannelAction = 'closing' if self.RelayType == tAgilent.RELAY_NORMALLY_CLOSED else 'opening'
+    print(f'Powering off {self.Name} ({sChannelAction} Agilent channels {self.RelayChannels})', flush=True)
     self.agilent.SetRelayState(self.RelayChannels, self.RelayType, False)
 
 
@@ -94,6 +96,7 @@ class tPowerControl(QObject):
   #   TimeoutError if the operation times out
 
   def GetPowerState(self) -> bool:
-    bRelayIsClosed = self.agilent.GetRelayState(self.RelayChannels, self.RelayType)
-    return bRelayIsClosed
+    bPowerIsOn = self.agilent.GetRelayState(self.RelayChannels, self.RelayType)
+    print(f'{self.Name} power readback: {"ON" if bPowerIsOn else "OFF"} (Agilent channels {self.RelayChannels})', flush=True)
+    return bPowerIsOn
   
