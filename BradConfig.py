@@ -14,6 +14,7 @@ from ProjectConfig import CollectorMapping, PICOTOOL_PATH, tProjectConfig
 
 BRAD_COLLECTOR_PORTS = [
   CollectorMapping('1A', 'COM7', 'G3V2-0009'),
+  CollectorMapping('2B', 'COM8', 'G3V2-0001'),
 ]
 
 

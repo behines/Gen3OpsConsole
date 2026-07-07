@@ -38,10 +38,10 @@ WINDSOR_AGILENTS = [  [ 'ASRL4::INSTR',              # Port
 
 
 WINDSOR_COLLECTOR_PORTS = [
-  CollectorMapping('1A', 'COM47', 'G3V2-0009'),
+  CollectorMapping('1A', 'COM48', 'G3V2-0009'),
   CollectorMapping('1B', 'COM42', 'G3V2-0027'),  
   CollectorMapping('2A', 'COM41', 'G3V2-0019'),  
-  CollectorMapping('2B', 'COM48', 'G3V2-0001'), 
+  CollectorMapping('2B', 'COM47', 'G3V2-0001'), 
 ]
 
 # The marquee displays starting from collector 0 like this:
