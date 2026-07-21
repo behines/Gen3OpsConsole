@@ -1,0 +1,19 @@
+Board: G3V2-0027  (E663A0079B57C033)
+
+--- Tracker Pointing Offsets ---
+
+  Pointing offsets (4 saved):  X=0.0400  Y=-0.0700  [2026-07-14 14:14:12]
+
+--- LCD Brightness ---
+
+  LCD brightness (8 saved):  volume=27  [no timestamp]
+
+--- Stow Position ---
+
+  Stow position (1 saved):  Az=-90.00  El=19.00  [2026-05-26 11:13:31]
+
+--- EKF Saved State ---
+
+  EKF flash (8 saved):  decl=+21.4969  t0=-0.00716  az0=+4.2640  el0=-2.4719  [2026-07-15 07:32:04]
+
+  diag(P_saved): var(decl)=0.0353910  var(t0)=0.000138506  var(az0)=0.0463812  var(el0)=0.0231342
