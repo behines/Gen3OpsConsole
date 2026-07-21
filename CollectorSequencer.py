@@ -36,7 +36,7 @@ from transitions.extensions.states import add_state_features, Timeout
 from datetime import datetime, timedelta
 import pytz
 
-from PySide6.QtCore import QObject, QTimer, Signal, QDateTime, QTimeZone, QCoreApplication
+from PySide6.QtCore import QObject, QTimer, Signal, QDateTime, QTimeZone, QCoreApplication, Qt
 
 from Collector      import tCollector
 from PowerControl   import tPowerControl
@@ -72,13 +72,22 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
   EnableSeq         = Signal()
   SetFullAutomation = Signal(bool)
 
+  # Carries a state-machine trigger name from a background timeout thread onto the GUI thread.
+  # The transitions library runs state timeouts on their own threading.Timer thread; if a
+  # timeout's transition performs serial I/O (e.g. PoweredOff -> PowerOn -> PoweringUp ->
+  # UsbPowerOn/MotorPowerOn) that collides with the GUI thread's Agilent access.  We emit this
+  # instead and fire the real trigger from a GUI-thread slot (queued) so device I/O stays
+  # single-threaded.  See _FireTrigger.
+  _MarshalledTimeout = Signal(str)
+
   states = [
     { 'name': 'Disabled',                                  },
     { 'name': 'Night',        'on_enter': ['StowAll']      },
     { 'name': 'Daytime'                                    }, 
-    { 'name': 'PoweredOff',   'on_enter': ['MotorPowerOff', 'UsbPowerOff'],  'timeout': COLL_POWEROFF_TIMEOUT,  'on_timeout': 'PowerOn'   },
-    { 'name': 'PoweringUp',   'on_enter': ['UsbPowerOn',   'MotorPowerOn'], 'timeout': COLL_POWERON_TIMEOUT,   'on_timeout': 'StartStow' },
-    { 'name': 'Stow',         'on_enter': ['StowAll'],      'timeout': COLL_UNSTICK_TIMEOUT,   'on_timeout': 'DoOff' }, 
+    # on_timeout targets marshal the trigger onto the GUI thread - see _MarshalledTimeout
+    { 'name': 'PoweredOff',   'on_enter': ['MotorPowerOff', 'UsbPowerOff'],  'timeout': COLL_POWEROFF_TIMEOUT,  'on_timeout': '_TimeoutPowerOn'   },
+    { 'name': 'PoweringUp',   'on_enter': ['UsbPowerOn',   'MotorPowerOn'], 'timeout': COLL_POWERON_TIMEOUT,   'on_timeout': '_TimeoutStartStow' },
+    { 'name': 'Stow',         'on_enter': ['StowAll'],      'timeout': COLL_UNSTICK_TIMEOUT,   'on_timeout': '_TimeoutDoOff' },
   ]
 
   # Transitions
@@ -143,6 +152,10 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
                                   ignore_invalid_triggers = True,
                                   after_state_change = 'NotifyStateChange')
 
+    # State timeouts fire on a background threading.Timer thread; marshal their triggers onto
+    # the GUI thread so the resulting relay I/O never runs concurrently with a scan.
+    self._MarshalledTimeout.connect(self._FireTrigger, Qt.QueuedConnection)
+
     self.LastState      = 'Disabled'
 
     # Set sunrise and sunset to be in the future.  We will get actual values soon
@@ -190,6 +203,37 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
   def __del__(self):
     # self.PowerDown()    # This is now done in the CleanUp method of MasterControl, which calls DoShutdown
     pass
+
+
+  ###############################################
+  # Timeout marshalling
+  #
+  # The transitions Timeout feature fires on_timeout on a background threading.Timer thread.
+  # These on_timeout targets run there, so they must NOT touch the Agilent directly - they only
+  # emit _MarshalledTimeout, whose queued connection re-fires the real trigger on the GUI thread
+  # (see _FireTrigger).  That keeps all serial I/O on the single GUI thread.
+  #
+
+  def _TimeoutPowerOn(self):
+    self._MarshalledTimeout.emit('PowerOn')
+
+
+  def _TimeoutStartStow(self):
+    self._MarshalledTimeout.emit('StartStow')
+
+
+  def _TimeoutDoOff(self):
+    self._MarshalledTimeout.emit('DoOff')
+
+
+  ###############################################
+  # _FireTrigger - Runs on the GUI thread (queued) and fires the named state-machine trigger
+  #
+  # INPUTS:
+  #   sTriggerName - the transitions trigger to invoke (e.g. 'PowerOn')
+
+  def _FireTrigger(self, sTriggerName):
+    getattr(self, sTriggerName)()
 
 
   #######################################################

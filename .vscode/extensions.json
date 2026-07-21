@@ -1,0 +1,9 @@
+{
+  // The Python Environments extension is required for the "shellStartup" venv
+  // activation mode - see the VS CODE SETUP notes in MasterControl.py's header.
+  "recommendations": [
+    "ms-python.python",
+    "ms-python.debugpy",
+    "ms-python.vscode-python-envs"
+  ]
+}

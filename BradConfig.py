@@ -13,8 +13,10 @@ from ProjectConfig import CollectorMapping, PICOTOOL_PATH, tProjectConfig
 
 
 BRAD_COLLECTOR_PORTS = [
-  CollectorMapping('1A', 'COM7', 'G3V2-0009'),
-  CollectorMapping('2B', 'COM8', 'G3V2-0001'),
+  CollectorMapping('1A', 'COM7',  'G3V2-0009'),
+  CollectorMapping('1B', 'COM11', 'G3V2-0027'),
+  CollectorMapping('2A', 'COM10', 'G3V2-0019'),
+  CollectorMapping('2B', 'COM8',  'G3V2-0001'),
 ]
 
 
@@ -33,8 +35,8 @@ BRAD_CONFIG = tProjectConfig(
   Timezone = "America/Los_Angeles",
   Agilents = [],
   CollectorPorts = BRAD_COLLECTOR_PORTS,
-  CollectorGridRows = 1,
-  CollectorGridCols = 1,
+  CollectorGridRows = 2,
+  CollectorGridCols = 2,
   MarqueePort = None,
   MarqueeDisplayOrder = None,
   OutsideTempSensorPort = None,

@@ -454,26 +454,33 @@ class tAgilent(QObject):
 
 
   ###############################################
-  # DrainErrorQueue - Reads and reports any errors queued on the instrument
+  # LogInstrumentError - Reads and logs one entry from the instrument's error queue
   #
-  # The 34970A holds up to 10 errors in its error queue, and nothing else in the app ever
-  # reads them, so a rejected command (e.g. ROUT:CLOS while a scan is in progress) is
-  # otherwise completely silent.  Call this after operations whose failure we care about;
-  # any errors found are printed (and thus captured in MasterConsole.log).
+  # A rejected command (e.g. ROUT:CLOS while a scan is in progress) does not fail at the serial
+  # level - the 34970A silently queues an error that nothing else in the app reads.  This surfaces
+  # it into the log (and thus MasterConsole.log) for the user-initiated relay (checkbox) path.
+  #
+  # This is deliberately a SINGLE read, not a drain-to-empty loop, so it can never loop
+  # pathologically if the serial conversation is ever scrambled.  SYST:ERR? returns the OLDEST
+  # queued entry, so this reports the just-issued command's error only when the queue was already
+  # empty - which it normally is, since Reset() issues *CLS at connect and, with relay errors no
+  # longer draining on the automatic path, a backlog is the only thing that would mask it.  Call
+  # this only on the user path (a human is watching the log) - never on the automatic sequencer
+  # paths, where it is pure cost.
   #
   # INPUTS:
   #   sContext - short description of the operation just performed, for the log
 
   @requires_device_open()
-  def DrainErrorQueue(self, sContext):
+  def LogInstrumentError(self, sContext):
     try:
-      for _ in range(12):        # Queue depth is 10; bounded in case of garbled responses
-        response = self.device.query('SYST:ERR?').strip()
-        if response.startswith('+0,') or response.startswith('0,'):
-          break
-        print(f'Agilent {self.DeviceName}: instrument error after {sContext}: {response}', flush=True)
+      response = self.device.query('SYST:ERR?').strip()
     except pyvisa.errors.VisaIOError:
       print(f'Agilent {self.DeviceName}: timed out reading error queue after {sContext}', flush=True)
+      return
+
+    if not (response.startswith('+0,') or response.startswith('0,')):
+      print(f'Agilent {self.DeviceName}: instrument error after {sContext}: {response}', flush=True)
 
 
   ###############################################
@@ -685,10 +692,6 @@ class tAgilent(QObject):
 
     self._SetRelayState(RelayChannels, NewRelayState)
 
-    # A rejected relay command (e.g. sent while the unit is mid-scan) only shows up in the
-    # instrument's error queue - surface it in the log rather than letting it vanish
-    self.DrainErrorQueue('setting relays ' + RelayChannels)
-
 
   ###############################################
   # GetRelayState
@@ -706,9 +709,6 @@ class tAgilent(QObject):
   def GetRelayState(self, RelayChannels, RelayType) -> bool:
     # Single-threaded: the relay read is a direct call on the GUI (and Agilent's own) thread.
     RelayStateList = self._GetRelayState(RelayChannels)
-
-    # Drain before raising so that instrument-side errors get logged even on a failed read
-    self.DrainErrorQueue('reading relays ' + RelayChannels)
 
     if not RelayStateList:
       raise TimeoutError("Timed out waiting for relay state")

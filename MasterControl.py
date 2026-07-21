@@ -114,6 +114,26 @@
 # and versions so pip can rebuild an equivalent environment.
 #
 
+#######################################################
+# VS CODE SETUP (required on each machine)
+#
+# Without this, the first debug launch in a fresh terminal can die with a spurious
+# KeyboardInterrupt seconds into startup, at a random line: VS Code's legacy venv
+# activation injects ".venv\Scripts\Activate.ps1" into the terminal while the app is
+# already running, interrupting it.  See:
+#   https://github.com/microsoft/vscode-python/issues/25720
+#
+# The fix is to activate the venv during shell startup instead, so nothing is ever
+# injected into a busy terminal:
+#   1. Install the "Python Environments" extension (ms-python.vscode-python-envs).
+#      Opening this folder prompts for it (.vscode/extensions.json recommendation).
+#   2. Add to USER settings.json (File > Preferences > Settings > "Open Settings JSON").
+#      These are machine-scoped: VS Code ignores them in workspace settings, so they
+#      must be repeated in the user settings of each machine:
+#        "python.useEnvironmentsExtension": true,
+#        "python-envs.terminal.autoActivationType": "shellStartup",
+#
+
 
 #################################################
 #
@@ -539,6 +559,8 @@ class MasterControl(QMainWindow):
   def _CommandPowerRelayWithRetry(self, PowerControl: tPowerControl, bValue, sName):
     for nAttempt in range(2):
       PowerControl.SetPowerState(bValue)
+      # User path only: surface any error the instrument queued for the command just sent
+      PowerControl.LogInstrumentError()
       try:
         if PowerControl.GetPowerState() == bValue:
           return True
