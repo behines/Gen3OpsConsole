@@ -559,6 +559,8 @@ class MasterControl(QMainWindow):
   def _CommandPowerRelayWithRetry(self, PowerControl: tPowerControl, bValue, sName):
     for nAttempt in range(2):
       PowerControl.SetPowerState(bValue)
+      # User path only: surface any error the instrument queued for the command just sent
+      PowerControl.LogInstrumentError()
       try:
         if PowerControl.GetPowerState() == bValue:
           return True

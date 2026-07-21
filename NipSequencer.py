@@ -94,7 +94,7 @@ from transitions.extensions.states import add_state_features, Timeout
 from datetime import datetime, timedelta
 import pytz
 
-from PySide6.QtCore import QObject, QTimer, Signal, QDateTime, QTimeZone
+from PySide6.QtCore import QObject, QTimer, Signal, QDateTime, QTimeZone, Qt
 
 # Configuration forthe sequencer
 from ConfigInfo import *
@@ -127,16 +127,24 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
   ClearSkyGhiUpdate   = Signal(float)
   NipHasDni           = Signal()
 
+  # Carries a state-machine trigger name from a background timeout thread onto the GUI thread.
+  # The transitions library runs state timeouts on their own threading.Timer thread; if a
+  # timeout's transition performs serial I/O (e.g. DniWarning -> DniShutdown -> off -> PowerDown)
+  # that collides with the GUI thread's Agilent access.  We emit this instead and fire the real
+  # trigger from a GUI-thread slot (queued connection) so all device I/O stays single-threaded.
+  _MarshalledTimeout  = Signal(str)
+
   states = [
     { 'name': 'off',     'on_enter': ['PowerDown'] },
             
-    # Acquire state automatically enters track after timeout, unless another transition 
+    # Acquire state automatically enters track after timeout, unless another transition
     # (namely "sun_is_not_out" has already occurred
-    { 'name': 'acquire', 'on_enter': ['PowerUp'], 'timeout': NIP_ACQUIRE_TIMEOUT,     'on_timeout': 'acquire_complete' }, 
+    # on_timeout targets marshal the trigger onto the GUI thread - see _MarshalledTimeout
+    { 'name': 'acquire', 'on_enter': ['PowerUp'], 'timeout': NIP_ACQUIRE_TIMEOUT,     'on_timeout': '_TimeoutAcquireComplete' },
     { 'name': 'track'                              },
 
     # When in DNI warning, we time out to 'off' unless DNI appears before the timeout
-    { 'name': 'DniWarning',                       'timeout': NIP_DNI_WARNING_TIMEOUT, 'on_timeout': 'Shutdown'         }
+    { 'name': 'DniWarning',                       'timeout': NIP_DNI_WARNING_TIMEOUT, 'on_timeout': '_TimeoutDniShutdown'      }
   ]
 
   # Transitions
@@ -168,8 +176,16 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
 
     [ 'YesDNI',           'DniWarning', 'track'                  ],
 
+    # DniShutdown is the DniWarning timeout's OWN single-source trigger.  It is separate from the
+    # multi-source Shutdown (below) on purpose: the timeout is marshalled onto the GUI thread and
+    # so fires with a small delay, during which a YesDNI may have moved us to 'track'.  Because
+    # DniShutdown is only valid from DniWarning, such a stale fire is harmlessly ignored
+    # (ignore_invalid_triggers) instead of shutting down a tracker whose DNI just returned.
+    [ 'DniShutdown',      'DniWarning', 'off'                    ],
+
+    # Shutdown is multi-source so DoShutdown() / the night transition can force 'off' from anywhere.
     [ 'Shutdown',         'acquire',    'off'                    ],
-    [ 'Shutdown',         'DniWarning', 'off'                    ],  # Without this, the DniWarning timeout above does not do anything
+    [ 'Shutdown',         'DniWarning', 'off'                    ],
     [ 'Shutdown',         'track',      'off'                    ]
 
   ]
@@ -183,6 +199,7 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
   def NoDNI           (self) -> bool: ...
   def YesDNI          (self) -> bool: ...
   def Shutdown        (self) -> bool: ...
+  def DniShutdown     (self) -> bool: ...
   '''
 
   ###############################################
@@ -223,11 +240,15 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
     # this machine is to simply inform the machine of stimuli and have it decide whether
     # it cares about them.
     self.StateMachine   = StateMachineWithTimeouts(model       = self,
-                                  states      = tNipSequencer.states, 
+                                  states      = tNipSequencer.states,
                                   transitions = tNipSequencer.transitions,
                                   initial     = 'off',
                                   ignore_invalid_triggers = True)
-    
+
+    # State timeouts fire on a background threading.Timer thread; marshal their triggers onto
+    # the GUI thread so the resulting relay I/O never runs concurrently with a scan.
+    self._MarshalledTimeout.connect(self._FireTrigger, Qt.QueuedConnection)
+
     self.LastState      = self.state
 
     # The on-enter method is not called for the intial state.  To be sure we know
@@ -260,8 +281,36 @@ class tNipSequencer(QObject):   # Classes that Define or Emit Signals must deriv
     # self.PowerDown()    # This is now done in the CleanUp method of MasterControl, which calls DoShutdown
     pass
 
+
   ###############################################
-  # SetPyranometerPowerState 
+  # Timeout marshalling
+  #
+  # The transitions Timeout feature fires on_timeout on a background threading.Timer thread.
+  # These on_timeout targets run there, so they must NOT touch the Agilent directly - they only
+  # emit _MarshalledTimeout, whose queued connection re-fires the real trigger on the GUI thread
+  # (see _FireTrigger).  That keeps all serial I/O on the single GUI thread.
+  #
+
+  def _TimeoutAcquireComplete(self):
+    self._MarshalledTimeout.emit('acquire_complete')
+
+
+  def _TimeoutDniShutdown(self):
+    self._MarshalledTimeout.emit('DniShutdown')
+
+
+  ###############################################
+  # _FireTrigger - Runs on the GUI thread (queued) and fires the named state-machine trigger
+  #
+  # INPUTS:
+  #   sTriggerName - the transitions trigger to invoke (e.g. 'Shutdown')
+
+  def _FireTrigger(self, sTriggerName):
+    getattr(self, sTriggerName)()
+
+
+  ###############################################
+  # SetPyranometerPowerState
   # 
   # Returns the system to a safe state
   #     

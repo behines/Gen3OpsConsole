@@ -99,4 +99,13 @@ class tPowerControl(QObject):
     bPowerIsOn = self.agilent.GetRelayState(self.RelayChannels, self.RelayType)
     print(f'{self.Name} power readback: {"ON" if bPowerIsOn else "OFF"} (Agilent channels {self.RelayChannels})', flush=True)
     return bPowerIsOn
-  
+
+
+  ###############################################
+  # LogInstrumentError - Surfaces any instrument error queued by the last relay command
+  #
+  # For the user-initiated (checkbox) path only - see tAgilent.LogInstrumentError.  Must NOT be
+  # called from the automatic sequencer paths.
+
+  def LogInstrumentError(self):
+    self.agilent.LogInstrumentError(self.Name)
