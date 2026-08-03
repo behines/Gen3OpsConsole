@@ -56,7 +56,7 @@ MARQUEE_DISPLAY_ORDER = [
 
 MARQUEE_COM_PORT                = 'COM3'
 OUTSIDE_TEMP_SENSOR_PORT        = 'COM7'   # Replace with your read serial port
-DOME_TEMP_SENSOR_PORT           = 'COM39'
+DOME_TEMP_SENSOR_PORT           = 'COM49'
 ELECTRONICS_TEMP_SENSOR_PORT    = 'COM38'  # Temp of electronics box
 
 # CHANNEL NUMBERS UPDATED FOR NEW RELAY PANEL 12/6/2024
