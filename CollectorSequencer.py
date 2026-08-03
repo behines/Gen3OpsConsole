@@ -158,6 +158,10 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
 
     self.LastState      = 'Disabled'
 
+    # Earliest time we may next power-cycle the USB hub to recover mute collectors.  See
+    # _CheckForMuteCollectors - this reboots every collector, so it is rate-limited hard.
+    self._nextMuteRecoveryMsecs = 0
+
     # Set sunrise and sunset to be in the future.  We will get actual values soon
     ThisTimeInTwoDays  = QDateTime.currentDateTime().addDays(2)
     self.Sunrise       = ThisTimeInTwoDays
@@ -340,10 +344,68 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
 
 
   ###############################################
+  # _CheckForMuteCollectors - Last-resort recovery for boards whose ports open but stay silent
+  #
+  # A mute collector's COM port enumerates and opens perfectly, and the board then never sends a
+  # byte.  Reopening cannot fix that; only re-enumerating the USB device can, and the only lever
+  # we have for that is the hub power relay.
+  #
+  # Cycling the hub REBOOTS EVERY COLLECTOR ON IT, so this is deliberately hard to trigger:
+  #   - every collector must be mute (never sacrifice healthy boards to recover a sick one)
+  #   - all of them must have been mute for COLLECTOR_MUTE_RECOVERY_DELAY_SECS
+  #   - and at most one cycle per COLLECTOR_MUTE_RECOVERY_INTERVAL_SECS
+  #
+  # We also stay out of the way while the state machine is doing its own power sequencing.
+  #
+  # RETURNS:
+  #   Nothing
+  #
+  # SIDE EFFECTS:
+  #   _nextMuteRecoveryMsecs - advanced when a recovery cycle is started
+  #
+
+  def _CheckForMuteCollectors(self):
+    if self.UsbHubPower is None or not self.Collectors:
+      return
+
+    if self.state in ('Disabled', 'PoweredOff', 'PoweringUp'):
+      return
+
+    for Collector in self.Collectors:
+      if not Collector.IsMute():
+        return
+      if Collector.MuteDurationSecs() < COLLECTOR_MUTE_RECOVERY_DELAY_SECS:
+        return
+
+    currentMsecs = QDateTime.currentMSecsSinceEpoch()
+    if currentMsecs < self._nextMuteRecoveryMsecs:
+      return
+
+    self._nextMuteRecoveryMsecs = currentMsecs + COLLECTOR_MUTE_RECOVERY_INTERVAL_SECS * 1000
+
+    print(f'Sequencer: every collector has been MUTE for over '
+          f'{COLLECTOR_MUTE_RECOVERY_DELAY_SECS // 60} minutes - their ports open but no board '
+          f'answers.  Power-cycling the USB hub for {COLLECTOR_USB_RECOVERY_OFF_SECS}s to force '
+          f're-enumeration.  THIS REBOOTS EVERY COLLECTOR.', flush=True)
+
+    self.UsbPowerOff()
+    QTimer.singleShot(COLLECTOR_USB_RECOVERY_OFF_SECS * 1000, self._FinishMuteRecovery)
+
+
+  ###############################################
+  # _FinishMuteRecovery - Restore USB power after a mute-recovery off period
+  #
+
+  def _FinishMuteRecovery(self):
+    print('Sequencer: restoring USB hub power after mute recovery', flush=True)
+    self.UsbPowerOn()
+
+
+  ###############################################
   # NotifyStateChange - Callback for state change events
-  # 
+  #
   # Called by the transitions library after a state change
-  #     
+  #
 
   def NotifyStateChange(self):
     print('Collector sequencer transition: ' + self.LastState + ' -> ' + self.state, flush=True)
@@ -371,6 +433,10 @@ class tCollectorSequencer(QObject):   # Classes that Define or Emit Signals must
 
     if self.state == 'Night' and (not USE_DNI_TO_START_DAY or not PROJECT_CONFIG.bHasDniSensor) and current_time >= StartTime and current_time < EndTime:
       self.YesDNI()
+
+    # Check for mute collectors before the Daytime-only work below.  A wedge that starts at dusk
+    # would otherwise sit undetected all night, which is exactly what happened on 2026-08-02.
+    self._CheckForMuteCollectors()
 
     # Really the only work we have to do is if our state is 'Daytime'.  All other state transitions
     # are handled automatically by timeouts.

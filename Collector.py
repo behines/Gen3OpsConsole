@@ -128,6 +128,17 @@ class tCollector(tActiveObject):
     self._abandonedPorts   = []    # wedged port facades kept referenced while worker zombies
                                    # wait for USB de-enumeration / process exit
 
+    # ----- Mute detection: the port opens cleanly but the device never speaks -----
+    # This failure cannot be fixed by reopening (see the COLLECTOR_MUTE_* notes in ConfigInfo);
+    # only re-enumerating the USB device clears it.  We count consecutive silent connections so
+    # the collector can stop hammering the port and the sequencer can escalate.
+    self._bDataSinceOpen     = False # has the current connection delivered a single line?
+    self._nMuteCount         = 0     # consecutive connections that opened but stayed silent
+    self._muteSinceMsecs     = 0     # when this collector went continuously mute (0 = it hasn't)
+    self._nextMuteRetryMsecs = 0     # next reconnect attempt while backing off
+    self._bConnectPending    = False # reopen deferred a tick so the old worker can release the OS
+                                     # handle first - an immediate reopen collides and fails busy
+
     # These are cached values.  When they change (via a GUI event), we send a command to the collector
     self.WideAngleIllumPercent      = 0
     self.NarrowSkyBackgroundPercent = 0
@@ -210,10 +221,17 @@ class tCollector(tActiveObject):
 
   def UsbPowerStateUpdateEvent(self, bNewPowerState):
     self.bUsbPowerState = bNewPowerState
-    if bNewPowerState and self._connHung:
-      self._hungRetryCount = 0
-      self._nextHungRetryMsecs = 0
-      self._portWentBad = True
+
+    if bNewPowerState:
+      # Power returning re-enumerates the device, which is precisely what a mute collector has
+      # been waiting for.  Drop the backoff so the next tick retries at once instead of up to a
+      # minute later.
+      self._nextMuteRetryMsecs = 0
+
+      if self._connHung:
+        self._hungRetryCount = 0
+        self._nextHungRetryMsecs = 0
+        self._portWentBad = True
 
 
   ###############################################
@@ -340,18 +358,70 @@ class tCollector(tActiveObject):
         pass
       self._abandonedPorts.append(old)
 
+    self._PruneAbandonedPorts()
+
     # We're offline now; grey the pane.
     self.bInit = False
     self.CollectorState = CollectorNativeStates.UNKNOWN
     self.CollectorStateUpdate.emit(self.CollectorName, self.CollectorState)
     self.PortOpenStateChange.emit(False)
-    if self._connHung:
-      self.ConnectionStateUpdate.emit(self.CollectorName, 'hung')
-    else:
-      self.ConnectionStateUpdate.emit(self.CollectorName, 'offline')
+    self.ConnectionStateUpdate.emit(self.CollectorName, self._CurrentOfflineState())
+
+    # A fresh port deserves a fresh telemetry window.  Without this, the very next tick sees the
+    # stale count and abandons the new connection immediately - possibly before the board has had
+    # any chance at all to answer.
+    self.MissingTelemetryCount = 0
+    self._bDataSinceOpen       = False
 
     self._CreateAndWireFreshPort()
+
+    if self.IsMute():
+      # A mute device will not answer a fresh port either, so do not queue an immediate reopen -
+      # that would short-circuit the backoff below and put us straight back into the every-8s
+      # hammering this whole change exists to stop.  PeriodicMethod decides when to try again.
+      self._bConnectPending    = False
+      self._nextMuteRetryMsecs = (QDateTime.currentMSecsSinceEpoch() +
+                                  COLLECTOR_MUTE_RETRY_TIMEOUT_SECS * 1000)
+    else:
+      # Do NOT reopen from here.  Abandon() only asks the old worker to stop; it is typically
+      # parked in a 50ms read() and still owns the OS handle, so opening now collides with it and
+      # fails 'busy'.  Defer briefly - long enough for the old worker to exit, short enough that a
+      # user pressing Reconnect still sees an immediate response.
+      self._bConnectPending = True
+      QTimer.singleShot(COLLECTOR_REOPEN_DELAY_MSECS, self._DoPendingConnect)
+
+
+  ###############################################
+  # _DoPendingConnect - Run a reopen that _AbandonAndConnectFresh deferred
+  #
+
+  def _DoPendingConnect(self):
+    if not self._bConnectPending:
+      return
+
+    self._bConnectPending = False
     self._BeginConnect()
+
+
+  ###############################################
+  # _PruneAbandonedPorts - Release abandoned facades whose worker thread has exited
+  #
+  # A facade must stay referenced while its worker is parked in a native call, or the zombie
+  # writes into freed state.  Once the thread is gone the facade is inert, so drop it - including
+  # its Qt parent link, since parentage alone would keep the QObject and its timers alive.
+  #
+
+  def _PruneAbandonedPorts(self):
+    StillWedged = []
+
+    for Port in self._abandonedPorts:
+      if Port.IsFullyStopped():
+        Port.setParent(None)
+        Port.deleteLater()
+      else:
+        StillWedged.append(Port)
+
+    self._abandonedPorts = StillWedged
 
 
   ###############################################
@@ -368,7 +438,87 @@ class tCollector(tActiveObject):
       self.ConnectionStateUpdate.emit(self.CollectorName, 'hung')
     else:
       # Clear the HUNG indication; reflect current connectivity.
-      self.ConnectionStateUpdate.emit(self.CollectorName, 'connected' if self.bInit else 'offline')
+      self.ConnectionStateUpdate.emit(self.CollectorName,
+                                      'connected' if self.bInit else self._CurrentOfflineState())
+
+
+  ###############################################
+  # _CurrentOfflineState - Which disconnected annunciator state applies right now
+  #
+  # RETURNS:
+  #   'hung'   - a native serial open blocked and never returned
+  #   'mute'   - the port opens fine but the board never answers (only re-enumeration fixes this)
+  #   'offline'- ordinary disconnection
+  #
+
+  def _CurrentOfflineState(self):
+    if self._connHung:
+      return 'hung'
+
+    if self.IsMute():
+      return 'mute'
+
+    return 'offline'
+
+
+  ###############################################
+  # IsMute - True when this collector's port opens cleanly but the board never answers
+  #
+  # Reopening cannot clear this state; the USB device has to be re-enumerated.  The sequencer
+  # uses this to decide whether a last-resort USB hub power-cycle is warranted.
+  #
+
+  def IsMute(self):
+    return self._nMuteCount >= COLLECTOR_MUTE_CONNECTION_THRESHOLD
+
+
+  ###############################################
+  # MuteDurationSecs - How long this collector has been continuously mute, 0 if it is not
+  #
+
+  def MuteDurationSecs(self):
+    if self._muteSinceMsecs == 0:
+      return 0
+
+    return (QDateTime.currentMSecsSinceEpoch() - self._muteSinceMsecs) // 1000
+
+
+  ###############################################
+  # _NoteMuteConnection - Record that a connection opened cleanly and delivered nothing
+  #
+  # SIDE EFFECTS:
+  #   _nMuteCount     - incremented
+  #   _muteSinceMsecs - stamped when the mute threshold is first crossed
+  #
+
+  def _NoteMuteConnection(self):
+    self._nMuteCount += 1
+
+    # Announce once, on the transition into mute - not on every silent retry.
+    if self._nMuteCount == COLLECTOR_MUTE_CONNECTION_THRESHOLD:
+      self._muteSinceMsecs     = QDateTime.currentMSecsSinceEpoch()
+      self._nextMuteRetryMsecs = 0
+      print(f'tCollector: Collector {self.CollectorName} is MUTE - its port opens but the board '
+            f'never answers.  Reopening cannot fix this; the USB device must be re-enumerated '
+            f'(power-cycle or replug).  Backing off to one attempt every '
+            f'{COLLECTOR_MUTE_RETRY_TIMEOUT_SECS}s.', flush=True)
+
+
+  ###############################################
+  # _ClearMuteState - The board spoke, so it is not mute after all
+  #
+
+  def _ClearMuteState(self):
+    bWasMute = self.IsMute()
+
+    self._nMuteCount         = 0
+    self._muteSinceMsecs     = 0
+    self._nextMuteRetryMsecs = 0
+
+    if bWasMute:
+      print(f'tCollector: Collector {self.CollectorName} is answering again', flush=True)
+      self.ConnectionStateUpdate.emit(self.CollectorName,
+                                      'connected' if self.bInit else 'offline')
 
 
   ###############################################
@@ -439,10 +589,13 @@ class tCollector(tActiveObject):
       self.CollectorState = CollectorNativeStates.UNKNOWN
       self.CollectorStateUpdate.emit(self.CollectorName, self.CollectorState)
       if not self._connHung:
-        self.ConnectionStateUpdate.emit(self.CollectorName, 'offline')
+        self.ConnectionStateUpdate.emit(self.CollectorName, self._CurrentOfflineState())
 
     # If the connection has just come online, initialize it
     if self.bInit and not bOldState:
+      # This connection has proved nothing yet.  If it stays silent, PeriodicMethod counts it as
+      # a mute cycle - an open port alone is not evidence that the board is alive.
+      self._bDataSinceOpen = False
       self._SetHung(False)
       self.ConnectionStateUpdate.emit(self.CollectorName, 'connected')
       self.InitializeConnection()
@@ -467,11 +620,18 @@ class tCollector(tActiveObject):
     # port and reconnect through a fresh worker.  Closing the current open port to "reopen" it -
     # the old behaviour - is exactly what hung the app, so we never do that on the GUI thread.
     if self.SerialPort.IsOpen() and self.MissingTelemetryCount >= COLLECTOR_MISSING_TELEM_REOPEN_THRESHOLD:
+      # An open port that has never delivered a single byte is mute: the USB device is wedged in a
+      # way that reopening cannot fix.  Count it, so we can back off and the sequencer can escalate
+      # to the only thing that does work - re-enumerating the device.
+      if not self._bDataSinceOpen:
+        self._NoteMuteConnection()
       self._portWentBad = True
 
     if self._portWentBad:
       self._portWentBad = False
       self._AbandonAndConnectFresh()         # abandon the stale/wedged port, then fresh + worker
+    elif self._bConnectPending:
+      self._DoPendingConnect()               # backstop if the deferred-reopen timer never fired
     elif not self.SerialPort.IsOpen() and not self.SerialPort.IsConnectInProgress():
       if self._connHung:
         currentMsecs = QDateTime.currentMSecsSinceEpoch()
@@ -480,6 +640,14 @@ class tCollector(tActiveObject):
           self._hungRetryCount += 1
           self._nextHungRetryMsecs = currentMsecs + SERIAL_HUNG_RETRY_TIMEOUT_SECS * 1000
           self._AbandonAndConnectFresh()     # abandon timed-out worker, then retry fresh
+      elif self.IsMute():
+        # Reopening a mute device accomplishes nothing, and continually re-acquiring the handle
+        # may stop Windows tearing the dead device node down.  Retry rarely; real recovery comes
+        # from the sequencer's last-resort USB power-cycle.
+        currentMsecs = QDateTime.currentMSecsSinceEpoch()
+        if currentMsecs >= self._nextMuteRetryMsecs:
+          self._nextMuteRetryMsecs = currentMsecs + COLLECTOR_MUTE_RETRY_TIMEOUT_SECS * 1000
+          self._BeginConnect()
       else:
         self._BeginConnect()                 # initial connect, or retry after absent/busy/error
 
@@ -512,6 +680,12 @@ class tCollector(tActiveObject):
 
   def ProcessLineOfOutput(self, Line: str):
     self.MissingTelemetryCount = 0
+
+    # Any line at all - telemetry or not - proves the board is alive, which retires a mute
+    # diagnosis and its backoff.
+    self._bDataSinceOpen = True
+    if self._nMuteCount != 0:
+      self._ClearMuteState()
 
     # Strip a leading "> " prompt if present so the line below still recognizes telemetry
     if Line.startswith("> "):

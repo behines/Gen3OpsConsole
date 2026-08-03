@@ -94,6 +94,17 @@ class tPySerialWorker:
 
 
   ###############################################
+  # IsRunning - True while the worker thread has not yet exited
+  #
+  # A worker parked in a native call (open/read on a wedged device) stays alive long after Stop()
+  # is requested.  The facade uses this to tell a finished worker from an intentional zombie.
+  #
+
+  def IsRunning(self):
+    return self._Thread.is_alive()
+
+
+  ###############################################
   # QueueWrite - Queue bytes for the worker to write
   #
 
@@ -254,6 +265,8 @@ class tAutoOpenSerial(QObject):
     self._QueuedDataBytes          = [0]
     self._QueuedDataLock           = threading.Lock()
     self._Worker                   = None
+    self._StoppedWorker            = None  # last worker we asked to stop, kept only so that
+                                           # IsFullyStopped can tell "exited" from "still parked"
     self._bAbandoned               = False
     self._bOpenAttemptInProgress   = False
     self._bOpenAttemptTimedOut     = False
@@ -500,7 +513,26 @@ class tAutoOpenSerial(QObject):
     Worker = self._Worker
     self._Worker = None
     if Worker is not None:
+      self._StoppedWorker = Worker
       Worker.Stop()
+
+
+  #######################################################
+  # IsFullyStopped - True once no worker of ours is still running
+  #
+  # An abandoned facade must be kept referenced while its worker is parked in a native call, or
+  # the zombie writes into freed state.  Once the thread has exited the facade is inert and its
+  # owner may release it.
+  #
+
+  def IsFullyStopped(self):
+    if self._Worker is not None:
+      return False
+
+    if self._StoppedWorker is None:
+      return True
+
+    return not self._StoppedWorker.IsRunning()
 
 
   #######################################################

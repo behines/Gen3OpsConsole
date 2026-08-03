@@ -151,6 +151,7 @@ import re
 
 from PySide6.QtWidgets  import QApplication, QMainWindow, QLabel, QButtonGroup, QMessageBox
 from PySide6.QtCore     import Qt, QThread, QDateTime, QTimeZone, QTimer, QSignalBlocker, QElapsedTimer, QCoreApplication
+from PySide6.QtGui      import QTextCursor
 
 # Import configuration of the system
 from Gen3OpsConsole_ui  import Ui_MasterControl
@@ -258,9 +259,39 @@ class MasterControl(QMainWindow):
 
 
   #######################################################
+  # AppendToMasterLog - Show one console line in the main window's Log box
+  #
+  # Until this existed the Log box was decorative - nothing ever wrote to it, so app-level events
+  # were visible only in the terminal and in MasterConsole.log.  That is why a 13-hour collector
+  # outage on 2026-08-02 showed no messages at all beside the toggling panes.
+  #
+  # INPUTS:
+  #   Line - one complete console line, already timestamped by the tee
+  #
+  # RETURNS:
+  #   Nothing
+  #
+  # SIDE EFFECTS:
+  #   ui.MasterLogTextEdit - appended to, and trimmed to MASTER_LOG_MAXLINES
+  #
+
+  def AppendToMasterLog(self, Line: str):
+    self.ui.MasterLogTextEdit.append(Line)
+
+    # Trim from the top so a long run can't grow the widget without bound.  MasterConsole.log
+    # keeps the full history.
+    while self.ui.MasterLogTextEdit.document().blockCount() > MASTER_LOG_MAXLINES:
+      cursor = self.ui.MasterLogTextEdit.textCursor()
+      cursor.movePosition(QTextCursor.MoveOperation.Start)
+      cursor.select(QTextCursor.SelectionType.BlockUnderCursor)
+      cursor.removeSelectedText()
+      cursor.deleteChar()
+
+
+  #######################################################
   # StartApplication - Constructs and initializes objects
   #
-  # We wait to do this until after the window is constructed, so that information about 
+  # We wait to do this until after the window is constructed, so that information about
   # initialization can be reported to the log and to relevant widgets
 
   def StartApplication(self):
@@ -268,6 +299,11 @@ class MasterControl(QMainWindow):
     ArchiveFolder = os.path.join(os.path.expanduser("~"), ARCHIVE_FOLDER)
 
     self.MasterConsoleLog = tMasterConsoleLog(DailyFolder)
+
+    # Everything printed from here on also lands in the main window's Log box.  Queued, because
+    # print() can be called from a background thread and widgets are GUI-thread only.
+    self.MasterConsoleLog.LineEmitter.LineWritten.connect(self.AppendToMasterLog,
+                                                          Qt.QueuedConnection)
 
     # Verify picotool is available - needed for the Reboot fallback when the embedded reboot
     # command doesn't respond.  Better to fail fast at startup than to discover it's missing

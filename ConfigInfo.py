@@ -203,6 +203,43 @@ SERIAL_HUNG_MAX_RETRY_ATTEMPTS = 3
 # mid-reboot blip from flashing red.
 SERIAL_HUNG_FAIL_THRESHOLD = 3
 
+##########
+# Mute collectors and last-resort USB recovery
+#
+# A collector can fail in a way no amount of reopening will fix: the COM port still enumerates,
+# open() still succeeds, and the device then never delivers a byte and never raises an error.
+# Only re-enumerating the USB device clears it - observed 2026-08-02 19:52 through 2026-08-03,
+# when a spontaneous bus re-enumeration recovered all four boards instantly after 13 hours of
+# fruitless reopening.  So we count consecutive silent connections, back off instead of hammering
+# the port every tick, and - as a genuine last resort - power-cycle the USB hub.
+#
+# The hub is shared: cycling it REBOOTS EVERY COLLECTOR.  The recovery is therefore only allowed
+# when every collector is mute (never sacrifice healthy ones for a sick one), only after a long
+# confirmation delay, and only at a strictly limited rate.
+
+# Consecutive connections that opened cleanly and delivered nothing before a collector is mute.
+COLLECTOR_MUTE_CONNECTION_THRESHOLD   =      3
+
+# How long to leave a mute collector's port closed between reconnect attempts.  Reopening every
+# 8s accomplishes nothing and may keep Windows from tearing the wedged device down.
+COLLECTOR_MUTE_RETRY_TIMEOUT_SECS     =     60
+
+# How long EVERY collector must have been continuously mute before an automatic USB hub
+# power-cycle is considered.  Deliberately patient - this reboots all of them.
+COLLECTOR_MUTE_RECOVERY_DELAY_SECS    = 15 * 60
+
+# Minimum interval between automatic USB hub power-cycles.
+COLLECTOR_MUTE_RECOVERY_INTERVAL_SECS = 60 * 60
+
+# How long to hold USB power off during an automatic recovery cycle.
+COLLECTOR_USB_RECOVERY_OFF_SECS       =      5
+
+# How long to wait after abandoning a port before opening a fresh one.  Abandon() only asks the
+# old worker to stop; it is typically parked in a 50ms read() and still owns the OS handle, so
+# an immediate reopen collides with it and fails 'busy'.  Long enough for the worker to exit,
+# short enough that pressing Reconnect still feels instant.
+COLLECTOR_REOPEN_DELAY_MSECS          =    250
+
 COLLECTOR_PORTS = []
 
 # Mirror of the embedded TRACKER_STATE enum in Gen3_Tracker/TrackerStates.h.
@@ -277,6 +314,11 @@ CollectorNativeStateToMarqueeState = {
 }
 
 COLLECTOR_LOG_MAXLINES = 200
+
+# Lines retained in the main window's Log box.  Larger than the per-collector boxes because this
+# one carries app-level events (connection transitions, relay operations, errors) that are worth
+# scrolling back through.  The full history is in MasterConsole.log regardless.
+MASTER_LOG_MAXLINES    = 500
 
 #########
 # Hang watchdog
